@@ -1,14 +1,14 @@
 /*
 =========================================================
 YETIPSY · 今晚有局
-Backend V2.4
+Backend V2.4.2
 =========================================================
 
 核心：
 - Lobby：同桌先全部进来，再开桌
 - 每一题所有人先看题
-- FIRST READY = 本题 Lead Phone
-- 只有 Lead Phone 播放 READY / 3 / 2 / 1 / POINT
+- 每个人先按 READY；FIRST READY 只取得本题 Lead 权
+- 只有所有在线玩家都 READY 后，Lead Phone 才播放 READY / 3 / 2 / 1 / POINT
 - 其他手机只显示游戏进行中
 - 初始 3 题后进入 Tonight Lobby / Break
 - 之后交替：跨桌 Social Event -> Late Table Round -> Social Event...
@@ -24,6 +24,7 @@ Backend V2.4
 
 const PROP_SHEET_ID = "YETIPSY_SHEET_ID";
 const ONLINE_MS = 7 * 60 * 1000;
+const READY_ONLINE_MS = 90 * 1000;
 const STALE_SESSION_MS = 8 * 60 * 60 * 1000;
 const LEAD_STALE_MS = 15 * 1000;
 const LEAD_TAKEOVER_MS = 60 * 1000;
@@ -46,7 +47,7 @@ const MATCH_HEADERS = [
 
 /* 保留 V2.3 前 5 栏顺序，避免旧数据错位 */
 const TABLE_HEADERS = [
-  "table_id", "round", "question_index", "countdown_at", "updated_at",
+  "table_id", "round", "question_index", "ready_devices", "updated_at",
   "status", "lead_device", "lead_nick", "round_started_at", "next_event_at",
   "event_index", "session_started_at", "session_id", "question_pool"
 ];
@@ -66,8 +67,8 @@ function setup() {
   ensureSheet_(ss, "TABLES", TABLE_HEADERS);
   SpreadsheetApp.flush();
 
-  Logger.log("YETIPSY V2.4 SETUP SUCCESS: " + ss.getName());
-  return { ok: true, version: "2.4", spreadsheet: ss.getName() };
+  Logger.log("YETIPSY V2.4.2 SETUP SUCCESS: " + ss.getName());
+  return { ok: true, version: "2.4.2", spreadsheet: ss.getName() };
 }
 
 function getDB_() {
@@ -100,7 +101,7 @@ function doGet() {
     return json_({
       ok: true,
       service: "YETIPSY Tonight",
-      version: "2.4",
+      version: "2.4.2",
       database: ss.getName(),
       connected: true
     });
@@ -108,7 +109,7 @@ function doGet() {
     return json_({
       ok: false,
       service: "YETIPSY Tonight",
-      version: "2.4",
+      version: "2.4.2",
       connected: false,
       error: String(err.message || err)
     });
@@ -187,12 +188,12 @@ function heartbeat_(ss, d) {
   return { ok: true };
 }
 
-function onlinePlayers_(ss, tableId) {
+function onlinePlayers_(ss, tableId, windowMs) {
   const sh = ss.getSheetByName("PLAYERS");
   if (sh.getLastRow() < 2) return [];
 
   const values = sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues();
-  const cutoff = Date.now() - ONLINE_MS;
+  const cutoff = Date.now() - (Number(windowMs) || ONLINE_MS);
   const table = String(tableId || "").toUpperCase();
   const out = [];
 
@@ -258,6 +259,51 @@ function tableState_(ss, d) {
   let t = ensureTable_(ss, table);
   let data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
 
+  /*
+    QUESTION 状态：READY 是报到，不是立刻开倒数。
+    只有目前仍在线的同桌玩家全部 READY 后，才进入 playing。
+    ready_devices 按点击顺序保存，所以第一个有效 READY 就是 Lead。
+  */
+  if (String(data[5] || "") === "question") {
+    const eligible = onlinePlayers_(ss, table, READY_ONLINE_MS);
+    const eligibleMap = {};
+    eligible.forEach(p => eligibleMap[p.deviceId] = p);
+
+    let ready = parseReadyDevices_(data[3]).filter(id => !!eligibleMap[id]);
+    let leadDevice = String(data[6] || "");
+
+    if (!leadDevice || !eligibleMap[leadDevice] || ready.indexOf(leadDevice) < 0) {
+      leadDevice = ready.length ? ready[0] : "";
+    }
+
+    const leadNick = leadDevice && eligibleMap[leadDevice]
+      ? eligibleMap[leadDevice].nick
+      : "";
+
+    const allReady = eligible.length >= 2 && eligible.every(p => ready.indexOf(p.deviceId) >= 0);
+    const storedReady = JSON.stringify(parseReadyDevices_(data[3]));
+    const nextReady = JSON.stringify(ready);
+    const needsSync = storedReady !== nextReady || String(data[6] || "") !== leadDevice || String(data[7] || "") !== leadNick;
+
+    if (needsSync) {
+      sh.getRange(t.row, 4).setValue(nextReady);
+      sh.getRange(t.row, 7).setValue(leadDevice);
+      sh.getRange(t.row, 8).setValue(leadNick);
+      sh.getRange(t.row, 5).setValue(new Date());
+      SpreadsheetApp.flush();
+      data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+    }
+
+    if (allReady && leadDevice) {
+      const now = new Date();
+      sh.getRange(t.row, 6).setValue("playing");
+      sh.getRange(t.row, 9).setValue(now);
+      sh.getRange(t.row, 5).setValue(now);
+      SpreadsheetApp.flush();
+      data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+    }
+  }
+
   /* Lead 倒数手机消失也不会把整桌永远卡住 */
   if (String(data[5] || "") === "playing") {
     const started = new Date(data[8]).getTime();
@@ -274,6 +320,12 @@ function tableState_(ss, d) {
 
 function tablePayload_(ss, data) {
   const players = onlinePlayers_(ss, data[0]);
+  const readyEligible = onlinePlayers_(ss, data[0], READY_ONLINE_MS);
+  const eligibleMap = {};
+  readyEligible.forEach(p => eligibleMap[p.deviceId] = p);
+
+  const readyDevices = parseReadyDevices_(data[3]).filter(id => !!eligibleMap[id]);
+  const readyPlayers = readyDevices.map(id => eligibleMap[id] ? eligibleMap[id].nick : "PLAYER");
   const started = new Date(data[8]).getTime();
   const status = String(data[5] || "lobby");
 
@@ -293,6 +345,11 @@ function tablePayload_(ss, data) {
     questionPool: String(data[13] || "warm"),
     onlineCount: players.length,
     players: players.map(p => p.nick),
+    readyCount: readyDevices.length,
+    readyTotal: readyEligible.length,
+    readyPlayers: readyPlayers,
+    readyDevices: readyDevices,
+    allReady: readyEligible.length >= 2 && readyDevices.length >= readyEligible.length,
     canTakeOver: status === "discuss" && !!started && Date.now() - started >= LEAD_TAKEOVER_MS
   };
 }
@@ -335,34 +392,78 @@ function claimLead_(ss, d) {
     const deviceId = clean_(d.deviceId, 100);
     const sh = ss.getSheetByName("TABLES");
     const t = ensureTable_(ss, table);
-    const data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+    let data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
 
     if (Number(d.currentRound || 0) !== (Number(data[1]) || 1)) {
       return Object.assign(tablePayload_(ss, data), { isLead: String(data[6] || "") === deviceId });
     }
 
     const status = String(data[5] || "");
-    if (status !== "question" && status !== "playing") {
+    if (status === "playing") {
+      return Object.assign(tablePayload_(ss, data), { isLead: String(data[6] || "") === deviceId });
+    }
+
+    if (status !== "question") {
       return Object.assign(tablePayload_(ss, data), { isLead: false });
     }
 
-    if (String(data[6] || "")) {
-      return Object.assign(tablePayload_(ss, data), { isLead: String(data[6]) === deviceId });
+    /* READY 点击本身也代表这个手机仍在线 */
+    const playersSheet = ss.getSheetByName("PLAYERS");
+    const p = playerRow_(playersSheet, deviceId);
+    if (!p) return { ok: false, error: "not_joined" };
+    playersSheet.getRange(p.row, 7).setValue(new Date());
+
+    const nick = String(p.data[1] || clean_(d.nick, 30) || "PLAYER");
+    let ready = parseReadyDevices_(data[3]);
+
+    if (ready.indexOf(deviceId) < 0) ready.push(deviceId);
+
+    let leadDevice = String(data[6] || "");
+    let leadNick = String(data[7] || "");
+
+    /* 第一个 READY 只取得 Lead 权，不会立刻开始 */
+    if (!leadDevice) {
+      leadDevice = deviceId;
+      leadNick = nick;
     }
 
-    const players = ss.getSheetByName("PLAYERS");
-    const p = playerRow_(players, deviceId);
-    const nick = p ? String(p.data[1] || "PLAYER") : clean_(d.nick, 30) || "PLAYER";
     const now = new Date();
-
-    sh.getRange(t.row, 6, 1, 4).setValues([[
-      "playing", deviceId, nick, now
-    ]]);
+    sh.getRange(t.row, 4).setValue(JSON.stringify(ready));
+    sh.getRange(t.row, 7).setValue(leadDevice);
+    sh.getRange(t.row, 8).setValue(leadNick);
     sh.getRange(t.row, 5).setValue(now);
     SpreadsheetApp.flush();
 
-    const updated = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
-    return Object.assign(tablePayload_(ss, updated), { isLead: true });
+    /* 用 90 秒内仍活跃的玩家判断“全员 READY” */
+    const eligible = onlinePlayers_(ss, table, READY_ONLINE_MS);
+    const eligibleIds = eligible.map(x => x.deviceId);
+    const eligibleMap = {};
+    eligible.forEach(x => eligibleMap[x.deviceId] = x);
+    ready = ready.filter(id => eligibleIds.indexOf(id) >= 0);
+
+    if (ready.length !== parseReadyDevices_(sh.getRange(t.row, 4).getValue()).length) {
+      sh.getRange(t.row, 4).setValue(JSON.stringify(ready));
+    }
+
+    /* 如果最早 READY 的人已经离线，Lead 自动交给仍在线的最早 READY 玩家 */
+    if (!eligibleMap[leadDevice] || ready.indexOf(leadDevice) < 0) {
+      leadDevice = ready.length ? ready[0] : "";
+      leadNick = leadDevice && eligibleMap[leadDevice] ? eligibleMap[leadDevice].nick : "";
+      sh.getRange(t.row, 7).setValue(leadDevice);
+      sh.getRange(t.row, 8).setValue(leadNick);
+    }
+
+    const allReady = eligible.length >= 2 && eligible.every(x => ready.indexOf(x.deviceId) >= 0);
+
+    if (allReady && leadDevice) {
+      sh.getRange(t.row, 6).setValue("playing");
+      sh.getRange(t.row, 9).setValue(new Date());
+      sh.getRange(t.row, 5).setValue(new Date());
+      SpreadsheetApp.flush();
+    }
+
+    data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+    return Object.assign(tablePayload_(ss, data), { isLead: String(data[6] || "") === deviceId });
   } finally {
     lock.releaseLock();
   }
@@ -800,6 +901,17 @@ function matchRow_(sh, matchId) {
     if (String(values[i][0]) === target) return { row: i + 2, data: values[i] };
   }
   return null;
+}
+
+function parseReadyDevices_(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(x => String(x || "")).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
 }
 
 function parseHistory_(value) {

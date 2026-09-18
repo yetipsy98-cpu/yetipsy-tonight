@@ -3,7 +3,7 @@ const C = YT_CONTENT;
 const A = YTAudio;
 const B = YTBackend;
 
-const VERSION = "2.4";
+const VERSION = "2.4.2";
 const STORAGE_KEY = "yt_v24_state";
 
 const oldState = JSON.parse(localStorage.getItem("yt_v2_state") || "{}");
@@ -32,6 +32,7 @@ let clockTimer = null;
 let reminderTimer = null;
 let countdownRunning = false;
 let lastTableSignature = "";
+let tablePollGeneration = 0;
 
 
 /* =====================================================
@@ -70,7 +71,8 @@ function toast(text, ms = 2200) {
 }
 
 function clearViewTimers() {
-  clearInterval(tablePoll);
+  tablePollGeneration++;
+  clearTimeout(tablePoll);
   clearInterval(clockTimer);
   tablePoll = null;
   clockTimer = null;
@@ -116,7 +118,9 @@ function tableSignature(r) {
   return [
     r.status, r.round, r.questionIndex, r.leadDevice, r.nextEventAt,
     r.eventIndex, r.questionPool, r.canTakeOver, r.onlineCount,
-    (r.players || []).join(",")
+    r.readyCount, r.readyTotal, r.allReady,
+    (r.players || []).join(","),
+    (r.readyPlayers || []).join(",")
   ].join("|");
 }
 
@@ -373,7 +377,7 @@ function renderTableState(r) {
   switch (r.status) {
     case "lobby": return renderTableLobby(r);
     case "question": return renderQuestion(r);
-    case "playing": return renderPlaying(r);
+    case "playing": return r.leadDevice === state.deviceId ? runLeadRound(r) : renderPlaying(r);
     case "discuss": return renderDiscuss(r);
     case "break": return renderBreak(r);
     case "event": return renderEventIntro(r);
@@ -381,26 +385,92 @@ function renderTableState(r) {
   }
 }
 
-async function pollTable({ interval = 2500, forceRender = false } = {}) {
-  clearInterval(tablePoll);
-  tablePoll = setInterval(async () => {
-    if (countdownRunning) return;
-    const r = await B.tableState({ deviceId: state.deviceId, table: state.table });
-    if (!r.ok) return;
-    const sig = tableSignature(r);
-    if (forceRender || sig !== lastTableSignature) {
-      renderTableState(r);
-    } else {
-      const online = document.getElementById("onlineCount");
-      if (online) online.textContent = r.onlineCount;
+function pollTable({ interval = 2500, lobbyLive = false } = {}) {
+  tablePollGeneration++;
+  const generation = tablePollGeneration;
+  clearTimeout(tablePoll);
+
+  const schedule = () => {
+    if (generation !== tablePollGeneration) return;
+    tablePoll = setTimeout(tick, interval);
+  };
+
+  const tick = async () => {
+    if (generation !== tablePollGeneration) return;
+
+    if (countdownRunning) {
+      schedule();
+      return;
     }
-  }, interval);
+
+    const r = await B.tableState({
+      deviceId: state.deviceId,
+      table: state.table
+    });
+
+    if (generation !== tablePollGeneration) return;
+
+    if (!r.ok) {
+      schedule();
+      return;
+    }
+
+    const sig = tableSignature(r);
+
+    /*
+      Lobby 不再整页重画。
+      只更新人数、昵称和开桌按钮，避免 Apps Script 较慢时
+      render -> clearInterval -> render 的循环把轮询弄断。
+    */
+    if (lobbyLive && r.status === "lobby") {
+      updateLobbyView(r);
+      lastTableSignature = sig;
+      schedule();
+      return;
+    }
+
+    if (sig !== lastTableSignature) {
+      renderTableState(r);
+      return;
+    }
+
+    const online = document.getElementById("onlineCount");
+    if (online) online.textContent = r.onlineCount;
+
+    schedule();
+  };
+
+  tablePoll = setTimeout(tick, interval);
 }
 
 
 /* =====================================================
    LOBBY / START TABLE
 ===================================================== */
+
+function updateLobbyView(r) {
+  const online = document.getElementById("onlineCount");
+  const peopleList = document.getElementById("lobbyPeople");
+  const startBtn = document.getElementById("startTable");
+
+  if (online) online.textContent = Number(r.onlineCount) || 0;
+
+  if (peopleList) {
+    const people = (r.players || [])
+      .map(name => `<span class="personChip">${esc(name)}</span>`)
+      .join("");
+
+    peopleList.innerHTML = people || `<span class="small">正在等其他人…</span>`;
+  }
+
+  if (startBtn && !startBtn.dataset.loading) {
+    const canStart = Number(r.onlineCount) >= 2;
+    startBtn.disabled = !canStart;
+    startBtn.textContent = canStart
+      ? "大家都进来了 · 开桌"
+      : "WAITING FOR ONE MORE…";
+  }
+}
 
 function renderTableLobby(r) {
   const people = (r.players || []).map(name => `<span class="personChip">${esc(name)}</span>`).join("");
@@ -416,7 +486,7 @@ function renderTableLobby(r) {
         <span>PEOPLE HERE</span>
         <b id="onlineCount">${r.onlineCount}</b>
       </div>
-      <div class="peopleList">${people || `<span class="small">正在等其他人…</span>`}</div>
+      <div class="peopleList" id="lobbyPeople">${people || `<span class="small">正在等其他人…</span>`}</div>
     </div>
 
     <button class="btn primary" id="startTable" ${r.onlineCount < 2 ? "disabled" : ""}>
@@ -425,24 +495,33 @@ function renderTableLobby(r) {
     <button class="btn secondary" id="refresh">SYNC NOW</button>
 
     <p class="small" style="text-align:center;margin-top:12px">
-      开桌后所有手机看到同一题。每题重新抢 READY。
+      人数会自动更新，不需要手动刷新。开桌后所有手机看到同一题，每题重新抢 READY。
     </p>
   `, 25);
 
   document.getElementById("refresh").onclick = loadTableState;
   document.getElementById("startTable").onclick = async e => {
     const btn = e.currentTarget;
+    btn.dataset.loading = "1";
     setButtonLoading(btn, true, "OPENING TABLE…");
-    const x = await B.startTable({ deviceId: state.deviceId, table: state.table });
+
+    const x = await B.startTable({
+      deviceId: state.deviceId,
+      table: state.table
+    });
+
     if (!x.ok) {
+      delete btn.dataset.loading;
       setButtonLoading(btn, false);
       return toast(x.error === "need_two_players" ? "至少两个人进入后再开桌" : "开桌失败，请再试一次");
     }
+
     A.impact();
     renderTableState(x);
   };
 
-  pollTable({ interval: 3000, forceRender: true });
+  updateLobbyView(r);
+  pollTable({ interval: 2000, lobbyLive: true });
 }
 
 
@@ -453,6 +532,11 @@ function renderTableLobby(r) {
 function renderQuestion(r) {
   const q = questionFor(r);
   const isLate = r.questionPool === "late";
+  const readyDevices = Array.isArray(r.readyDevices) ? r.readyDevices : [];
+  const myReady = readyDevices.includes(state.deviceId);
+  const readyCount = Number(r.readyCount) || 0;
+  const readyTotal = Math.max(Number(r.readyTotal) || Number(r.onlineCount) || 0, 1);
+  const readyNames = (r.readyPlayers || []).map(name => `<span class="personChip">${esc(name)} ✓</span>`).join("");
 
   shell(`
     <div class="kicker">${isLate ? "AFTER DARK" : "TABLE SYNC"} · ROUND ${r.round}/${roundLimit(r)}</div>
@@ -468,55 +552,77 @@ function renderQuestion(r) {
       <div class="question" style="margin-top:12px">${esc(q)}</div>
     </div>
 
-    <p class="lead" style="margin-top:18px">
-      大家都先看完。<br>
-      <b style="color:var(--ink)">第一个按 READY 的人，负责这一题的倒数。</b>
-    </p>
+    <div class="card" style="margin-top:12px">
+      <div class="roundMeta">
+        <span>READY</span>
+        <b>${readyCount}/${readyTotal}</b>
+      </div>
+      <div class="peopleList">
+        ${readyNames || `<span class="small">还没有人按 READY</span>`}
+      </div>
+      ${r.leadNick ? `<p class="small" style="margin:10px 0 0">本题 Lead：${esc(r.leadNick)} · 等大家都 READY 才会开始倒数。</p>` : ""}
+    </div>
 
-    <button class="btn primary readyBtn" id="ready">I'M READY · 抢 READY</button>
-    <div class="small" style="text-align:center">FIRST READY = LEAD THIS ROUND</div>
+    ${myReady ? `
+      <button class="btn secondary" disabled>✓ I'M READY</button>
+      <p class="lead" style="text-align:center;margin-top:12px">
+        你已经准备好了。<br>
+        等其他人看完问题并按 READY。
+      </p>
+    ` : `
+      <button class="btn primary readyBtn" id="ready">I'M READY</button>
+      <div class="small" style="text-align:center">第一个 READY = 本题 Lead，但不会马上开始。</div>
+    `}
   `, 32);
 
-  document.getElementById("ready").onclick = async e => {
-    if (countdownRunning) return;
-    const btn = e.currentTarget;
-    setButtonLoading(btn, true, "CLAIMING READY…");
-    tap();
+  const readyBtn = document.getElementById("ready");
+  if (readyBtn) {
+    readyBtn.onclick = async e => {
+      if (countdownRunning) return;
+      const btn = e.currentTarget;
+      setButtonLoading(btn, true, "MARKING READY…");
+      tap();
 
-    const x = await B.claimLead({
-      deviceId: state.deviceId,
-      nick: state.nick,
-      table: state.table,
-      currentRound: r.round
-    });
+      const x = await B.claimLead({
+        deviceId: state.deviceId,
+        nick: state.nick,
+        table: state.table,
+        currentRound: r.round
+      });
 
-    if (!x.ok) {
-      setButtonLoading(btn, false);
-      return toast("READY 失败，请再试一次");
-    }
+      if (!x.ok) {
+        setButtonLoading(btn, false);
+        return toast("READY 失败，请再试一次");
+      }
 
-    if (x.isLead) return runLeadRound(x);
-    renderPlaying(x);
-  };
+      if (x.status === "playing") {
+        return x.isLead ? runLeadRound(x) : renderPlaying(x);
+      }
 
-  pollTable({ interval: 1800 });
+      renderQuestion(x);
+    };
+  }
+
+  pollTable({ interval: 1500 });
 }
 
 async function runLeadRound(r) {
+  if (countdownRunning) return;
+
   clearViewTimers();
   countdownRunning = true;
   const q = questionFor(r);
 
   shell(`
-    <div class="kicker">YOU'RE LEADING THIS ROUND</div>
-    <h2 class="title">你抢到了 READY。</h2>
+    <div class="kicker">ALL READY · YOU'RE LEADING</div>
+    <h2 class="title">全员准备好了。<br>由你来倒数。</h2>
     <div class="card">
       <div class="question">${esc(q)}</div>
-      <p class="small">把手机放大家都看得到的位置。倒数只会从你这台手机播放。</p>
+      <p class="small">只有你这台手机会播放 READY · 3 · 2 · 1 · POINT。把手机放大家都看得到的位置。</p>
     </div>
   `, 36);
 
-  await sleep(450);
+  await sleep(500);
   await countdown();
 
   const x = await B.finishCountdown({ deviceId: state.deviceId, table: state.table });
@@ -531,17 +637,17 @@ async function runLeadRound(r) {
 function renderPlaying(r) {
   const q = questionFor(r);
   shell(`
-    <div class="kicker">ROUND ${r.round} · GAME IN PROGRESS</div>
-    <div class="leadBanner">${esc(r.leadNick || "另一台手机")} 抢到 READY</div>
-    <h2 class="title">抬头。<br>跟着那台手机。</h2>
+    <div class="kicker">ROUND ${r.round} · ALL READY</div>
+    <div class="leadBanner">${esc(r.leadNick || "另一台手机")} 正在带倒数</div>
+    <h2 class="title">抬头。<br>跟着 Lead Phone。</h2>
     <div class="card">
       <div class="question">${esc(q)}</div>
     </div>
     <div class="waiting"></div>
-    <p class="lead" style="text-align:center">不要跟自己的手机倒数。<br>听 Lead Phone 的 READY · 3 · 2 · 1 · POINT。</p>
+    <p class="lead" style="text-align:center">全桌已经 READY。<br>不要跟自己的手机倒数，听 Lead Phone 的 READY · 3 · 2 · 1 · POINT。</p>
   `, 36);
 
-  pollTable({ interval: 1200 });
+  pollTable({ interval: 1000 });
 }
 
 async function countdown() {
