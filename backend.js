@@ -1,8 +1,9 @@
 window.YTBackend = (() => {
 
-  // 已经帮你填好 Apps Script Web App
   const API_URL =
     "https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
+
+  const TIMEOUT = 8000;
 
   const configured = () =>
     /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(API_URL);
@@ -12,10 +13,12 @@ window.YTBackend = (() => {
     if (!configured()) {
       return {
         ok: false,
-        offline: true,
         error: "backend_not_configured"
       };
     }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT);
 
     try {
 
@@ -27,70 +30,59 @@ window.YTBackend = (() => {
         body: JSON.stringify({
           action,
           ...data
-        })
+        }),
+        signal: controller.signal
       });
 
       const text = await response.text();
 
       try {
         return JSON.parse(text);
-      } catch (e) {
-        console.error("YETIPSY API returned non-JSON:", text);
-
+      } catch {
         return {
           ok: false,
-          error: "invalid_backend_response",
-          raw: text
+          error: "invalid_backend_response"
         };
       }
 
     } catch (e) {
 
-      console.error("YETIPSY Backend Error:", e);
+      if (e.name === "AbortError") {
+        return {
+          ok: false,
+          error: "timeout"
+        };
+      }
 
       return {
         ok: false,
-        error: String(e)
+        error: "network_error",
+        detail: String(e)
       };
+
+    } finally {
+      clearTimeout(timer);
     }
   }
 
   return {
-
     configured,
 
-    join: (p) =>
-      post("join", p),
+    join: p => post("join", p),
+    heartbeat: p => post("heartbeat", p),
 
-    heartbeat: (p) =>
-      post("heartbeat", p),
+    status: p => post("status", p),
 
-    status: (p) =>
-      post("status", p),
+    tableState: p => post("tableState", p),
+    startCountdown: p => post("startCountdown", p),
+    nextTableRound: p => post("nextTableRound", p),
 
-    // TABLE SYNC
-    tableState: (p) =>
-      post("tableState", p),
+    queue: p => post("queue", p),
+    matchStatus: p => post("matchStatus", p),
 
-    startCountdown: (p) =>
-      post("startCountdown", p),
+    verify: p => post("verify", p),
 
-    nextTableRound: (p) =>
-      post("nextTableRound", p),
-
-    // MATCH
-    queue: (p) =>
-      post("queue", p),
-
-    matchStatus: (p) =>
-      post("matchStatus", p),
-
-    // VERIFICATION
-    verify: (p) =>
-      post("verify", p),
-
-    complete: (p) =>
-      post("complete", p)
+    complete: p => post("complete", p)
   };
 
 })();
