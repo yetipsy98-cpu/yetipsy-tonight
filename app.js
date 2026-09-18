@@ -71,35 +71,77 @@ function startHeartbeat(){
  heartbeatTimer=setInterval(()=>B.heartbeat({deviceId:state.deviceId}),45000);
 }
 
-function personalWarm(){
- let q=pick(C.warm);state.currentWarm=q;save();
- shell(`<div class="kicker">03 · YOUR QUESTION</div><span class="pill">PERSONAL CARD</span><div class="card" style="margin-top:14px"><div class="question">${esc(q)}</div><p class="small">这是你的题。朋友手机上可能是另一题。准备好才按倒数。</p></div>
- <button class="btn primary" id="count">START COUNTDOWN</button><button class="btn secondary" id="another">换我的题</button>`,28);
- document.getElementById("another").onclick=()=>{state.stats.skips++;save();tap();personalWarm()};
- document.getElementById("count").onclick=()=>countdown(()=>{
-   state.stats.warm++;save();
-   if(state.stats.warm<2)personalWarm();else branchHub();
- });
+let tablePoll=null;
+async function personalWarm(){
+ // Real backend: one shared round/question per table. Offline: local fallback.
+ if(B.configured()){
+   const r=await B.tableState({deviceId:state.deviceId,table:state.table});
+   if(r.ok){
+     state.tableRound=r.round||1; state.currentWarm=C.warm[(r.questionIndex||0)%C.warm.length]; save();
+     return renderTableWarm(r);
+   }
+ }
+ state.currentWarm=state.currentWarm||pick(C.warm);save();
+ renderTableWarm({round:state.stats.warm+1,questionIndex:C.warm.indexOf(state.currentWarm),countdownAt:null,offline:true});
 }
-
+function renderTableWarm(r){
+ clearInterval(tablePoll);
+ shell(`<div class="kicker">03 · TABLE SYNC · ROUND ${r.round||1}</div><span class="pill">TABLE ${esc(state.table)}</span>
+ <div class="card" style="margin-top:14px"><div class="question">${esc(state.currentWarm)}</div>
+ <p class="small">${r.offline?"未连接后台：目前只能本机同步预览。":"同一桌所有手机会看到同一题；任何一个人开始后，全桌一起倒数。"}</p></div>
+ <button class="btn primary" id="count">${r.countdownAt?"SYNCING…":"START FOR THE TABLE"}</button>
+ <button class="btn secondary" id="refresh">SYNC NOW</button>`,28);
+ document.getElementById("refresh").onclick=()=>personalWarm();
+ document.getElementById("count").onclick=async()=>{
+   tap();
+   if(!B.configured()) return countdown(()=>finishTableRound(true));
+   let x=await B.startCountdown({deviceId:state.deviceId,table:state.table});
+   if(x.ok) watchTableCountdown(x.countdownAt);
+   else toast("无法开始，请检查后台");
+ };
+ if(r.countdownAt)watchTableCountdown(r.countdownAt);
+ else if(B.configured()){
+   tablePoll=setInterval(async()=>{
+     let x=await B.tableState({deviceId:state.deviceId,table:state.table});
+     if(x.ok&&x.countdownAt){clearInterval(tablePoll);watchTableCountdown(x.countdownAt)}
+     else if(x.ok && (x.questionIndex||0)!==r.questionIndex){clearInterval(tablePoll);personalWarm()}
+   },900);
+ }
+}
+function watchTableCountdown(iso){
+ clearInterval(tablePoll);
+ const target=new Date(iso).getTime();
+ const wait=Math.max(0,target-Date.now());
+ setTimeout(()=>countdown(()=>finishTableRound(false)),wait);
+}
+async function finishTableRound(offline){
+ state.stats.warm++;save();
+ if(state.stats.warm<2){
+   if(!offline&&B.configured()){
+     let r=await B.nextTableRound({deviceId:state.deviceId,table:state.table});
+     if(r.ok){state.currentWarm=C.warm[(r.questionIndex||0)%C.warm.length];save();return renderTableWarm(r)}
+   }
+   state.currentWarm=pick(C.warm);save();return personalWarm();
+ }
+ branchHub();
+}
 async function countdown(done){
  A.ensure();
  const steps=[
-  {screen:"READY",voice:"READY",ms:900},
-  {screen:"3",voice:"THREE",ms:850},
-  {screen:"2",voice:"TWO",ms:850},
-  {screen:"1",voice:"ONE",ms:850},
-  {screen:"POINT!",voice:"POINT",ms:800}
+  {screen:"READY",voice:"READY",ms:900,cls:"word"},
+  {screen:"3",voice:"THREE",ms:850,cls:""},
+  {screen:"2",voice:"TWO",ms:850,cls:""},
+  {screen:"1",voice:"ONE",ms:850,cls:""},
+  {screen:"POINT!",voice:"POINT",ms:800,cls:"point"}
  ];
  let overlay=document.createElement("div");overlay.className="countdown";document.body.appendChild(overlay);
  for(const x of steps){
-   overlay.innerHTML=`<div><div class="readyText">${x.screen==="READY"?"EVERYONE":""}</div><div class="countNum">${x.screen}</div></div>`;
+   overlay.innerHTML=`<div><div class="readyText">${x.screen==="READY"?"EVERYONE":""}</div><div class="countNum ${x.cls}">${x.screen}</div></div>`;
    if(x.voice==="POINT")A.impact();
    await Promise.all([A.countWord(x.voice),new Promise(r=>setTimeout(r,x.ms))]);
  }
  overlay.remove();done();
 }
-
 function branchHub(){
  if(state.mode==="chill")return chillRoute();
  if(state.mode==="open")return openRoute();
@@ -134,7 +176,7 @@ function openRoute(fromBranch=false){
 }
 
 async function queueForMatch(){
- shell(`<div class="kicker">MATCHING</div><h2 class="title">正在找另一个人。</h2><div class="waiting"></div><p class="lead" style="text-align:center">不是找另一整桌。<br>是在其他桌里，找一个属于你的玩家。</p><button class="btn secondary" id="cancel">CANCEL</button>`,55);
+ shell(`<div class="kicker">MATCHING</div><h2 class="title">正在找另一个人。</h2><div class="waiting"></div><p class="lead" style="text-align:center">系统只会匹配<strong style="color:var(--ink)">其他桌</strong>的独立玩家。<br>如果现场只有你这一桌进入 Match Pool，就会继续等待。</p><button class="btn secondary" id="cancel">CANCEL</button>`,55);
  document.getElementById("cancel").onclick=()=>{clearInterval(matchPoll);state.stats.skips++;save();deepSolo()};
  let r=await B.queue({deviceId:state.deviceId,nick:state.nick,table:state.table,mode:state.mode});
  if(r.ok&&r.match)return showMatch(r.match);

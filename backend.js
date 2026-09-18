@@ -1,5 +1,5 @@
 window.YTBackend=(()=>{
- const API_URL="https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
+ const API_URL="PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
  const configured=()=>API_URL.startsWith("https://");
  async function post(action,data={}){
    if(!configured())return {ok:false,offline:true};
@@ -14,6 +14,9 @@ window.YTBackend=(()=>{
    status:(p)=>post("status",p),
    queue:(p)=>post("queue",p),
    matchStatus:(p)=>post("matchStatus",p),
+   tableState:(p)=>post("tableState",p),
+   startCountdown:(p)=>post("startCountdown",p),
+   nextTableRound:(p)=>post("nextTableRound",p),
    verify:(p)=>post("verify",p),
    complete:(p)=>post("complete",p),
    heartbeat:(p)=>post("heartbeat",p)

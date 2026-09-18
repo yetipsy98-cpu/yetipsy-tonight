@@ -26,6 +26,7 @@ Enable GitHub Pages from `main` / root.
 The backend automatically creates:
 - PLAYERS
 - MATCHES
+- TABLES
 
 ## 3. Matching rules in this build
 - One browser/device gets one persistent device ID.
@@ -43,3 +44,19 @@ GitHub Pages alone cannot do real multi-phone matching. The Google Apps Script U
 
 ## Voice
 The READY / THREE / TWO / ONE / POINT voice uses the phone/browser's built-in speech synthesis. Voice quality differs by iPhone/Android/browser. SFX and vibration are separate toggles.
+
+
+## V2.1 同桌同步
+- 同一个 `table` 的所有手机读取同一个 TABLES 状态。
+- 同桌看到相同 Warm-up 问题。
+- 任意一人按 START FOR THE TABLE，后台写入未来约 1.8 秒的共享时间戳。
+- 同桌手机轮询到时间戳后，在同一时间开始 READY / THREE / TWO / ONE / POINT。
+- 网络延迟会造成几十到几百毫秒差异，这是 Google Apps Script 架构的正常范围。
+
+## Match 测试注意
+Match **不会匹配同一桌**。要测试真人 Match：
+1. 手机 A：桌号 A1，选择 OPEN，进入 Find My Match。
+2. 手机 B：桌号 B1，选择 OPEN，进入 Find My Match。
+3. 两台都必须使用已经配置 `/exec` URL 的最新版 `backend.js`。
+4. 如果只用 A1/A1 两台手机测试，它们会一直等待，这是正确行为。
+5. 修改 `Code.gs` 后必须重新 Deploy 新版本；只保存 Apps Script 不会自动更新已部署 Web App。

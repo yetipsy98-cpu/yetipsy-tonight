@@ -5,7 +5,7 @@ Execute as: Me
 Who has access: Anyone
 */
 const SHEET_ID="PASTE_GOOGLE_SHEET_ID_HERE";
-const TABS=["PLAYERS","MATCHES"];
+const TABS=["PLAYERS","MATCHES","TABLES"];
 
 function doGet(){return json_({ok:true,service:"YETIPSY Tonight V2"});}
 function doPost(e){
@@ -15,6 +15,9 @@ function doPost(e){
   if(d.action==="join")return join_(ss,d);
   if(d.action==="heartbeat")return heartbeat_(ss,d);
   if(d.action==="status")return status_(ss,d);
+  if(d.action==="tableState")return tableState_(ss,d);
+  if(d.action==="startCountdown")return startCountdown_(ss,d);
+  if(d.action==="nextTableRound")return nextTableRound_(ss,d);
   if(d.action==="queue")return queue_(ss,d);
   if(d.action==="matchStatus")return matchStatus_(ss,d);
   if(d.action==="verify")return verify_(ss,d);
@@ -27,6 +30,8 @@ function setup_(ss){
  if(p.getLastRow()===0)p.appendRow(["device_id","nick","table_id","mode","status","joined_at","last_seen","current_match","history"]);
  let m=ss.getSheetByName("MATCHES")||ss.insertSheet("MATCHES");
  if(m.getLastRow()===0)m.appendRow(["match_id","a_device","b_device","a_code","b_code","a_verified","b_verified","status","created_at","completed_at"]);
+ let t=ss.getSheetByName("TABLES")||ss.insertSheet("TABLES");
+ if(t.getLastRow()===0)t.appendRow(["table_id","round","question_index","countdown_at","updated_at"]);
 }
 function clean_(s,n){return String(s||"").replace(/[<>]/g,"").trim().slice(0,n);}
 function playerRow_(sh,id){
@@ -46,6 +51,46 @@ function heartbeat_(ss,d){
  return json_({ok:true});
 }
 function status_(ss,d){return matchStatus_(ss,d);}
+function tableRow_(sh,table){
+ const v=sh.getDataRange().getValues();
+ for(let i=1;i<v.length;i++)if(String(v[i][0])===String(table))return {row:i+1,data:v[i]};
+ return null;
+}
+function ensureTable_(ss,table){
+ const sh=ss.getSheetByName("TABLES"),key=clean_(table,12),x=tableRow_(sh,key);
+ if(x)return x;
+ const qi=Math.floor(Math.random()*12);
+ sh.appendRow([key,1,qi,"",new Date()]);
+ return tableRow_(sh,key);
+}
+function tableState_(ss,d){
+ const x=ensureTable_(ss,d.table);
+ return json_({ok:true,round:Number(x.data[1])||1,questionIndex:Number(x.data[2])||0,countdownAt:x.data[3]||null});
+}
+function startCountdown_(ss,d){
+ const lock=LockService.getScriptLock();lock.waitLock(5000);
+ try{
+  const sh=ss.getSheetByName("TABLES"),x=ensureTable_(ss,d.table);
+  let at=x.data[3];
+  // Give every phone ~1.8 seconds to receive the shared timestamp before READY.
+  if(!at || new Date(at).getTime()<Date.now()-6000){
+    at=new Date(Date.now()+1800);
+    sh.getRange(x.row,4).setValue(at);sh.getRange(x.row,5).setValue(new Date());
+  }
+  return json_({ok:true,countdownAt:at});
+ }finally{lock.releaseLock();}
+}
+function nextTableRound_(ss,d){
+ const lock=LockService.getScriptLock();lock.waitLock(5000);
+ try{
+  const sh=ss.getSheetByName("TABLES"),x=ensureTable_(ss,d.table);
+  const round=(Number(x.data[1])||1)+1;
+  // Deterministic-ish next question for the whole table, different from previous.
+  const qi=(Number(x.data[2])+3+Math.floor(Math.random()*8))%12;
+  sh.getRange(x.row,2,1,4).setValues([[round,qi,"",new Date()]]);
+  return json_({ok:true,round:round,questionIndex:qi,countdownAt:null});
+ }finally{lock.releaseLock();}
+}
 function queue_(ss,d){
  const lock=LockService.getScriptLock();lock.waitLock(8000);
  try{

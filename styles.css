@@ -52,7 +52,7 @@ button{cursor:pointer}
 .waiting{width:76px;height:76px;border:1px solid rgba(202,165,106,.3);border-top-color:var(--gold);border-radius:50%;animation:spin 1.2s linear infinite;margin:22px auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 .countdown{position:fixed;inset:0;z-index:120;background:#080705;display:grid;place-items:center;text-align:center;animation:fade .18s ease}
-.countNum{font-size:min(38vw,190px);font-weight:900;line-height:.8;letter-spacing:-.08em;animation:countPop .62s cubic-bezier(.1,.8,.2,1)}
+.countNum{font-size:min(38vw,190px);font-weight:900;line-height:.8;letter-spacing:-.08em;animation:countPop .62s cubic-bezier(.1,.8,.2,1);max-width:94vw;overflow-wrap:normal;white-space:nowrap}.countNum.word{font-size:clamp(42px,14vw,82px);letter-spacing:-.045em}.countNum.point{font-size:clamp(46px,15vw,88px);letter-spacing:-.04em}
 .readyText{font-size:12px;letter-spacing:.35em;color:var(--gold);margin-bottom:20px}
 @keyframes countPop{0%{opacity:0;transform:scale(.72)}30%{opacity:1;transform:scale(1.05)}100%{opacity:.86;transform:scale(.96)}}
 .flash{animation:flash .25s ease}

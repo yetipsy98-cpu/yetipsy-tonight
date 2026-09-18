@@ -1,4 +1,4 @@
-# YETIPSY · 今晚有局 V2
+# YETIPSY · 今晚有局 V2.1
 
 A mobile-first, one-person-one-phone social experience for YETIPSY.
 
@@ -15,3 +15,6 @@ This rebuild changes the core model:
 - Voice / SFX / vibration can be controlled separately
 
 See SETUP.md before live use.
+
+
+V2.1 adds same-table synchronized questions/countdowns, fixes READY/POINT overflow, and improves Match diagnostics.
