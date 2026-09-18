@@ -1,7 +1,17 @@
-# YETIPSY · 今晚有局 — Final Edition
+# YETIPSY · 今晚有局 V2
 
-Premium mobile-first social-night experience for YETIPSY, Kluang.
+A mobile-first, one-person-one-phone social experience for YETIPSY.
 
-Included: scene-based UI, sound toggle, Web Audio countdown, vibration, hold-to-draw missions, question library, LIVE UI, bartender taste discovery, anonymous wall, session persistence, Google Sheets / Apps Script backend template, live participation tracking, moderated shared wall, and Owner LIVE event endpoint.
+This rebuild changes the core model:
+- every guest has an individual device identity
+- every guest chooses a route
+- CHILL and OPEN genuinely branch
+- SURPRISE can enter either route
+- OPEN uses person-to-person matching across different tables
+- matches use reciprocal 4-digit verification
+- verified partners are remembered to reduce repeats
+- endings depend on actual behavior
+- READY / THREE / TWO / ONE / POINT uses spoken voice when supported
+- Voice / SFX / vibration can be controlled separately
 
-The guest experience works in demo mode before the backend URL is configured. See `SETUP.md` for the live multi-device setup.
+See SETUP.md before live use.

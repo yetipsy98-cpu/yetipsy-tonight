@@ -1,1 +1,240 @@
-const C=window.YT_CONTENT,A=window.YTAudio;const app=document.getElementById('app');let state=JSON.parse(localStorage.getItem('yt_v1_state')||'{}');let warmIndex=state.warmIndex||0,used=[];function save(){localStorage.setItem('yt_v1_state',JSON.stringify(state))}function pick(a){return a[Math.floor(Math.random()*a.length)]}function esc(s){return s.replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]))}function shell(body,p=0){app.innerHTML=`<div class="shell"><div class="top"><div class="logo">YETIPSY</div><button class="sound" id="sound">SOUND ${A.isOn()?'ON':'OFF'}</button></div><div class="progress"><i style="width:${p}%"></i></div>${body}</div>`;document.getElementById('sound').onclick=()=>{A.toggle();renderSound()}}function renderSound(){let b=document.getElementById('sound');if(b)b.textContent='SOUND '+(A.isOn()?'ON':'OFF')}function btnTap(){A.tap()}function home(){shell(`<main class="scene"><div class="kicker">TONIGHT · TEST 001</div><h1 class="display">今晚<br>有局。</h1><p class="lead">不是来刷手机。<br>今晚，认识一个人就够了。</p><div class="card"><span class="pill">KLUANG · YETIPSY</span><p class="lead" style="margin:15px 0 0">这里会随机给你问题、任务和今晚限定事件。你随时可以跳过任何互动。</p></div><button class="btn primary" id="enter">ENTER TONIGHT</button><div class="footer">FOR ADULTS OF LEGAL DRINKING AGE · DRINK RESPONSIBLY</div></main>`,3);document.getElementById('enter').onclick=()=>{A.ensure();btnTap();mood()}}function mood(){shell(`<main class="scene"><div class="kicker">01 · YOUR MODE</div><h2 class="title">今晚想怎么玩？</h2><p class="lead">没有对错。选一个最像你的。</p><div class="choices"><button class="choice" data-m="chill"><strong>CHILL</strong><span>先跟自己朋友玩。</span></button><button class="choice" data-m="open"><strong>OPEN</strong><span>可以认识其他桌。</span></button><button class="choice" data-m="surprise"><strong>SURPRISE ME</strong><span>别问。你决定。</span></button></div></main>`,10);document.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{state.mode=b.dataset.m;save();btnTap();warmIntro()})}function warmIntro(){shell(`<main class="scene"><div class="kicker">WARM UP</div><h2 class="title">先别找陌生人。</h2><p class="lead">先看看你朋友有没有在演你。</p><div class="card"><div class="question">准备好以后，所有人把手放好。看到题目后会有 <b>3 · 2 · 1</b> 倒数。</div><p class="small">声音可以随时从右上角关闭。</p></div><button class="btn primary" id="start">开始第一题</button></main>`,18);document.getElementById('start').onclick=()=>{btnTap();warmQuestion()}}function warmQuestion(){let pool=C.warm.filter(x=>!used.includes(x));if(!pool.length){used=[];pool=C.warm}let q=pick(pool);used.push(q);shell(`<main class="scene"><div class="kicker">WARM UP · ${warmIndex+1}/3</div><span class="pill">ALL POINT AT ONCE</span><div class="card" style="margin-top:16px"><div class="question">${q}</div><p class="small">先不要指。按下去以后才开始倒数。</p></div><button class="btn primary" id="count">3 · 2 · 1</button><button class="btn secondary" id="swap">换一题</button></main>`,20+warmIndex*7);document.getElementById('swap').onclick=()=>{btnTap();warmQuestion()};document.getElementById('count').onclick=()=>countdown(()=>{warmIndex++;state.warmIndex=warmIndex;save();if(warmIndex>=3)breakScene();else warmQuestion()})}function countdown(done){A.ensure();let vals=['READY','3','2','1','指！'],i=0;const overlay=document.createElement('div');overlay.className='countdown';document.body.appendChild(overlay);function step(){if(i>=vals.length){setTimeout(()=>{overlay.remove();done()},420);return}let v=vals[i];overlay.innerHTML=`<div><div class="ready">${v==='READY'?'EVERYONE READY':''}</div><div class="countNum">${v}</div></div>`;if(v==='3')A.tick(3);if(v==='2')A.tick(2);if(v==='1')A.tick(1);if(v==='指！')A.tick(0);i++;setTimeout(step,v==='READY'?650:760)}step()}function breakScene(){shell(`<main class="scene"><div class="kicker">BREAK</div><h1 class="display">够了。</h1><p class="lead">现在把手机放下。<br>去聊天、吃东西、喝你想喝的。</p><div class="card"><div class="question">网站的目的不是让你一直留在网站。</div><p class="small">过一阵子再回来。今晚还会发生一点东西。</p></div><button class="btn secondary" id="back">我回来了</button></main>`,42);document.getElementById('back').onclick=()=>{btnTap();missionDraw()}}function missionDraw(){shell(`<main class="scene"><div class="kicker">02 · TABLE MISSION</div><h2 class="title">抽一张。</h2><p class="lead">按住圆圈，直到它满。</p><div class="card"><div class="holdWrap"><div class="hold" id="hold"><span>HOLD<br>TO DRAW</span></div></div></div><p class="small" style="text-align:center">松开太早不会算。</p></main>`,50);let h=document.getElementById('hold'),start=0,raf;function begin(e){e.preventDefault();A.ensure();start=performance.now();function frame(now){let pct=Math.min(100,(now-start)/13);h.style.setProperty('--hold',pct+'%');if(pct>=100){cancelAnimationFrame(raf);A.reveal();missionReveal();return}raf=requestAnimationFrame(frame)}raf=requestAnimationFrame(frame)}function stop(){cancelAnimationFrame(raf);h.style.setProperty('--hold','0%')}h.addEventListener('pointerdown',begin);h.addEventListener('pointerup',stop);h.addEventListener('pointercancel',stop);h.addEventListener('pointerleave',e=>{if(e.buttons)stop()})}function missionReveal(){let m=pick(C.missions);state.mission=m;save();shell(`<main class="scene missionReveal"><div class="kicker">MISSION DRAWN</div><span class="pill">TABLE MISSION</span><div class="card" style="margin-top:16px"><div class="question">${m}</div><p class="small">任何人不舒服都可以直接换任务。</p></div><button class="btn primary" id="accept">ACCEPT MISSION</button><button class="btn secondary" id="redraw">重新抽</button></main>`,58);document.getElementById('redraw').onclick=()=>{btnTap();missionDraw()};document.getElementById('accept').onclick=()=>{btnTap();missionDone()}}function missionDone(){shell(`<main class="scene"><div class="kicker">MISSION ACTIVE</div><h2 class="title">手机收起来。</h2><p class="lead">做完再回来。</p><div class="card"><div class="question">${state.mission||pick(C.missions)}</div></div><button class="btn primary" id="done">我们完成了</button><button class="btn secondary" id="skip">跳过也可以</button></main>`,62);document.getElementById('done').onclick=document.getElementById('skip').onclick=()=>{btnTap();live()}}function live(){shell(`<main class="scene"><div class="liveMark pulse">● LIVE NOW</div><h1 class="display" style="margin-top:14px">10<br>MINUTES.</h1><div class="card"><div class="question">找到一个跟你同月份生日的人。</div><p class="small">不能是自己桌。找到后互相问名字就算完成。</p><div class="timer" id="timer">10:00</div></div><button class="btn primary" id="found">找到了</button><button class="btn secondary" id="pass">PASS</button></main>`,70);let end=Date.now()+600000;let t=setInterval(()=>{let left=Math.max(0,end-Date.now()),m=Math.floor(left/60000),s=Math.floor(left%60000/1000),el=document.getElementById('timer');if(el)el.textContent=`${m}:${String(s).padStart(2,'0')}`;if(!left)clearInterval(t)},250);document.getElementById('found').onclick=document.getElementById('pass').onclick=()=>{clearInterval(t);btnTap();deep()}}function deep(){let q=pick(C.deep);shell(`<main class="scene"><div class="kicker">03 · ONE REAL QUESTION</div><h2 class="title">这次不是游戏。</h2><p class="lead">找一个今晚之前不认识的人。只问一个问题。</p><div class="card"><div class="question">${q}</div></div><button class="btn secondary" id="newq">换一个问题</button><button class="btn primary" id="talked">聊过了</button><p class="small" style="text-align:center">如果聊起来了，就别回来按按钮。That's the point.</p></main>`,79);document.getElementById('newq').onclick=()=>{btnTap();deep()};document.getElementById('talked').onclick=()=>{btnTap();taste()}}function taste(){shell(`<main class="scene"><div class="kicker">04 · BARTENDER THINKS</div><h2 class="title">今晚是什么味道？</h2><p class="lead">不是优惠券。只是让点酒这件事简单一点。</p><div class="grid2"><button class="taste" data-t="sweet">偏甜</button><button class="taste" data-t="sour">偏酸</button><button class="taste" data-t="fresh">清爽</button><button class="taste" data-t="help">救我</button></div><div id="tasteResult"></div><button class="btn secondary" id="wall">去 Tonight's Wall</button></main>`,87);document.querySelectorAll('.taste').forEach(b=>b.onclick=()=>{btnTap();let map={sweet:['FRUITY / SMOOTH','告诉 Bartender：甜一点，但不要腻。'],sour:['BRIGHT / SHARP','告诉 Bartender：酸感明显一点，醒一点。'],fresh:['LIGHT / FRESH','告诉 Bartender：清爽、柑橘或气泡方向。'],help:['BARTENDER CHOICE','直接说：你先问我三个问题，再帮我选。']},r=map[b.dataset.t];document.getElementById('tasteResult').innerHTML=`<div class="card missionReveal" style="margin-top:14px"><span class="pill">${r[0]}</span><div class="question">${r[1]}</div><p class="small">也可以选择无酒精版本。</p></div>`});document.getElementById('wall').onclick=()=>{btnTap();wall()}}function wall(){let arr=JSON.parse(localStorage.getItem('yt_wall_v1')||'[]');shell(`<main class="scene"><div class="kicker">05 · TONIGHT'S WALL</div><h2 class="title">留一句。</h2><p class="lead">V1 先只保存在这台手机。正式现场版再做全场同步 + Owner 审核。</p><textarea id="msg" maxlength="120" placeholder="今晚想留下一句什么？"></textarea><button class="btn primary" id="post">ANONYMOUSLY POST</button><div id="wallList">${renderWall(arr)}</div><button class="btn secondary" id="finish">今晚最后一个</button></main>`,94);document.getElementById('post').onclick=()=>{let m=document.getElementById('msg').value.trim();if(!m)return;arr.unshift(m);arr=arr.slice(0,6);localStorage.setItem('yt_wall_v1',JSON.stringify(arr));document.getElementById('msg').value='';document.getElementById('wallList').innerHTML=renderWall(arr);toast('留下了。')};document.getElementById('finish').onclick=()=>{btnTap();ending()}}function renderWall(arr){let seed=['其实我今天差一点没有出来。','有些人不是不想认识新朋友，只是不知道怎么开口。'];return [...arr,...seed].slice(0,6).map(x=>`<div class="wallItem">“${esc(x)}”</div>`).join('')}function ending(){shell(`<main class="scene"><div class="kicker">LAST ONE</div><h1 class="display">下次<br>还来吗？</h1><div class="choices"><button class="choice" id="yes"><strong>会。</strong><span>下一次，不会是同一局。</span></button><button class="choice" id="see"><strong>看先。</strong><span>很居銮。</span></button></div><div id="endmsg"></div><div class="footer">YETIPSY · 今晚有局<br>TEST NIGHT 001</div></main>`,100);document.getElementById('yes').onclick=()=>endMsg('那下次见。','下一次，不会是同一局。');document.getElementById('see').onclick=()=>endMsg('很居銮。','那就下次再看。')}function endMsg(a,b){btnTap();document.getElementById('endmsg').innerHTML=`<div class="card missionReveal" style="margin-top:16px"><div class="question">${a}</div><p class="small">${b}</p></div>`}function toast(s){let t=document.createElement('div');t.className='toast';t.textContent=s;document.body.appendChild(t);setTimeout(()=>t.remove(),2100)}home();
+const app=document.getElementById("app"),C=YT_CONTENT,A=YTAudio,B=YTBackend;
+const VERSION="2.0";
+let state=JSON.parse(localStorage.getItem("yt_v2_state")||"{}");
+if(!state.deviceId)state.deviceId=crypto.randomUUID?crypto.randomUUID():"d-"+Date.now()+"-"+Math.random().toString(36).slice(2);
+state.stats=state.stats||{warm:0,accepted:0,completed:0,verified:0,skips:0,peopleMet:0};
+save();
+let heartbeatTimer=null,matchPoll=null;
+
+function save(){localStorage.setItem("yt_v2_state",JSON.stringify(state))}
+function esc(s){return String(s||"").replace(/[<>&"']/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;","'":"&#39;"}[c]))}
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function shell(body,p=0,top=false){
+ app.innerHTML=`<div class="shell"><div class="top"><div class="logo">YETIPSY</div><button class="iconBtn" id="audioBtn">SOUND</button></div><div class="progress"><i style="width:${p}%"></i></div><main class="scene ${top?"topScene":""}">${body}</main></div>`;
+ document.getElementById("audioBtn").onclick=audioPanel;
+}
+function tap(){A.ensure();A.tap()}
+function toast(s){let t=document.createElement("div");t.className="toast";t.textContent=s;document.body.appendChild(t);setTimeout(()=>t.remove(),1800)}
+function audioPanel(){
+ const s=A.get(),d=document.createElement("div");d.className="soundPanel";d.innerHTML=`<div class="kicker">AUDIO & HAPTICS</div>
+ ${toggleRow("VOICE","voice",s.voice)}${toggleRow("SFX","sfx",s.sfx)}${toggleRow("VIBRATION","vibration",s.vibration)}
+ <button class="btn secondary" id="closeAudio">DONE</button>`;
+ document.body.appendChild(d);
+ d.querySelectorAll("[data-toggle]").forEach(x=>x.onclick=()=>{let k=x.dataset.toggle,v=!A.get()[k];A.set(k,v);x.classList.toggle("on",v);if(k==="voice"&&v)A.countWord("READY")});
+ d.querySelector("#closeAudio").onclick=()=>d.remove();
+}
+function toggleRow(label,key,on){return `<div class="toggleRow"><b>${label}</b><div class="toggle ${on?"on":""}" data-toggle="${key}"><i></i></div></div>`}
+
+function home(){
+ shell(`<div class="kicker">TONIGHT · ${VERSION}</div><h1 class="display">今晚<br>有局。</h1><p class="lead">这次不是一台手机带全桌。<br><b style="color:var(--ink)">每个人，都有自己的今晚。</b></p>
+ <div class="card"><span class="pill">ONE PERSON · ONE PHONE</span><p class="lead" style="margin:14px 0 0">系统会给每个人独立身份、独立任务和独立 Match。朋友可以坐同一桌，但不会拿到完全一样的路线。</p></div>
+ <button class="btn primary" id="enter">ENTER TONIGHT</button>
+ <div class="footer">仅限达到当地合法饮酒年龄的成年人参与 · 可随时跳过互动 · 理性饮酒</div>`,3);
+ document.getElementById("enter").onclick=()=>{tap();soundGate()};
+}
+
+function soundGate(){
+ shell(`<div class="kicker">BEFORE WE START</div><h2 class="title">今晚有些东西，<br>要听才好玩。</h2><p class="lead">倒数会真正念出 READY · THREE · TWO · ONE。你随时可以在右上角分别关闭 Voice、SFX 或震动。</p>
+ <button class="btn primary" id="soundOn">ENTER WITH SOUND</button><button class="btn secondary" id="quiet">KEEP IT QUIET</button>`,7);
+ document.getElementById("soundOn").onclick=()=>{A.allOn();A.ensure();tap();profile()};
+ document.getElementById("quiet").onclick=()=>{A.quiet();profile()};
+}
+
+function profile(){
+ shell(`<div class="kicker">01 · YOUR PASS</div><h2 class="title">先拿你的今晚身份。</h2><p class="lead">不用手机号，不用注册。昵称只用于今晚的 Match。</p>
+ <div class="card"><label class="small">YOUR NAME / NICKNAME</label><input class="field" id="nick" maxlength="18" placeholder="例如：Xiang" value="${esc(state.nick||"")}">
+ <div style="height:12px"></div><label class="small">你现在坐哪一桌？</label><input class="field" id="table" maxlength="12" placeholder="例如：A3 / 12 / OUTDOOR" value="${esc(state.table||"")}"></div>
+ <button class="btn primary" id="next">CREATE MY PASS</button>`,12);
+ document.getElementById("next").onclick=async()=>{
+   let nick=document.getElementById("nick").value.trim(),table=document.getElementById("table").value.trim().toUpperCase();
+   if(!nick||!table)return toast("先填昵称和桌号");
+   state.nick=nick;state.table=table;save();tap();mode();
+ };
+}
+
+function mode(){
+ shell(`<div class="kicker">02 · YOUR ROUTE</div><h2 class="title">今晚想怎么玩？</h2><p class="lead">这是第一处分支。之后系统会根据你的选择继续改变路线。</p>
+ <div class="choices">
+ <button class="choice" data-m="chill"><strong>CHILL</strong><span>主要跟自己朋友玩；不会强迫你找陌生人。</span></button>
+ <button class="choice" data-m="open"><strong>OPEN</strong><span>愿意被系统 Match 到其他桌的一个人。</span></button>
+ <button class="choice" data-m="surprise"><strong>SURPRISE ME</strong><span>系统替你决定，可能突然把你送去 Match。</span></button>
+ </div>`,18);
+ document.querySelectorAll("[data-m]").forEach(b=>b.onclick=async()=>{
+  state.mode=b.dataset.m;save();tap();
+  await B.join({deviceId:state.deviceId,nick:state.nick,table:state.table,mode:state.mode});
+  startHeartbeat();personalWarm();
+ });
+}
+
+function startHeartbeat(){
+ clearInterval(heartbeatTimer);
+ heartbeatTimer=setInterval(()=>B.heartbeat({deviceId:state.deviceId}),45000);
+}
+
+function personalWarm(){
+ let q=pick(C.warm);state.currentWarm=q;save();
+ shell(`<div class="kicker">03 · YOUR QUESTION</div><span class="pill">PERSONAL CARD</span><div class="card" style="margin-top:14px"><div class="question">${esc(q)}</div><p class="small">这是你的题。朋友手机上可能是另一题。准备好才按倒数。</p></div>
+ <button class="btn primary" id="count">START COUNTDOWN</button><button class="btn secondary" id="another">换我的题</button>`,28);
+ document.getElementById("another").onclick=()=>{state.stats.skips++;save();tap();personalWarm()};
+ document.getElementById("count").onclick=()=>countdown(()=>{
+   state.stats.warm++;save();
+   if(state.stats.warm<2)personalWarm();else branchHub();
+ });
+}
+
+async function countdown(done){
+ A.ensure();
+ const steps=[
+  {screen:"READY",voice:"READY",ms:900},
+  {screen:"3",voice:"THREE",ms:850},
+  {screen:"2",voice:"TWO",ms:850},
+  {screen:"1",voice:"ONE",ms:850},
+  {screen:"POINT!",voice:"POINT",ms:800}
+ ];
+ let overlay=document.createElement("div");overlay.className="countdown";document.body.appendChild(overlay);
+ for(const x of steps){
+   overlay.innerHTML=`<div><div class="readyText">${x.screen==="READY"?"EVERYONE":""}</div><div class="countNum">${x.screen}</div></div>`;
+   if(x.voice==="POINT")A.impact();
+   await Promise.all([A.countWord(x.voice),new Promise(r=>setTimeout(r,x.ms))]);
+ }
+ overlay.remove();done();
+}
+
+function branchHub(){
+ if(state.mode==="chill")return chillRoute();
+ if(state.mode==="open")return openRoute();
+ // Surprise genuinely branches.
+ return Math.random()<.58?openRoute(true):chillRoute(true);
+}
+
+function chillRoute(surprise=false){
+ let q=pick(C.chill);
+ shell(`<div class="kicker">${surprise?"SURPRISE ROUTE":"CHILL ROUTE"}</div><h2 class="title">${surprise?"今晚先不把你送出去。":"留在自己桌，也可以很好玩。"}</h2>
+ <div class="card"><span class="pill">YOUR SOLO PROMPT</span><div class="question" style="margin-top:14px">${esc(q)}</div><p class="small">每个人自己手机会抽到不同 Prompt。你可以把自己的题带给整桌。</p></div>
+ <button class="btn primary" id="done">DONE</button><button class="btn secondary" id="match">我改变主意，想 Match</button>`,43);
+ document.getElementById("done").onclick=()=>{state.stats.completed++;save();tap();chillDecision()};
+ document.getElementById("match").onclick=()=>{tap();openRoute(true)};
+}
+
+function chillDecision(){
+ shell(`<div class="kicker">YOUR CHOICE MATTERS</div><h2 class="title">接下来你决定。</h2><div class="choices">
+ <button class="choice" id="stay"><strong>STAY CHILL</strong><span>继续朋友桌路线，最后会得到 CHILL 类型结局。</span></button>
+ <button class="choice" id="risk"><strong>ONE MATCH</strong><span>只认识一个人。系统不会一直把你送出去。</span></button></div>`,52);
+ document.getElementById("stay").onclick=()=>{state.routeFinal="chill";save();tap();deepSolo()};
+ document.getElementById("risk").onclick=()=>{state.routeFinal="hybrid";save();tap();openRoute(true)};
+}
+
+function openRoute(fromBranch=false){
+ shell(`<div class="kicker">${fromBranch?"ONE MATCH":"OPEN ROUTE"}</div><h2 class="title">一人一手机。<br>一人一个 Match。</h2><p class="lead">系统不会把“整桌 A”直接配给“整桌 B”。它会从其他桌挑一个独立玩家给你，而且尽量避免同桌重复配到同一个人。</p>
+ <div class="card"><div class="identity"><div class="avatar">${esc(state.nick.slice(0,1).toUpperCase())}</div><div><b>${esc(state.nick)}</b><span>TABLE ${esc(state.table)} · ${esc(state.deviceId.slice(-6).toUpperCase())}</span></div></div>
+ <p class="small">进入 Match Pool 后，只有其他桌、未被你匹配过的玩家才会进入候选。</p></div>
+ <button class="btn primary" id="queue">FIND MY MATCH</button><button class="btn secondary" id="back">NOT NOW</button>`,48);
+ document.getElementById("back").onclick=()=>{state.stats.skips++;state.routeFinal="observer";save();tap();deepSolo()};
+ document.getElementById("queue").onclick=()=>{tap();queueForMatch()};
+}
+
+async function queueForMatch(){
+ shell(`<div class="kicker">MATCHING</div><h2 class="title">正在找另一个人。</h2><div class="waiting"></div><p class="lead" style="text-align:center">不是找另一整桌。<br>是在其他桌里，找一个属于你的玩家。</p><button class="btn secondary" id="cancel">CANCEL</button>`,55);
+ document.getElementById("cancel").onclick=()=>{clearInterval(matchPoll);state.stats.skips++;save();deepSolo()};
+ let r=await B.queue({deviceId:state.deviceId,nick:state.nick,table:state.table,mode:state.mode});
+ if(r.ok&&r.match)return showMatch(r.match);
+ if(!B.configured()){
+   setTimeout(()=>demoMatch(),1300);return;
+ }
+ clearInterval(matchPoll);
+ matchPoll=setInterval(async()=>{
+   let s=await B.matchStatus({deviceId:state.deviceId});
+   if(s.ok&&s.match){clearInterval(matchPoll);showMatch(s.match)}
+ },2500);
+}
+
+function demoMatch(){
+ // Offline preview deliberately creates a unique-looking demo partner, not a real person.
+ const demo={matchId:"DEMO-"+Math.random().toString(36).slice(2,7),partnerNick:"DEMO PLAYER",partnerTable:"B"+(Math.floor(Math.random()*8)+1),myCode:String(Math.floor(1000+Math.random()*9000)),demo:true};
+ showMatch(demo);
+}
+
+function showMatch(m){
+ state.match=m;state.stats.accepted++;save();A.impact();
+ shell(`<div class="kicker">${m.demo?"PREVIEW MATCH":"MATCH FOUND"}</div><h2 class="title">找到你的 Match。</h2>
+ <div class="card matchCard"><span class="pill">YOUR MATCH</span><div class="matchName">${esc(m.partnerNick)}</div><div class="tableBadge">TABLE ${esc(m.partnerTable)}</div>
+ <p class="lead" style="margin-top:18px">你只需要找到这个人。对方手机也会显示你的昵称和桌号。</p></div>
+ <button class="btn primary" id="meet">I FOUND THEM</button><button class="btn secondary" id="cant">找不到 / 换人</button>`,63);
+ document.getElementById("cant").onclick=()=>{state.stats.skips++;delete state.match;save();tap();queueForMatch()};
+ document.getElementById("meet").onclick=()=>{tap();verificationIntro()};
+}
+
+function verificationIntro(){
+ let m=state.match;
+ shell(`<div class="kicker">VERIFY THE CONNECTION</div><h2 class="title">不是按“完成”就算。</h2><p class="lead">见到对方后，把你手机上的 4 位码给对方。你也输入对方手机显示的码。</p>
+ <div class="card"><div class="small">SHOW THIS TO ${esc(m.partnerNick)}</div><div class="code">${esc(m.myCode||"----")}</div></div>
+ <button class="btn primary" id="input">ENTER THEIR CODE</button><button class="btn secondary" id="notfound">其实没找到</button>`,70);
+ document.getElementById("notfound").onclick=()=>{state.stats.skips++;save();queueForMatch()};
+ document.getElementById("input").onclick=()=>verifyCode();
+}
+
+function verifyCode(){
+ shell(`<div class="kicker">CONNECTION CHECK</div><h2 class="title">输入对方的 4 位码。</h2>
+ <div class="card"><input class="field" id="codeInput" inputmode="numeric" maxlength="4" placeholder="0000" style="text-align:center;font-size:34px;letter-spacing:.22em;font-weight:900"></div>
+ <button class="btn primary" id="verify">VERIFY</button><button class="btn secondary" id="showMine">返回看我的码</button>`,74);
+ document.getElementById("showMine").onclick=verificationIntro;
+ document.getElementById("verify").onclick=async()=>{
+   let code=document.getElementById("codeInput").value.trim();
+   if(!/^\d{4}$/.test(code))return toast("需要 4 位数字");
+   let m=state.match;
+   if(m.demo){return verificationSuccess(true)}
+   let r=await B.verify({deviceId:state.deviceId,matchId:m.matchId,partnerCode:code});
+   if(r.ok&&r.verified)verificationSuccess(false);else toast("码不对，看看对方手机");
+ };
+}
+
+function verificationSuccess(demo){
+ state.stats.verified++;state.stats.peopleMet++;state.stats.completed++;save();A.impact();
+ shell(`<div class="successMark">✓</div><div class="kicker">${demo?"PREVIEW VERIFIED":"CONNECTION VERIFIED"}</div><h2 class="title">你们真的找到彼此了。</h2>
+ <div class="card"><span class="pill">UNLOCKED</span><div class="question" style="margin-top:14px">${esc(pick(C.deep))}</div><p class="small">两个人都回答。聊起来就把手机收起来。</p></div>
+ <button class="btn primary" id="continue">DONE</button>`,80);
+ document.getElementById("continue").onclick=()=>{tap();afterMatchChoice()};
+}
+
+function afterMatchChoice(){
+ shell(`<div class="kicker">AFTER THE MATCH</div><h2 class="title">现在不一定要继续社交。</h2><div class="choices">
+ <button class="choice" id="rest"><strong>BACK TO MY TABLE</strong><span>回去朋友桌，进入今晚收尾。</span></button>
+ <button class="choice" id="another"><strong>ONE MORE MATCH</strong><span>再匹配一次，但不会匹配刚才的人。</span></button></div>`,84);
+ document.getElementById("rest").onclick=()=>{state.routeFinal="connector";save();tap();deepSolo()};
+ document.getElementById("another").onclick=()=>{state.routeFinal="connector";delete state.match;save();tap();openRoute()};
+}
+
+function deepSolo(){
+ let q=pick(C.deep);
+ shell(`<div class="kicker">ONE LAST CARD</div><h2 class="title">留一个问题给今晚。</h2><div class="card"><div class="question">${esc(q)}</div><p class="small">可以问朋友、刚认识的人，也可以自己回答。</p></div>
+ <button class="btn primary" id="done">I'M DONE</button><button class="btn secondary" id="swap">换一个</button>`,89);
+ document.getElementById("swap").onclick=()=>{state.stats.skips++;save();deepSolo()};
+ document.getElementById("done").onclick=()=>{state.stats.completed++;save();tap();taste()};
+}
+
+function taste(){
+ shell(`<div class="kicker">BARTENDER DISCOVERY</div><h2 class="title">今晚想喝什么方向？</h2><p class="lead">这是推荐，不是购买要求；也可以选择无酒精版本。</p>
+ <div class="grid2"><button class="choice taste" data-t="sweet"><strong>甜</strong><span>果香 / 顺口</span></button><button class="choice taste" data-t="sour"><strong>酸</strong><span>明亮 / 清醒</span></button><button class="choice taste" data-t="fresh"><strong>清爽</strong><span>柑橘 / 气泡</span></button><button class="choice taste" data-t="help"><strong>救我</strong><span>让 Bartender 问我</span></button></div><div id="rec"></div>
+ <button class="btn secondary" id="end">SEE MY NIGHT</button>`,94);
+ const map={sweet:["FRUITY / SMOOTH","甜一点，但不要腻。"],sour:["BRIGHT / SHARP","酸感明显一点。"],fresh:["LIGHT / FRESH","清爽、柑橘或气泡方向。"],help:["BARTENDER CHOICE","你先问我三个问题，再帮我选。"]};
+ document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>{state.taste=b.dataset.t;save();tap();let r=map[b.dataset.t];document.getElementById("rec").innerHTML=`<div class="card" style="margin-top:12px"><span class="pill">${r[0]}</span><div class="question" style="margin-top:12px">“${r[1]}”</div><p class="small">把这句话给 Bartender 看即可。</p></div>`});
+ document.getElementById("end").onclick=()=>{tap();ending()};
+}
+
+function ending(){
+ let s=state.stats,type,title,copy;
+ if(s.verified>=2){type="THE CONNECTOR";title="你今晚真的把人连起来了。";copy=`${s.peopleMet} 个 verified connections。你不是来刷题的。`}
+ else if(s.verified===1){type="ONE GOOD MATCH";title="认识一个，就够了。";copy="至少今晚结束前，有一个人不再完全是陌生人。"}
+ else if(state.mode==="chill"&&s.skips<3){type="THE HOME TABLE";title="你没有到处跑。";copy="但你自己的朋友已经够你玩了。"}
+ else if(s.skips>=3||state.routeFinal==="observer"){type="PROFESSIONAL OBSERVER";title="你成功避开了大部分社交任务。";copy="Respect. 看戏也是今晚的一种玩法。"}
+ else if(state.mode==="surprise"){type="CHAOS ENJOYER";title="你明明可以选 CHILL。";copy="但你把路线交给系统了。这个结果是你自己造成的。"}
+ else{type="YOUR OWN NIGHT";title="没有标准答案。";copy="你走的是自己的路线。"}
+ shell(`<div class="resultTag">TONIGHT TYPE</div><div class="endingType">${type}</div><h2 class="title">${title}</h2><p class="lead">${copy}</p>
+ <div class="grid2"><div class="stat"><b>${s.warm}</b><span>WARM UPS</span></div><div class="stat"><b>${s.verified}</b><span>VERIFIED</span></div><div class="stat"><b>${s.peopleMet}</b><span>PEOPLE MET</span></div><div class="stat"><b>${s.skips}</b><span>SKIPS</span></div></div>
+ <button class="btn primary" id="again">BACK TO TONIGHT</button><button class="btn tertiary" id="reset">RESET MY NIGHT</button>
+ <div class="footer">YETIPSY · 今晚有局<br>ONE PERSON · ONE PHONE</div>`,100);
+ document.getElementById("again").onclick=()=>{tap();afterMatchChoice()};
+ document.getElementById("reset").onclick=()=>{localStorage.removeItem("yt_v2_state");location.reload()};
+}
+
+home();
