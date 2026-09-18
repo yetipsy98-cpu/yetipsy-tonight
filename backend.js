@@ -1,4 +1,12 @@
 window.YTBackend = (() => {
+  let lastLatencyMs = null;
+  let lastLatencyAt = 0;
+
+  function markLatency(started) {
+    const now = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
+    lastLatencyMs = Math.max(0, Math.round(now - started));
+    lastLatencyAt = Date.now();
+  }
   const API_URL =
     "https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
 
@@ -14,6 +22,7 @@ window.YTBackend = (() => {
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT);
+    const started = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
 
     try {
       const response = await fetch(API_URL, {
@@ -34,6 +43,7 @@ window.YTBackend = (() => {
       if (e.name === "AbortError") return { ok: false, error: "timeout" };
       return { ok: false, error: "network_error", detail: String(e) };
     } finally {
+      markLatency(started);
       clearTimeout(timer);
     }
   }
@@ -42,9 +52,12 @@ window.YTBackend = (() => {
     configured,
     join: p => post("join", p),
     heartbeat: p => post("heartbeat", p),
+    ping: p => post("ping", p),
+    leaveTable: p => post("leaveTable", p),
     tableState: p => post("tableState", p),
     startTable: p => post("startTable", p),
     claimLead: p => post("claimLead", p),
+    rerollQuestion: p => post("rerollQuestion", p),
     finishCountdown: p => post("finishCountdown", p),
     nextTableRound: p => post("nextTableRound", p),
     startEvent: p => post("startEvent", p),
@@ -53,6 +66,8 @@ window.YTBackend = (() => {
     matchStatus: p => post("matchStatus", p),
     verify: p => post("verify", p),
     cancelMatch: p => post("cancelMatch", p),
-    completeMatch: p => post("completeMatch", p)
+    completeMatch: p => post("completeMatch", p),
+    getLatency: () => lastLatencyMs,
+    getLatencyAge: () => lastLatencyAt ? Date.now() - lastLatencyAt : Infinity
   };
 })();

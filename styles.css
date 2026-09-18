@@ -96,3 +96,14 @@ button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-height:650px){.scene{justify-content:flex-start;padding-top:20px}.display{font-size:48px}.card{padding:17px}.btn{min-height:50px;padding:14px}.lead{margin-bottom:12px}.timer{font-size:50px}}
 @media(min-width:700px){.shell{padding-left:28px;padding-right:28px}.scene{padding-left:10px;padding-right:10px}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+/* V2.4.3 · latency + table controls */
+.topActions{display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
+.topActions .iconBtn{padding:8px 9px;font-size:9px;white-space:nowrap}
+.tableTopBtn{max-width:92px;overflow:hidden;text-overflow:ellipsis}
+.latencyBadge{display:inline-flex;align-items:center;justify-content:center;min-width:55px;height:31px;padding:0 8px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.018);font-size:9px;letter-spacing:.04em;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.latencyBadge[data-level="good"]{color:var(--ok);border-color:rgba(156,197,161,.25)}
+.latencyBadge[data-level="mid"]{color:var(--gold);border-color:rgba(202,165,106,.28)}
+.latencyBadge[data-level="slow"]{color:var(--danger);border-color:rgba(232,165,143,.28)}
+.tablePanel h3{font-size:26px;letter-spacing:-.03em}
+@media(max-width:390px){.topActions{gap:4px}.topActions .iconBtn{padding:7px 7px;font-size:8px}.latencyBadge{min-width:49px;padding:0 6px;font-size:8px}.tableTopBtn{max-width:72px}}

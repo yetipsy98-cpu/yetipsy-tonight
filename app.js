@@ -3,7 +3,7 @@ const C = YT_CONTENT;
 const A = YTAudio;
 const B = YTBackend;
 
-const VERSION = "2.4.2";
+const VERSION = "2.4.3";
 const STORAGE_KEY = "yt_v24_state";
 
 const oldState = JSON.parse(localStorage.getItem("yt_v2_state") || "{}");
@@ -30,6 +30,7 @@ let tablePoll = null;
 let matchPoll = null;
 let clockTimer = null;
 let reminderTimer = null;
+let latencyUiTimer = null;
 let countdownRunning = false;
 let lastTableSignature = "";
 let tablePollGeneration = 0;
@@ -83,7 +84,11 @@ function shell(body, progress = 0, top = false) {
     <div class="shell">
       <div class="top">
         <div class="logo">YETIPSY</div>
-        <button class="iconBtn" id="audioBtn">SOUND</button>
+        <div class="topActions">
+          ${state.table ? `<button class="iconBtn tableTopBtn" id="tableMenuBtn">TABLE ${esc(state.table)}</button>` : ""}
+          <button class="iconBtn" id="audioBtn">SOUND</button>
+          <span class="latencyBadge" id="latencyBadge" title="Apps Script round-trip latency">-- ms</span>
+        </div>
       </div>
       <div class="progress"><i style="width:${progress}%"></i></div>
       <main class="scene ${top ? "topScene" : ""}">${body}</main>
@@ -92,6 +97,29 @@ function shell(body, progress = 0, top = false) {
 
   const audio = document.getElementById("audioBtn");
   if (audio) audio.onclick = audioPanel;
+
+  const tableBtn = document.getElementById("tableMenuBtn");
+  if (tableBtn) tableBtn.onclick = tablePanel;
+
+  clearInterval(latencyUiTimer);
+  updateLatencyBadge();
+  latencyUiTimer = setInterval(updateLatencyBadge, 1000);
+}
+
+function updateLatencyBadge() {
+  const el = document.getElementById("latencyBadge");
+  if (!el) return;
+
+  const ms = B.getLatency ? B.getLatency() : null;
+
+  if (ms == null) {
+    el.textContent = "-- ms";
+    el.dataset.level = "idle";
+    return;
+  }
+
+  el.textContent = `${ms} ms`;
+  el.dataset.level = ms < 700 ? "good" : ms < 1600 ? "mid" : "slow";
 }
 
 function setButtonLoading(button, loading, text = "LOADING…") {
@@ -177,6 +205,86 @@ function toggleRow(label, key, on) {
       <div class="toggle ${on ? "on" : ""}" data-toggle="${key}"><i></i></div>
     </div>
   `;
+}
+
+
+/* =====================================================
+   TABLE MENU / MOVE / LEAVE
+===================================================== */
+
+function tablePanel() {
+  if (!state.table) return;
+
+  const d = document.createElement("div");
+  d.className = "soundPanel tablePanel";
+  d.innerHTML = `
+    <div class="kicker">TABLE CONTROL</div>
+    <h3 style="margin:0 0 6px">TABLE ${esc(state.table)}</h3>
+    <p class="small" style="margin-top:0">换桌会先退出当前桌，再加入新桌。未完成的 Match 会被取消。</p>
+
+    <label class="small">MOVE TO TABLE</label>
+    <input class="field" id="moveTableInput" maxlength="12" placeholder="例如：B2">
+    <button class="btn primary" id="moveTableBtn">CHANGE TABLE</button>
+    <button class="btn secondary" id="leaveTableBtn">LEAVE THIS TABLE</button>
+    <button class="btn tertiary" id="closeTablePanel">CLOSE</button>
+  `;
+  document.body.appendChild(d);
+
+  d.querySelector("#closeTablePanel").onclick = () => d.remove();
+
+  d.querySelector("#moveTableBtn").onclick = async e => {
+    const nextTable = d.querySelector("#moveTableInput").value.trim().toUpperCase();
+    if (!nextTable) return toast("先输入新桌号");
+    if (nextTable === state.table) return toast("你已经在这桌");
+
+    const btn = e.currentTarget;
+    setButtonLoading(btn, true, "MOVING…");
+    const oldTable = state.table;
+    const left = await B.leaveTable({ deviceId: state.deviceId });
+
+    if (!left.ok) {
+      setButtonLoading(btn, false);
+      return toast(left.error === "finish_match_first" ? "先完成当前 Match 再换桌" : "暂时无法离桌");
+    }
+
+    state.table = nextTable;
+    delete state.match;
+    save();
+
+    const joined = await joinBackend();
+    if (!joined.ok) {
+      state.table = oldTable;
+      save();
+      await joinBackend();
+      setButtonLoading(btn, false);
+      return toast("新桌加入失败，已经回到原桌");
+    }
+
+    d.remove();
+    A.impact();
+    loadTableState();
+  };
+
+  d.querySelector("#leaveTableBtn").onclick = async e => {
+    const btn = e.currentTarget;
+    setButtonLoading(btn, true, "LEAVING…");
+    const left = await B.leaveTable({ deviceId: state.deviceId });
+
+    if (!left.ok) {
+      setButtonLoading(btn, false);
+      return toast(left.error === "finish_match_first" ? "先完成当前 Match 再离桌" : "离桌失败，请再试一次");
+    }
+
+    clearViewTimers();
+    clearInterval(matchPoll);
+    clearInterval(heartbeatTimer);
+    delete state.match;
+    state.table = "";
+    save();
+    d.remove();
+    toast("已离开这桌");
+    profile();
+  };
 }
 
 
@@ -571,7 +679,8 @@ function renderQuestion(r) {
       </p>
     ` : `
       <button class="btn primary readyBtn" id="ready">I'M READY</button>
-      <div class="small" style="text-align:center">第一个 READY = 本题 Lead，但不会马上开始。</div>
+      ${readyCount === 0 ? `<button class="btn secondary" id="reroll">这题不适合 · 换一题</button>` : ""}
+      <div class="small" style="text-align:center">第一个 READY = 本题 Lead，但不会马上开始。有人 READY 后就锁题。</div>
     `}
   `, 32);
 
@@ -599,6 +708,27 @@ function renderQuestion(r) {
         return x.isLead ? runLeadRound(x) : renderPlaying(x);
       }
 
+      renderQuestion(x);
+    };
+  }
+
+  const rerollBtn = document.getElementById("reroll");
+  if (rerollBtn) {
+    rerollBtn.onclick = async e => {
+      const btn = e.currentTarget;
+      setButtonLoading(btn, true, "CHANGING…");
+      const x = await B.rerollQuestion({
+        deviceId: state.deviceId,
+        table: state.table,
+        currentRound: r.round
+      });
+
+      if (!x.ok) {
+        setButtonLoading(btn, false);
+        return toast(x.error === "already_ready" ? "已经有人 READY，这题已锁定" : "换题失败，请再试一次");
+      }
+
+      A.tap();
       renderQuestion(x);
     };
   }
@@ -653,11 +783,11 @@ function renderPlaying(r) {
 async function countdown() {
   A.ensure();
   const steps = [
-    { screen: "READY", voice: "READY", ms: 900, cls: "word" },
-    { screen: "3", voice: "THREE", ms: 850, cls: "" },
-    { screen: "2", voice: "TWO", ms: 850, cls: "" },
-    { screen: "1", voice: "ONE", ms: 850, cls: "" },
-    { screen: "POINT!", voice: "POINT", ms: 850, cls: "point" }
+    { screen: "READY", voice: "READY", gap: 300, cls: "word" },
+    { screen: "3", voice: "THREE", gap: 260, cls: "" },
+    { screen: "2", voice: "TWO", gap: 260, cls: "" },
+    { screen: "1", voice: "ONE", gap: 300, cls: "" },
+    { screen: "POINT!", voice: "POINT", gap: 380, cls: "point" }
   ];
 
   const overlay = document.createElement("div");
@@ -671,9 +801,18 @@ async function countdown() {
         <div class="countNum ${x.cls}">${x.screen}</div>
       </div>
     `;
+
     if (x.voice === "POINT") A.impact();
-    A.countWord(x.voice);
-    await sleep(x.ms);
+
+    /*
+      关键修正：等待这一句真的念完，才进入下一步。
+      V2.4.2 用固定 850ms，下一句 speechSynthesis.cancel() 会把上一句切掉。
+    */
+    try {
+      await A.countWord(x.voice);
+    } catch (_) {}
+
+    await sleep(x.gap);
   }
 
   overlay.remove();

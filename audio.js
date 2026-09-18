@@ -10,22 +10,34 @@ window.YTAudio=(()=>{
  function speak(word){
    if(!settings.voice || !("speechSynthesis" in window))return Promise.resolve(false);
    return new Promise(resolve=>{
+     let settled=false;
+     let timer=null;
+     const done=value=>{if(settled)return;settled=true;if(timer)clearTimeout(timer);resolve(value)};
      try{
        speechSynthesis.cancel();
        let u=new SpeechSynthesisUtterance(word);
-       u.lang="en-US";u.rate=.78;u.pitch=.82;u.volume=1;
+       u.lang="en-US";
+       u.rate=.70;
+       u.pitch=.82;
+       u.volume=1;
        let voices=speechSynthesis.getVoices();
        let preferred=voices.find(v=>/en-US/i.test(v.lang)&&/Samantha|Daniel|Google|Microsoft|English/i.test(v.name))||voices.find(v=>/^en/i.test(v.lang));
        if(preferred)u.voice=preferred;
-       u.onend=()=>resolve(true);u.onerror=()=>resolve(false);
+       u.onend=()=>done(true);
+       u.onerror=()=>done(false);
+       timer=setTimeout(()=>done(false),3000);
        speechSynthesis.speak(u);
-     }catch(e){resolve(false)}
+     }catch(e){done(false)}
    });
  }
  async function countWord(word){
-   let ok=await speak(word);
-   if(!ok&&settings.sfx){tone(word==="THREE"?270:word==="TWO"?300:word==="ONE"?340:190,.13,.05,"triangle")}
+   const ok=await speak(word);
+   if(!ok&&settings.sfx){
+     tone(word==="THREE"?270:word==="TWO"?300:word==="ONE"?340:190,.18,.05,"triangle");
+     await new Promise(r=>setTimeout(r,220));
+   }
    vibrate(word==="POINT"?[45,30,90]:25);
+   return ok;
  }
  return{
   ensure,tap,impact,countWord,

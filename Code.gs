@@ -1,7 +1,7 @@
 /*
 =========================================================
 YETIPSY · 今晚有局
-Backend V2.4.2
+Backend V2.4.3
 =========================================================
 
 核心：
@@ -30,9 +30,9 @@ const LEAD_STALE_MS = 15 * 1000;
 const LEAD_TAKEOVER_MS = 60 * 1000;
 const FIRST_BREAK_MS = 12 * 60 * 1000;
 const NORMAL_BREAK_MS = 15 * 60 * 1000;
-const MISSION_COUNT = 12;
-const WARM_COUNT = 16;
-const LATE_COUNT = 8;
+const MISSION_COUNT = 24;
+const WARM_COUNT = 48;
+const LATE_COUNT = 24;
 
 const PLAYER_HEADERS = [
   "device_id", "nick", "table_id", "mode", "status",
@@ -67,8 +67,8 @@ function setup() {
   ensureSheet_(ss, "TABLES", TABLE_HEADERS);
   SpreadsheetApp.flush();
 
-  Logger.log("YETIPSY V2.4.2 SETUP SUCCESS: " + ss.getName());
-  return { ok: true, version: "2.4.2", spreadsheet: ss.getName() };
+  Logger.log("YETIPSY V2.4.3 SETUP SUCCESS: " + ss.getName());
+  return { ok: true, version: "2.4.3", spreadsheet: ss.getName() };
 }
 
 function getDB_() {
@@ -101,7 +101,7 @@ function doGet() {
     return json_({
       ok: true,
       service: "YETIPSY Tonight",
-      version: "2.4.2",
+      version: "2.4.3",
       database: ss.getName(),
       connected: true
     });
@@ -109,7 +109,7 @@ function doGet() {
     return json_({
       ok: false,
       service: "YETIPSY Tonight",
-      version: "2.4.2",
+      version: "2.4.3",
       connected: false,
       error: String(err.message || err)
     });
@@ -127,9 +127,12 @@ function doPost(e) {
     switch (String(data.action || "")) {
       case "join": return json_(join_(ss, data));
       case "heartbeat": return json_(heartbeat_(ss, data));
+      case "ping": return json_({ ok: true, serverTime: new Date().toISOString() });
+      case "leaveTable": return json_(leaveTable_(ss, data));
       case "tableState": return json_(tableState_(ss, data));
       case "startTable": return json_(startTable_(ss, data));
       case "claimLead": return json_(claimLead_(ss, data));
+      case "rerollQuestion": return json_(rerollQuestion_(ss, data));
       case "finishCountdown": return json_(finishCountdown_(ss, data));
       case "nextTableRound": return json_(nextTableRound_(ss, data));
       case "startEvent": return json_(startEvent_(ss, data));
@@ -186,6 +189,79 @@ function heartbeat_(ss, d) {
   const p = playerRow_(sh, d.deviceId);
   if (p) sh.getRange(p.row, 7).setValue(new Date());
   return { ok: true };
+}
+
+function leaveTable_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(6000);
+
+  try {
+    const players = ss.getSheetByName("PLAYERS");
+    const me = playerRow_(players, d.deviceId);
+    if (!me) return { ok: true, left: true };
+
+    const deviceId = String(d.deviceId || "");
+    const oldTable = String(me.data[2] || "").toUpperCase();
+    const matchId = String(me.data[7] || "");
+
+    /*
+      离桌时，如果还在未完成 Match，先取消，避免另一个人永远被占用。
+      已经双方验证完成的 Match 不允许直接离开，先完成当前互动。
+    */
+    if (matchId) {
+      const matches = ss.getSheetByName("MATCHES");
+      const m = matchRow_(matches, matchId);
+      if (m) {
+        const bothVerified = toBool_(m.data[5]) && toBool_(m.data[6]);
+        if (bothVerified && String(m.data[7] || "") !== "complete") {
+          return { ok: false, error: "finish_match_first" };
+        }
+
+        if (!bothVerified && !["canceled", "complete"].includes(String(m.data[7] || ""))) {
+          matches.getRange(m.row, 8).setValue("canceled");
+          [String(m.data[1] || ""), String(m.data[2] || "")].forEach(id => {
+            const p = playerRow_(players, id);
+            if (p && String(p.data[7] || "") === matchId) {
+              players.getRange(p.row, 5).setValue("active");
+              players.getRange(p.row, 8).setValue("");
+            }
+          });
+        }
+      }
+    }
+
+    const refreshed = playerRow_(players, deviceId);
+    if (refreshed) {
+      players.getRange(refreshed.row, 3).setValue("");
+      players.getRange(refreshed.row, 5).setValue("left");
+      players.getRange(refreshed.row, 7).setValue(new Date());
+      players.getRange(refreshed.row, 8).setValue("");
+    }
+
+    /* 立即从旧桌 READY / Lead 移除，不用等 90 秒超时 */
+    if (oldTable) {
+      const tables = ss.getSheetByName("TABLES");
+      const t = tableRow_(tables, oldTable);
+      if (t) {
+        const data = tables.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+        const ready = parseReadyDevices_(data[3]).filter(id => id !== deviceId);
+        tables.getRange(t.row, 4).setValue(JSON.stringify(ready));
+        if (String(data[6] || "") === deviceId) {
+          tables.getRange(t.row, 7).setValue("");
+          tables.getRange(t.row, 8).setValue("");
+          if (String(data[5] || "") === "playing") {
+            tables.getRange(t.row, 6).setValue("discuss");
+          }
+        }
+        tables.getRange(t.row, 5).setValue(new Date());
+      }
+    }
+
+    SpreadsheetApp.flush();
+    return { ok: true, left: true, oldTable: oldTable };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function onlinePlayers_(ss, tableId, windowMs) {
@@ -469,6 +545,39 @@ function claimLead_(ss, d) {
   }
 }
 
+function rerollQuestion_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+
+  try {
+    const table = clean_(d.table, 20).toUpperCase();
+    const sh = ss.getSheetByName("TABLES");
+    const t = ensureTable_(ss, table);
+    const data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+    if (String(data[5] || "") !== "question") {
+      return { ok: false, error: "not_question_state" };
+    }
+
+    if (parseReadyDevices_(data[3]).length > 0) {
+      return { ok: false, error: "already_ready" };
+    }
+
+    const pool = String(data[13] || "warm");
+    const count = pool === "late" ? LATE_COUNT : WARM_COUNT;
+    const oldQuestion = Number(data[2]) || 0;
+    const nextQuestion = differentIndex_(count, oldQuestion);
+
+    sh.getRange(t.row, 3).setValue(nextQuestion);
+    sh.getRange(t.row, 5).setValue(new Date());
+    SpreadsheetApp.flush();
+
+    return tableState_(ss, { table: table });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function finishCountdown_(ss, d) {
   const lock = LockService.getScriptLock();
   lock.waitLock(5000);
@@ -679,7 +788,7 @@ function queue_(ss, d) {
     while (bCode === aCode) bCode = randomCode_();
     const eventIndex = Number(d.eventIndex || 0);
     const socialCycle = eventIndex > 0 ? Math.floor((eventIndex - 1) / 2) % 3 : -1;
-    const tableVsTableMissions = [5, 6, 7];
+    const tableVsTableMissions = [12, 13, 14, 15, 16, 17];
     const missionIndex = socialCycle === 2
       ? tableVsTableMissions[randomIndex_(tableVsTableMissions.length)]
       : randomIndex_(MISSION_COUNT);
