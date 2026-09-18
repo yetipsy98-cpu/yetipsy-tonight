@@ -1687,22 +1687,60 @@ function verifyCode() {
 
 function waitForPartnerVerification() {
 
+  const m = state.match;
+
   shell(`
     <div class="kicker">
       YOUR CODE IS VERIFIED
     </div>
 
     <h2 class="title">
+      你这边完成了。<br>
       等对方确认你。
     </h2>
 
+    <div class="card">
+
+      <div class="small">
+        YOUR CODE · 给 ${esc(m.partnerNick)} 看
+      </div>
+
+      <div
+        class="code"
+        style="
+          font-size:42px;
+          margin:10px 0 6px;
+          letter-spacing:.14em;
+        ">
+        ${esc(m.myCode || "----")}
+      </div>
+
+      <div class="small">
+        对方需要在他的手机输入这个号码
+      </div>
+
+    </div>
+
     <div class="waiting"></div>
 
-    <p class="lead">
-      你的验证码正确。<br>
-      对方也输入你的码后，
-      会自动继续。
+    <p
+      class="lead"
+      style="text-align:center">
+
+      ✓ 你已经确认 ${esc(m.partnerNick)}<br>
+      现在等对方输入你的码。
+
     </p>
+
+    <div
+      class="small"
+      style="
+        text-align:center;
+        opacity:.65;
+        margin-top:12px;
+      ">
+      WAITING FOR ${esc(m.partnerNick).toUpperCase()}…
+    </div>
   `, 77);
 
   clearInterval(matchPoll);
@@ -1717,24 +1755,16 @@ function waitForPartnerVerification() {
               state.deviceId
           });
 
-        /*
-        后端双方验证完成后会清掉 current_match。
-        */
+        if (!s.ok) {
+          return;
+        }
 
         if (
-          s.ok &&
-          (
-            (
-              s.match &&
-              s.match.bothVerified
-            ) ||
-            !s.match
-          )
+          s.match &&
+          s.match.bothVerified
         ) {
 
-          clearInterval(
-            matchPoll
-          );
+          clearInterval(matchPoll);
 
           verificationSuccess();
         }
