@@ -1,7 +1,7 @@
 /*
 =========================================================
 YETIPSY · 今晚有局
-Backend V2.4.4
+Backend V2.4.3
 =========================================================
 
 核心：
@@ -52,14 +52,6 @@ const TABLE_HEADERS = [
   "event_index", "session_started_at", "session_id", "question_pool"
 ];
 
-const CONTROL_HEADERS = ["setting", "value", "notes"];
-const CONTROL_DEFAULTS = [
-  ["TABLE_MATCH_MODE", "AUTO", "AUTO = 按设定时间开放；OPEN = 立即开放；CLOSED = 强制关闭"],
-  ["TABLE_MATCH_DAILY_TIME", "", "可选：例如 21:00。留空则按今晚第一位客人加入后自动计时"],
-  ["TABLE_MATCH_AUTO_AFTER_MIN", "25", "TABLE_MATCH_DAILY_TIME 留空时，第一位客人加入后多少分钟自动开放"],
-  ["SOLO_MATCH_ALLOWED", "TRUE", "TRUE = 一个人也可以留在 Lobby，开放后直接找其他桌 Match"]
-];
-
 
 /* =====================================================
    SETUP / DB
@@ -73,11 +65,10 @@ function setup() {
   ensureSheet_(ss, "PLAYERS", PLAYER_HEADERS);
   ensureSheet_(ss, "MATCHES", MATCH_HEADERS);
   ensureSheet_(ss, "TABLES", TABLE_HEADERS);
-  ensureControl_(ss);
   SpreadsheetApp.flush();
 
-  Logger.log("YETIPSY V2.4.4 SETUP SUCCESS: " + ss.getName());
-  return { ok: true, version: "2.4.4", spreadsheet: ss.getName() };
+  Logger.log("YETIPSY V2.4.3 SETUP SUCCESS: " + ss.getName());
+  return { ok: true, version: "2.4.3", spreadsheet: ss.getName() };
 }
 
 function getDB_() {
@@ -99,123 +90,6 @@ function ensureSheet_(ss, name, headers) {
   return sh;
 }
 
-function ensureControl_(ss) {
-  let sh = ss.getSheetByName("CONTROL");
-  if (!sh) sh = ss.insertSheet("CONTROL");
-  if (sh.getMaxColumns() < 3) sh.insertColumnsAfter(sh.getMaxColumns(), 3 - sh.getMaxColumns());
-  sh.getRange(1, 1, 1, 3).setValues([CONTROL_HEADERS]);
-  sh.setFrozenRows(1);
-
-  const existing = {};
-  if (sh.getLastRow() >= 2) {
-    sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(r => {
-      if (String(r[0] || "").trim()) existing[String(r[0]).trim()] = true;
-    });
-  }
-
-  CONTROL_DEFAULTS.forEach(r => {
-    if (!existing[r[0]]) sh.appendRow(r);
-  });
-
-  try {
-    const modeCell = sh.createTextFinder("TABLE_MATCH_MODE").matchEntireCell(true).findNext();
-    if (modeCell) {
-      const rule = SpreadsheetApp.newDataValidation()
-        .requireValueInList(["AUTO", "OPEN", "CLOSED"], true)
-        .setAllowInvalid(false)
-        .build();
-      sh.getRange(modeCell.getRow(), 2).setDataValidation(rule);
-    }
-  } catch (_) {}
-
-  return sh;
-}
-
-function controlMap_(ss) {
-  const sh = ss.getSheetByName("CONTROL") || ensureControl_(ss);
-  const out = {};
-  if (sh.getLastRow() < 2) return out;
-  sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(r => {
-    const key = String(r[0] || "").trim();
-    if (key) out[key] = r[1];
-  });
-  return out;
-}
-
-function activeNightStart_(ss) {
-  const props = PropertiesService.getScriptProperties();
-  const stored = new Date(props.getProperty("YETIPSY_MATCH_NIGHT_START") || "").getTime();
-  const now = Date.now();
-
-  if (stored && now - stored < STALE_SESSION_MS) return stored;
-
-  const players = ss.getSheetByName("PLAYERS");
-  let earliest = 0;
-  if (players && players.getLastRow() >= 2) {
-    const values = players.getRange(2, 1, players.getLastRow() - 1, 9).getValues();
-    values.forEach(r => {
-      const seen = new Date(r[6]).getTime();
-      if (!seen || now - seen > ONLINE_MS) return;
-      if (!earliest || seen < earliest) earliest = seen;
-    });
-  }
-
-  if (!earliest) earliest = now;
-  props.setProperty("YETIPSY_MATCH_NIGHT_START", new Date(earliest).toISOString());
-  return earliest;
-}
-
-function parseDailyTime_(ss, value) {
-  const tz = ss.getSpreadsheetTimeZone() || Session.getScriptTimeZone() || "Asia/Kuala_Lumpur";
-  const raw = value instanceof Date
-    ? Utilities.formatDate(value, tz, "HH:mm")
-    : String(value || "").trim();
-  const m = raw.match(/^(\d{1,2}):(\d{2})$/);
-  if (!m) return 0;
-
-  const hh = Math.min(23, Math.max(0, Number(m[1])));
-  const mm = Math.min(59, Math.max(0, Number(m[2])));
-  const now = new Date();
-  const localDate = Utilities.formatDate(now, tz, "yyyy-MM-dd");
-  const offset = Utilities.formatDate(now, tz, "XXX");
-  let t = new Date(localDate + "T" + String(hh).padStart(2, "0") + ":" + String(mm).padStart(2, "0") + ":00" + offset).getTime();
-
-  /* 酒吧跨午夜：凌晨 0-5 点仍视为上一晚的开放时间。 */
-  const localHour = Number(Utilities.formatDate(now, tz, "H"));
-  if (localHour < 6 && t > Date.now()) t -= 24 * 60 * 60 * 1000;
-  return t;
-}
-
-function globalMatchWindow_(ss) {
-  const cfg = controlMap_(ss);
-  const mode = String(cfg.TABLE_MATCH_MODE || "AUTO").trim().toUpperCase();
-  const allowSolo = String(cfg.SOLO_MATCH_ALLOWED == null ? "TRUE" : cfg.SOLO_MATCH_ALLOWED).toUpperCase() !== "FALSE";
-  const dailyAt = parseDailyTime_(ss, cfg.TABLE_MATCH_DAILY_TIME);
-  const afterMin = Math.max(0, Number(cfg.TABLE_MATCH_AUTO_AFTER_MIN || 25));
-  const base = activeNightStart_(ss);
-  const autoOpenAt = dailyAt || (base + afterMin * 60 * 1000);
-
-  let open = false;
-  let reason = "scheduled";
-  if (mode === "OPEN") {
-    open = true;
-    reason = "owner_open";
-  } else if (mode === "CLOSED") {
-    open = false;
-    reason = "owner_closed";
-  } else {
-    open = Date.now() >= autoOpenAt;
-  }
-
-  return {
-    open: open,
-    mode: mode,
-    reason: reason,
-    autoOpenAt: new Date(autoOpenAt).toISOString(),
-    allowSolo: allowSolo
-  };
-}
-
 
 /* =====================================================
    WEB APP
@@ -227,7 +101,7 @@ function doGet() {
     return json_({
       ok: true,
       service: "YETIPSY Tonight",
-      version: "2.4.4",
+      version: "2.4.3",
       database: ss.getName(),
       connected: true
     });
@@ -235,7 +109,7 @@ function doGet() {
     return json_({
       ok: false,
       service: "YETIPSY Tonight",
-      version: "2.4.4",
+      version: "2.4.3",
       connected: false,
       error: String(err.message || err)
     });
@@ -403,11 +277,6 @@ function onlinePlayers_(ss, tableId, windowMs) {
     if (String(r[2] || "").toUpperCase() !== table) return;
     const seen = new Date(r[6]).getTime();
     if (!seen || seen < cutoff) return;
-
-    /* 正在跨桌 queue / matched 的玩家暂时不算桌内 READY 人数，避免整桌被卡住。 */
-    const status = String(r[4] || "active");
-    if (status !== "active") return;
-
     out.push({
       deviceId: String(r[0] || ""),
       nick: String(r[1] || "PLAYER"),
@@ -557,8 +426,7 @@ function tablePayload_(ss, data) {
     readyPlayers: readyPlayers,
     readyDevices: readyDevices,
     allReady: readyEligible.length >= 2 && readyDevices.length >= readyEligible.length,
-    canTakeOver: status === "discuss" && !!started && Date.now() - started >= LEAD_TAKEOVER_MS,
-    matchWindow: globalMatchWindow_(ss)
+    canTakeOver: status === "discuss" && !!started && Date.now() - started >= LEAD_TAKEOVER_MS
   };
 }
 
@@ -886,11 +754,6 @@ function queue_(ss, d) {
     if (!me) return { ok: false, error: "not_joined" };
 
     if (me.data[7]) return matchStatus_(ss, d);
-
-    const window = globalMatchWindow_(ss);
-    if (!window.open) {
-      return { ok: false, error: "match_window_closed", matchWindow: window };
-    }
 
     players.getRange(me.row, 5).setValue("queued");
     players.getRange(me.row, 7).setValue(new Date());

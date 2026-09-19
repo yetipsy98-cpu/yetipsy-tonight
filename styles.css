@@ -107,6 +107,3 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .latencyBadge[data-level="slow"]{color:var(--danger);border-color:rgba(232,165,143,.28)}
 .tablePanel h3{font-size:26px;letter-spacing:-.03em}
 @media(max-width:390px){.topActions{gap:4px}.topActions .iconBtn{padding:7px 7px;font-size:8px}.latencyBadge{min-width:49px;padding:0 6px;font-size:8px}.tableTopBtn{max-width:72px}}
-.matchOpenBtn{color:var(--ok);border-color:rgba(156,197,161,.32);background:rgba(156,197,161,.055)}
-.matchWindowCard b{display:block;font-size:clamp(30px,9vw,46px);line-height:1;margin-top:8px;color:var(--gold);font-variant-numeric:tabular-nums}
-@media(max-width:390px){.matchOpenBtn{max-width:70px;overflow:hidden;text-overflow:ellipsis}}

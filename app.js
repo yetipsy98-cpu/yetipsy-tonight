@@ -3,7 +3,7 @@ const C = YT_CONTENT;
 const A = YTAudio;
 const B = YTBackend;
 
-const VERSION = "2.4.4";
+const VERSION = "2.4.3";
 const STORAGE_KEY = "yt_v24_state";
 
 const oldState = JSON.parse(localStorage.getItem("yt_v2_state") || "{}");
@@ -85,7 +85,6 @@ function shell(body, progress = 0, top = false) {
       <div class="top">
         <div class="logo">YETIPSY</div>
         <div class="topActions">
-          ${state.matchWindow && state.matchWindow.open && Date.now() - Number(state.matchWindow.syncedAt || 0) < 120000 && !state.match ? `<button class="iconBtn matchOpenBtn" id="matchTopBtn">MATCH OPEN</button>` : ""}
           ${state.table ? `<button class="iconBtn tableTopBtn" id="tableMenuBtn">TABLE ${esc(state.table)}</button>` : ""}
           <button class="iconBtn" id="audioBtn">SOUND</button>
           <span class="latencyBadge" id="latencyBadge" title="Apps Script round-trip latency">-- ms</span>
@@ -101,9 +100,6 @@ function shell(body, progress = 0, top = false) {
 
   const tableBtn = document.getElementById("tableMenuBtn");
   if (tableBtn) tableBtn.onclick = tablePanel;
-
-  const matchTopBtn = document.getElementById("matchTopBtn");
-  if (matchTopBtn) matchTopBtn.onclick = () => { tap(); queueForMatch(false); };
 
   clearInterval(latencyUiTimer);
   updateLatencyBadge();
@@ -151,50 +147,9 @@ function tableSignature(r) {
     r.status, r.round, r.questionIndex, r.leadDevice, r.nextEventAt,
     r.eventIndex, r.questionPool, r.canTakeOver, r.onlineCount,
     r.readyCount, r.readyTotal, r.allReady,
-    r.matchWindow && r.matchWindow.open,
-    r.matchWindow && r.matchWindow.mode,
-    r.matchWindow && r.matchWindow.autoOpenAt,
     (r.players || []).join(","),
     (r.readyPlayers || []).join(",")
   ].join("|");
-}
-
-function rememberMatchWindow(r) {
-  if (r && r.matchWindow) {
-    state.matchWindow = { ...r.matchWindow, syncedAt: Date.now() };
-    save();
-  }
-}
-
-function matchWindowOpen(r) {
-  const w = (r && r.matchWindow) || state.matchWindow || {};
-  return !!w.open;
-}
-
-function matchWindowCopy(r) {
-  const w = (r && r.matchWindow) || state.matchWindow || {};
-  if (w.open) return "TABLE MATCH OPEN";
-  if (!w.autoOpenAt) return "TABLE MATCH LATER";
-  const ms = new Date(w.autoOpenAt).getTime() - Date.now();
-  return `TABLE MATCH · ${formatRemaining(ms)}`;
-}
-
-function globalMatchButton(r, { primary = false, closed = true } = {}) {
-  const w = (r && r.matchWindow) || state.matchWindow || {};
-  if (w.open) {
-    return `<button class="btn ${primary ? "primary" : "secondary"}" id="globalMatch">TABLE MATCH OPEN · FIND SOMEONE</button>`;
-  }
-  if (!closed) return "";
-  const when = w.mode === "CLOSED"
-    ? "PAUSED"
-    : (w.autoOpenAt ? formatRemaining(new Date(w.autoOpenAt).getTime() - Date.now()) : "LATER");
-  const copy = w.mode === "CLOSED" ? "今晚的 Table Match 暂时由老板关闭。" : "到时间会自动开放；老板也可以提前开启。";
-  return `<div class="card matchWindowCard" style="margin-top:12px"><div class="small">TABLE MATCH</div><b>${esc(when)}</b><p class="small" style="margin-bottom:0">${esc(copy)}</p></div>`;
-}
-
-function wireGlobalMatch() {
-  const btn = document.getElementById("globalMatch");
-  if (btn) btn.onclick = () => { tap(); queueForMatch(false); };
 }
 
 function questionFor(r) {
@@ -525,7 +480,6 @@ async function loadTableState() {
 
 function renderTableState(r) {
   clearViewTimers();
-  rememberMatchWindow(r);
   lastTableSignature = tableSignature(r);
 
   switch (r.status) {
@@ -569,7 +523,6 @@ function pollTable({ interval = 2500, lobbyLive = false } = {}) {
       return;
     }
 
-    rememberMatchWindow(r);
     const sig = tableSignature(r);
 
     /*
@@ -604,11 +557,9 @@ function pollTable({ interval = 2500, lobbyLive = false } = {}) {
 ===================================================== */
 
 function updateLobbyView(r) {
-  rememberMatchWindow(r);
   const online = document.getElementById("onlineCount");
   const peopleList = document.getElementById("lobbyPeople");
   const startBtn = document.getElementById("startTable");
-  const matchArea = document.getElementById("lobbyMatchArea");
 
   if (online) online.textContent = Number(r.onlineCount) || 0;
 
@@ -625,29 +576,7 @@ function updateLobbyView(r) {
     startBtn.disabled = !canStart;
     startBtn.textContent = canStart
       ? "大家都进来了 · 开桌"
-      : "朋友还没到 · 可以先 SOLO / TABLE MATCH";
-  }
-
-  if (matchArea) {
-    const w = r.matchWindow || {};
-    if (w.open) {
-      matchArea.innerHTML = `
-        <button class="btn primary" id="globalMatch">TABLE MATCH OPEN · FIND SOMEONE</button>
-        <p class="small" style="text-align:center">一个人也可以直接参加；系统只会配不同桌的人。</p>
-      `;
-    } else {
-      const when = w.mode === "CLOSED"
-        ? "PAUSED"
-        : (w.autoOpenAt ? formatRemaining(new Date(w.autoOpenAt).getTime() - Date.now()) : "LATER");
-      matchArea.innerHTML = `
-        <div class="card matchWindowCard">
-          <div class="small">TABLE MATCH ${w.mode === "CLOSED" ? "STATUS" : "OPENS IN"}</div>
-          <b>${esc(when)}</b>
-          <p class="small" style="margin-bottom:0">${w.mode === "CLOSED" ? "暂时由老板关闭。" : "到时间自动开放；老板也可以提前开。"}</p>
-        </div>
-      `;
-    }
-    wireGlobalMatch();
+      : "WAITING FOR ONE MORE…";
   }
 }
 
@@ -669,33 +598,16 @@ function renderTableLobby(r) {
     </div>
 
     <button class="btn primary" id="startTable" ${r.onlineCount < 2 ? "disabled" : ""}>
-      ${r.onlineCount < 2 ? "朋友还没到 · 可以先 SOLO / TABLE MATCH" : "大家都进来了 · 开桌"}
+      ${r.onlineCount < 2 ? "WAITING FOR ONE MORE…" : "大家都进来了 · 开桌"}
     </button>
-
-    ${Number(r.onlineCount) < 2 ? `
-      <div class="card" style="margin-top:12px">
-        <div class="small">SOLO CARD</div>
-        <div class="question" id="soloPrompt" style="margin-top:10px">${esc(pick(C.solo || C.deep))}</div>
-        <button class="btn secondary" id="newSolo">换一张 SOLO CARD</button>
-      </div>
-    ` : ""}
-
-    <div id="lobbyMatchArea" style="margin-top:12px"></div>
     <button class="btn secondary" id="refresh">SYNC NOW</button>
 
     <p class="small" style="text-align:center;margin-top:12px">
-      人数会自动更新。两个人以上可以开桌；一个人也可以等 Table Match 开放后直接参加。
+      人数会自动更新，不需要手动刷新。开桌后所有手机看到同一题，每题重新抢 READY。
     </p>
   `, 25);
 
   document.getElementById("refresh").onclick = loadTableState;
-  const newSolo = document.getElementById("newSolo");
-  if (newSolo) newSolo.onclick = () => {
-    tap();
-    const el = document.getElementById("soloPrompt");
-    if (el) el.textContent = pick(C.solo || C.deep);
-  };
-
   document.getElementById("startTable").onclick = async e => {
     const btn = e.currentTarget;
     btn.dataset.loading = "1";
@@ -770,11 +682,7 @@ function renderQuestion(r) {
       ${readyCount === 0 ? `<button class="btn secondary" id="reroll">这题不适合 · 换一题</button>` : ""}
       <div class="small" style="text-align:center">第一个 READY = 本题 Lead，但不会马上开始。有人 READY 后就锁题。</div>
     `}
-
-    ${globalMatchButton(r, { primary: false, closed: false })}
   `, 32);
-
-  wireGlobalMatch();
 
   const readyBtn = document.getElementById("ready");
   if (readyBtn) {
@@ -938,11 +846,7 @@ function renderDiscuss(r) {
         <p class="small" style="margin-bottom:0">等 Lead 开下一题。超过约 1 分钟没人动，其他手机可以接管。</p>
       </div>
     `}
-
-    ${globalMatchButton(r, { primary: false, closed: false })}
   `, 40);
-
-  wireGlobalMatch();
 
   if (canAdvance) {
     document.getElementById("nextRound").onclick = async e => {
@@ -987,8 +891,7 @@ function renderBreak(r) {
       <p class="small" id="timerCopy">${due ? "已经解锁。" : "时间到会在网页还开着时提醒你。"}</p>
     </div>
 
-    ${globalMatchButton(r, { primary: true, closed: false })}
-    <button class="btn ${matchWindowOpen(r) ? "secondary" : "primary"}" id="openEvent">${due ? "OPEN NEXT EVENT" : "PLAY NOW · 不想等"}</button>
+    <button class="btn primary" id="openEvent">${due ? "OPEN NEXT EVENT" : "PLAY NOW · 不想等"}</button>
     <button class="btn secondary" id="remind">REMIND ME</button>
     <button class="btn secondary" id="bartender">BARTENDER PICK</button>
 
@@ -998,7 +901,6 @@ function renderBreak(r) {
     </div>
   `, 55);
 
-  wireGlobalMatch();
   const timerEl = document.getElementById("eventTimer");
   const copyEl = document.getElementById("timerCopy");
   const openBtn = document.getElementById("openEvent");
@@ -1100,36 +1002,43 @@ document.addEventListener("visibilitychange", () => {
 function renderEventIntro(r) {
   const index = Math.max(1, Number(r.eventIndex) || 1);
   const name = eventName(index);
-  const canMatch = matchWindowOpen(r);
   state.activeEventIndex = index;
   save();
+
+  let route = state.eventRoutes[index];
+  if (!route) {
+    if (state.mode === "open") route = "open";
+    else if (state.mode === "chill") route = "chill";
+    else route = Math.random() < 0.65 ? "open" : "chill";
+    state.eventRoutes[index] = route;
+    save();
+  }
 
   shell(`
     <div class="kicker">TONIGHT EVENT ${index}</div>
     <div class="eventName bigEvent">${esc(name)}</div>
-    <h2 class="title">这轮你自己选。</h2>
+    <h2 class="title">今晚又发生一点东西。</h2>
 
     <div class="card">
-      <span class="pill">YOUR TABLE</span>
-      <p class="lead" style="margin:14px 0 0">留在自己桌完成一个轻任务；不想社交也完全可以。</p>
+      <span class="pill">${route === "open" ? "OTHER TABLE" : "YOUR TABLE"}</span>
+      <p class="lead" style="margin:14px 0 0">
+        ${route === "open"
+          ? "这轮会把你送去认识另一桌的一位玩家。你们会拿到同一个 Mission。"
+          : "这轮留在自己桌，不需要硬社交。"}
+      </p>
     </div>
 
-    ${canMatch ? `
-      <div class="card" style="margin-top:12px">
-        <span class="pill">TABLE MATCH OPEN</span>
-        <p class="lead" style="margin:14px 0 0">不想继续本桌任务，可以直接去认识另一桌的一位玩家。不会推进整桌进度。</p>
-      </div>
-      <button class="btn primary" id="globalMatch">GO TABLE MATCH</button>
-      <button class="btn secondary" id="stay">STAY WITH MY TABLE</button>
-    ` : `
-      ${globalMatchButton(r, { primary: false, closed: true })}
-      <button class="btn primary" id="stay">PLAY AT MY TABLE</button>
-    `}
+    <button class="btn primary" id="enterEvent">ENTER EVENT</button>
+    ${route === "open" ? `<button class="btn secondary" id="stay">今晚这轮想留桌</button>` : ""}
   `, 62);
 
-  wireGlobalMatch();
-  document.getElementById("stay").onclick = () => chillEvent(r);
-  pollTable({ interval: 5000 });
+  document.getElementById("enterEvent").onclick = () => {
+    tap();
+    route === "open" ? queueForMatch(false) : chillEvent(r);
+  };
+
+  const stay = document.getElementById("stay");
+  if (stay) stay.onclick = () => chillEvent(r);
 }
 
 function chillEvent(r) {
@@ -1142,17 +1051,13 @@ function chillEvent(r) {
 
   shell(`
     <div class="kicker">STAY AT YOUR TABLE</div>
-    <h2 class="title">这轮留在自己桌。</h2>
+    <h2 class="title">这轮不用出去。</h2>
     <div class="card">
       <span class="pill">TABLE MISSION</span>
       <div class="question" style="margin-top:14px">${esc(q)}</div>
     </div>
-
-    ${globalMatchButton(r, { primary: false, closed: false })}
     <button class="btn primary" id="done">DONE · BACK TO TONIGHT</button>
   `, 68);
-
-  wireGlobalMatch();
 
   document.getElementById("done").onclick = async e => {
     const btn = e.currentTarget;
@@ -1163,9 +1068,6 @@ function chillEvent(r) {
     if (!x.ok) return loadTableState();
     renderTableState(x);
   };
-
-  /* Match Window 如果在做本桌任务时开放，自动回到事件选择页显示入口。 */
-  pollTable({ interval: 5000 });
 }
 
 
@@ -1205,13 +1107,6 @@ async function queueForMatch(bonus = false) {
   });
 
   if (!r.ok) {
-    if (r.error === "match_window_closed") {
-      statusEl.textContent = "TABLE MATCH 还没开放";
-      toast("Table Match 还没开放，等时间到或老板提前开启");
-      setTimeout(loadTableState, 1200);
-      return;
-    }
-
     statusEl.textContent = "连接失败";
     toast(r.error === "timeout" ? "后台比较慢，请再试一次" : "Match 后台连接失败");
     return;
@@ -1428,9 +1323,9 @@ async function finishMatchedEvent(oneMore) {
 
   state.stats.events++;
   save();
-
-  /* Table Match 是个人支线，不再推进整桌 Event。回去读取桌子的当前真实状态。 */
-  loadTableState();
+  const x = await B.completeEvent({ deviceId: state.deviceId, table: state.table });
+  if (x.ok) renderTableState(x);
+  else loadTableState();
 }
 
 
