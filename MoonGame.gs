@@ -136,26 +136,43 @@ function moon_tokenTtl_(ss) {
   ) * 60000;
 }
 
+
+/* =====================================================
+   FAIR 5-DICE RESULT
+   概率固定为真实 5 颗六面骰；Admin 不再控制中奖概率。
+===================================================== */
+function moon_fairResult_(ss) {
+  const dice = [];
+  for (let i=0;i<5;i++) dice.push(1 + Math.floor(Math.random()*6));
+  const ones = dice.filter(x=>x===1).length;
+
+  let rewardId = "R0";
+  if (ones === 5) rewardId = "R5";
+  else if (ones === 4) rewardId = "R4";
+  else if (ones === 3) rewardId = "R3";
+
+  const rw = moon_rewards_(ss).find(x=>x.id===rewardId);
+  if (!rw) throw new Error("reward_not_found_"+rewardId);
+
+  return {
+    rewardId: rw.id,
+    reward: rw.name,
+    displayOnes: ones,
+    dice: dice
+  };
+}
+
 /* =====================================================
    STAFF UNLOCK
 ===================================================== */
 
 function moon_unlock_(ss, d) {
-  if (!moon_enabled_(ss)) {
-    return {ok:false,error:"activity_closed"};
-  }
+  if (!moon_enabled_(ss)) return {ok:false,error:"activity_closed"};
 
-  const expected = String(
-    moon_config_(ss,"STAFF_PASSWORD","")
-  );
-
+  const expected = String(moon_config_(ss,"STAFF_PASSWORD",""));
   if (!expected || expected === "CHANGE-ME") {
-    return {
-      ok:false,
-      error:"staff_password_not_configured"
-    };
+    return {ok:false,error:"staff_password_not_configured"};
   }
-
   if (String(d.password || "") !== expected) {
     return {ok:false,error:"wrong_password"};
   }
@@ -163,9 +180,11 @@ function moon_unlock_(ss, d) {
   const sh = ss.getSheetByName(MOON_SESSIONS);
   const token = Utilities.getUuid();
   const now = new Date();
-  const expires = new Date(
-    now.getTime() + moon_tokenTtl_(ss)
-  );
+  const expires = new Date(now.getTime() + moon_tokenTtl_(ss));
+
+  // 员工授权时一次性生成真实 5 骰结果。
+  // 顾客按“摇月亮”时不再请求服务器，所以揭晓无需等待网络。
+  const result = moon_fairResult_(ss);
 
   sh.appendRow([
     token,
@@ -173,16 +192,15 @@ function moon_unlock_(ss, d) {
     expires,
     "",
     "UNLOCKED",
-    "",
-    ""
+    result.rewardId,
+    result.dice.join(",")
   ]);
-
-  SpreadsheetApp.flush();
 
   return {
     ok:true,
     unlockToken:token,
-    expiresAt:expires.toISOString()
+    expiresAt:expires.toISOString(),
+    rollResult:result
   };
 }
 
@@ -244,7 +262,7 @@ function moon_rewards_(ss) {
     id:String(r[0]),
     name:String(r[1]),
     displayOnes:Number(r[2]),
-    probability:Number(r[3]),
+    probability:Number(r[3]), // legacy/display only; game ignores this field
     enabled:String(r[4]).toUpperCase()==="TRUE",
     sort:Number(r[5])
   })).sort((a,b)=>a.sort-b.sort);
@@ -314,66 +332,25 @@ Roll 后就把 reward + dice 锁在 SESSION。
 这样 Claim 时不相信浏览器传回来的 reward。
 */
 function moon_roll_(ss, d) {
-  if (!moon_enabled_(ss)) {
-    return {ok:false,error:"activity_closed"};
-  }
+  if (!moon_enabled_(ss)) return {ok:false,error:"activity_closed"};
+  const check = moon_validSession_(ss,d.unlockToken);
+  if (!check.ok) return check;
 
-  const lock = LockService.getScriptLock();
-  lock.waitLock(10000);
+  const rewardId = String(check.session.data[5] || "");
+  const diceText = String(check.session.data[6] || "");
+  if (!rewardId || !diceText) return {ok:false,error:"roll_required"};
 
-  try {
-    const check = moon_validSession_(
-      ss,d.unlockToken
-    );
+  const rw = moon_rewards_(ss).find(x=>x.id===rewardId);
+  if (!rw) return {ok:false,error:"reward_not_found"};
 
-    if (!check.ok) return check;
-
-    const existingReward =
-      String(check.session.data[5] || "");
-
-    const existingDice =
-      String(check.session.data[6] || "");
-
-    if (existingReward && existingDice) {
-      const rw = moon_rewards_(ss).find(
-        x=>x.id===existingReward
-      );
-
-      return {
-        ok:true,
-        rewardId:existingReward,
-        reward:rw ? rw.name : "",
-        displayOnes:rw ? rw.displayOnes : 0,
-        dice:existingDice.split(",").map(Number)
-      };
-    }
-
-    const rw = moon_pickReward_(ss);
-    const dice = moon_diceForOnes_(
-      rw.displayOnes
-    );
-
-    check.sheet.getRange(
-      check.session.row,6
-    ).setValue(rw.id);
-
-    check.sheet.getRange(
-      check.session.row,7
-    ).setValue(dice.join(","));
-
-    SpreadsheetApp.flush();
-
-    return {
-      ok:true,
-      rewardId:rw.id,
-      reward:rw.name,
-      displayOnes:rw.displayOnes,
-      dice:dice
-    };
-
-  } finally {
-    lock.releaseLock();
-  }
+  const dice = diceText.split(",").map(Number);
+  return {
+    ok:true,
+    rewardId:rewardId,
+    reward:rw.name,
+    displayOnes:dice.filter(x=>x===1).length,
+    dice:dice
+  };
 }
 
 /* =====================================================
