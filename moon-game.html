@@ -5,7 +5,7 @@
 <div class="lock" id="lock"><div class="box"><h2>员工授权</h2><p class="small">每位顾客开始前由员工解锁，一次授权只能领取一次。</p><input id="staff" type="password" placeholder="员工密码"><button id="unlock">解锁本次游戏</button><p class="small" id="err"></p></div></div>
 <div class="sheet" id="claim"><div class="box"><h2 id="claimTitle">领取奖励</h2><div class="phone"><select id="cc"><option value="+60">🇲🇾 +60</option><option value="+65">🇸🇬 +65</option></select><input id="phone" inputmode="numeric" placeholder="WhatsApp 手机号码"></div><label class="check"><input type="checkbox" id="community">我愿意收到 Ye Tipsy 社群邀请及活动 / 新品消息（选填）</label><p class="small">奖励将在 3 个工作日内发送至你填写的 WhatsApp。</p><button id="claimBtn">领取我的奖励</button></div></div>
 <script>
-const API_URL="PASTE_EXISTING_MINIGAME_WEB_APP_URL_HERE";
+const API_URL="https://script.google.com/macros/s/AKfycbw2WXwgeHls1AvyAl_dcNW0q2Fd4KOsurqPXky28MqDo6wxMPuVICAhyfr-xex34qgSuw/exec";
 const pip={1:["c"],2:["tl","br"],3:["tl","c","br"],4:["tl","tr","bl","br"],5:["tl","tr","c","bl","br"],6:["tl","tr","ml","mr","bl","br"]},pos=[[12,20],[72,9],[132,25],[192,8],[252,22]];
 let token="",rolled=null;
 async function api(subaction,data={}){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action:"moon",subaction},data))});return JSON.parse(await r.text())}
