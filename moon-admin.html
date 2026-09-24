@@ -20,10 +20,9 @@
 <h3>活动设置</h3>
 <div class="grid">
 <label>活动状态<select id="enabled"><option value="true">开放</option><option value="false">关闭</option></select></label>
-<label>服务员账号<input id="staffUser" placeholder="staff"></label>
-<label>服务员登入新密码<input id="staffPass" placeholder="留空 = 不修改"></label>
 <label>二维码有效分钟<input id="ttl" type="number" min="2" max="60"></label>
-<label>服务员登入小时<input id="staffHours" type="number" min="1" max="24"></label>
+<label>员工设备保持登入天数<input id="staffDays" type="number" min="1" max="90"></label>
+<div class="hint">员工账号请在 Sheet 的 MOON_STAFF_ACCOUNTS 管理。默认已建立 staff1 / staff2 / staff3。</div>
 <label>Admin 新密码<input id="adminPass" placeholder="留空 = 不修改"></label>
 </div>
 <p><button onclick="saveConfig()">保存活动设置</button></p>
@@ -87,9 +86,8 @@ async function loadState(){
   }
   state=d;
   enabled.value=String(d.config.activityEnabled);
-  staffUser.value=d.config.staffUsername||"staff";
   ttl.value=d.config.gameTtl||10;
-  staffHours.value=d.config.staffHours||12;
+  staffDays.value=d.config.staffDays||30;
   renderRewards();
   renderClaims();
 }
@@ -116,11 +114,9 @@ function sumProb(){
 async function saveConfig(){
   const d=await api("adminSaveConfig",{
     activityEnabled:enabled.value==="true",
-    staffUsername:staffUser.value,
-    staffPassword:staffPass.value,
     adminPassword:adminPass.value,
     gameTtl:Number(ttl.value)||10,
-    staffHours:Number(staffHours.value)||12
+    staffDays:Number(staffDays.value)||30
   });
   if(!d.ok){alert("保存失败："+d.error);return}
   staffPass.value="";adminPass.value="";
