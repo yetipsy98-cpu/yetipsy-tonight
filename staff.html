@@ -11,15 +11,24 @@
 <script>
 const API_URL="https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
 const GAME_URL=new URL("moon-game.html",location.href).href;
-let staffToken=sessionStorage.getItem("moon_staff_token")||"",currentCode="",currentGameUrl="";
+let staffToken=localStorage.getItem("moon_staff_token")||"",currentCode="",currentGameUrl="";
+const savedUser=localStorage.getItem("moon_staff_user")||"";
+if(savedUser)user.value=savedUser;
 fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"ping"}),cache:"no-store"}).catch(()=>{});
 async function api(subaction,data={}){try{const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"moon",subaction,...data})});return JSON.parse(await r.text())}catch(e){return{ok:false,error:"network_error"}}}
-function enter(){login.classList.add("hide");panel.classList.remove("hide")}if(staffToken)enter();
-loginBtn.onclick=async()=>{loginBtn.disabled=true;loginMsg.textContent="登入中…";const d=await api("staffLogin",{username:user.value.trim(),password:pass.value});loginBtn.disabled=false;if(!d.ok){loginMsg.textContent="登入失败："+d.error;return}staffToken=d.staffToken;sessionStorage.setItem("moon_staff_token",staffToken);enter()};
+function enter(){login.classList.add("hide");panel.classList.remove("hide")}if(staffToken){
+  enter();
+  api("staffCheck",{staffToken}).then(d=>{
+    if(!d.ok){localStorage.removeItem("moon_staff_token");panel.classList.add("hide");login.classList.remove("hide");loginMsg.textContent="登入已过期，请重新登入一次";}
+  });
+}
+loginBtn.onclick=async()=>{loginBtn.disabled=true;loginMsg.textContent="登入中…";const d=await api("staffLogin",{username:user.value.trim(),password:pass.value});loginBtn.disabled=false;if(!d.ok){loginMsg.textContent="登入失败："+d.error;return}staffToken=d.staffToken;localStorage.setItem("moon_staff_token",staffToken);
+localStorage.setItem("moon_staff_user",user.value.trim());
+enter()};
 newBtn.onclick=async()=>{
   newBtn.disabled=true;newMsg.textContent="正在生成本局…";qr.classList.add("hide");localBtn.classList.add("hide");codeText.textContent="";
   const d=await api("staffCreateGame",{staffToken});newBtn.disabled=false;
-  if(!d.ok){newMsg.textContent=d.error==="staff_auth"?"登入已过期，请重新登入":"生成失败："+d.error;if(d.error==="staff_auth"){sessionStorage.removeItem("moon_staff_token");setTimeout(()=>location.reload(),800)}return}
+  if(!d.ok){newMsg.textContent=d.error==="staff_auth"?"登入已过期，请重新登入":"生成失败："+d.error;if(d.error==="staff_auth"){localStorage.removeItem("moon_staff_token");setTimeout(()=>location.reload(),800)}return}
   currentGameUrl=GAME_URL+"?g="+encodeURIComponent(d.gameToken);
   qr.onload=()=>qr.classList.remove("hide");
   qr.onerror=()=>{qr.classList.add("hide");newMsg.textContent="本局已生成；二维码图片载入失败，可直接用员工手机开始。"};
@@ -30,5 +39,5 @@ newBtn.onclick=async()=>{
 localBtn.onclick=()=>{if(currentGameUrl)location.href=currentGameUrl};
 lookupBtn.onclick=async()=>{currentCode=redeemCode.value.trim().toUpperCase();claimInfo.innerHTML="查询中…";confirmBtn.classList.add("hide");const d=await api("staffRedeemLookup",{staffToken,code:currentCode});if(!d.ok){claimInfo.innerHTML='<p class="bad">'+(d.error==="code_not_found"?"找不到这个兑换码":d.error)+"</p>";return}const c=d.claim;claimInfo.innerHTML=`<p class="reward">${c.reward}</p><p>兑换码：<b>${c.code}</b></p><p class="muted">状态：${c.redeemed?"已核销":"尚未核销"} · WhatsApp ${c.phone}</p>`;if(!c.redeemed)confirmBtn.classList.remove("hide")};
 confirmBtn.onclick=async()=>{if(!currentCode)return;if(!confirm("确认已经给顾客兑换奖励？核销后不能再次使用。"))return;confirmBtn.disabled=true;const d=await api("staffRedeem",{staffToken,code:currentCode});confirmBtn.disabled=false;if(!d.ok){alert(d.error==="already_redeemed"?"此奖励已经核销":"核销失败："+d.error);return}claimInfo.innerHTML=`<p class="ok"><b>✓ 核销成功</b></p><p class="reward">${d.reward}</p><p>${d.code}</p>`;confirmBtn.classList.add("hide")};
-logoutBtn.onclick=()=>{sessionStorage.removeItem("moon_staff_token");location.reload()};
+logoutBtn.onclick=()=>{localStorage.removeItem("moon_staff_token");location.reload()};
 </script></body></html>
