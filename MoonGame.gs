@@ -138,25 +138,58 @@ function moon_tokenTtl_(ss) {
 
 
 /* =====================================================
-   FAIR 5-DICE RESULT
-   概率固定为真实 5 颗六面骰；Admin 不再控制中奖概率。
+   CACHED CONFIGURABLE REWARD DRAW
+   概率只在员工授权时读取；顾客按摇月亮时不访问后台。
 ===================================================== */
-function moon_fairResult_(ss) {
+function moon_cachedRewards_(ss) {
+  const cache = CacheService.getScriptCache();
+  const key = "MOON_REWARD_CONFIG_V1";
+  const hit = cache.get(key);
+  if (hit) {
+    try { return JSON.parse(hit); } catch(e) {}
+  }
+
+  const rewards = moon_rewards_(ss).filter(x => x.enabled);
+  cache.put(key, JSON.stringify(rewards), 300); // 5分钟缓存
+  return rewards;
+}
+
+function moon_clearRewardCache_() {
+  CacheService.getScriptCache().remove("MOON_REWARD_CONFIG_V1");
+}
+
+function moon_preparedResult_(ss) {
+  const rewards = moon_cachedRewards_(ss);
+  if (!rewards.length) throw new Error("no_enabled_rewards");
+
+  const total = rewards.reduce((sum,r)=>sum + Number(r.probability || 0),0);
+  if (Math.abs(total - 100) > 0.001) throw new Error("probability_total_must_be_100");
+
+  let x = Math.random() * 100;
+  let chosen = rewards[rewards.length - 1];
+  for (const r of rewards) {
+    x -= Number(r.probability || 0);
+    if (x < 0) { chosen = r; break; }
+  }
+
+  // 视觉骰子只负责对应中奖等级；中奖机会来自后台配置。
+  let ones = Number(chosen.displayOnes || 0);
+  if (chosen.id === "R0") ones = Math.floor(Math.random() * 3); // 0–2个1
+  ones = Math.max(0, Math.min(5, ones));
+
   const dice = [];
-  for (let i=0;i<5;i++) dice.push(1 + Math.floor(Math.random()*6));
-  const ones = dice.filter(x=>x===1).length;
+  for (let i=0;i<ones;i++) dice.push(1);
+  while (dice.length < 5) dice.push(2 + Math.floor(Math.random()*5));
 
-  let rewardId = "R0";
-  if (ones === 5) rewardId = "R5";
-  else if (ones === 4) rewardId = "R4";
-  else if (ones === 3) rewardId = "R3";
-
-  const rw = moon_rewards_(ss).find(x=>x.id===rewardId);
-  if (!rw) throw new Error("reward_not_found_"+rewardId);
+  // 洗牌，避免「1」总在前面。
+  for (let i=dice.length-1;i>0;i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    const t=dice[i]; dice[i]=dice[j]; dice[j]=t;
+  }
 
   return {
-    rewardId: rw.id,
-    reward: rw.name,
+    rewardId: chosen.id,
+    reward: chosen.name,
     displayOnes: ones,
     dice: dice
   };
@@ -184,7 +217,7 @@ function moon_unlock_(ss, d) {
 
   // 员工授权时一次性生成真实 5 骰结果。
   // 顾客按“摇月亮”时不再请求服务器，所以揭晓无需等待网络。
-  const result = moon_fairResult_(ss);
+  const result = moon_preparedResult_(ss);
 
   sh.appendRow([
     token,
@@ -781,6 +814,7 @@ function moon_adminSaveRewards_(ss, d) {
 
   SpreadsheetApp.flush();
 
+  moon_clearRewardCache_();
   return {ok:true};
 }
 

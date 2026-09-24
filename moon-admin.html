@@ -8,7 +8,11 @@
 *{box-sizing:border-box}body{margin:0;background:#090806;color:#f2ead9;font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif}.wrap{max-width:980px;margin:auto;padding:20px}.brand{color:#dfb867;letter-spacing:.12em}.sub{font-size:12px;color:#8f836d}.card{background:#14100c;border:1px solid #493a25;border-radius:18px;padding:18px;margin:15px 0}h1,h2,h3{color:#dfb867}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}input,select{width:100%;padding:12px;background:#090806;border:1px solid #4b3a25;border-radius:10px;color:#fff}button{border:0;border-radius:10px;padding:11px 14px;background:#d9ae5c;color:#171009;font-weight:800;cursor:pointer}.secondary{background:#30271b;color:#e5d4b4}.reward{display:grid;grid-template-columns:2fr .65fr .75fr .65fr;gap:8px;margin:8px 0;align-items:center}.claim{display:grid;grid-template-columns:1.1fr 1fr 1.4fr .8fr auto;gap:8px;padding:10px 0;border-bottom:1px solid #2d251a;align-items:center;font-size:12px}.muted{font-size:11px;color:#8f836d}.login{position:fixed;inset:0;background:#000e;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}.login .card{width:min(390px,100%)}.top{display:flex;justify-content:space-between;gap:10px;align-items:center}.ok{color:#9fd58e}.bad{color:#e58d79}@media(max-width:650px){.reward{grid-template-columns:1fr 65px 78px}.reward .enabled{grid-column:1/-1}.claim{grid-template-columns:1fr 1fr}.actions{grid-column:1/-1}}
 </style>
 </head>
-<body><div style="max-width:980px;margin:12px auto;padding:12px 16px;border:1px solid #5b472d;border-radius:14px;color:#d8bd82;background:#120f0b">中奖概率已固定为真实 5 颗六面骰概率，后台不再允许调整概率。奖励名称仍可管理。</div>
+<body>
+<div style="max-width:980px;margin:12px auto;padding:12px 16px;border:1px solid #5b472d;border-radius:14px;color:#d8bd82;background:#120f0b">
+<b>中奖概率设置</b><br>
+概率只在员工授权时读取并锁定本局结果；顾客按「摇月亮」时不会再连接后台，因此不会拖慢揭晓动画。所有启用奖项概率合计必须为 100%。
+</div>
 <div class="wrap">
 <div class="top"><div><h1 class="brand">YÉ TIPSY · MOON ADMIN</h1><div class="sub">月满杯盈 · 活动控制台</div></div><button class="secondary" onclick="loadState()">刷新</button></div>
 
