@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ye Tipsy · Staff</title><style>
+body{margin:0;background:#0d0b09;color:#eee1c4;font-family:system-ui;padding:18px}.wrap{max-width:480px;margin:auto}
+.card{background:#15110d;border:1px solid #4b3a25;border-radius:20px;padding:18px;margin:12px 0}
+h1{font-size:22px}input,button{width:100%;box-sizing:border-box;padding:14px;border-radius:13px;margin:7px 0;font-size:16px}
+input{background:#0d0b09;color:#fff;border:1px solid #5a472e}button{background:#d2ad68;color:#171008;border:0;font-weight:800}
+.secondary{background:#211a13;color:#e3cca0;border:1px solid #5a472e}.small{font-size:12px;color:#a99571}
+#qr{background:#fff;padding:12px;border-radius:14px;width:220px;height:220px;display:block;margin:14px auto}
+.ok{color:#bfe1a6}.bad{color:#f2aaa0}.hide{display:none}
+</style></head><body><div class="wrap">
+<h1>YÉ TIPSY · STAFF</h1>
+<div id="login" class="card"><b>服务员登入</b><input id="user" placeholder="员工账号"><input id="pass" type="password" placeholder="密码"><button id="loginBtn">登入</button><div id="loginMsg" class="small"></div></div>
+<div id="panel" class="hide">
+<div class="card"><b>新一局</b><p class="small">登入后不需要每局再输入员工密码。</p><button id="newBtn">生成顾客二维码</button><div id="newMsg" class="small"></div><img id="qr" class="hide"><div id="gameCode" class="small"></div></div>
+<div class="card"><b>核销奖励</b><input id="redeem" placeholder="输入奖励找回码 / 兑换码"><button id="redeemBtn">查询并核销</button><div id="redeemMsg" class="small"></div></div>
+<button id="logoutBtn" class="secondary">登出</button>
+</div></div>
+<script>
+const API_URL="https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
+const GAME_URL=location.href.replace(/staff[^/?#]*\.html.*/i,"moon-game.html");
+let staffToken=sessionStorage.getItem("moonStaffToken")||"";
+async function api(subaction,extra={}){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"moon",subaction,...extra})});return r.json()}
+function showPanel(){login.classList.add("hide");panel.classList.remove("hide")}
+if(staffToken)showPanel();
+loginBtn.onclick=async()=>{loginBtn.disabled=true;loginMsg.textContent="登入中…";try{const d=await api("staffLogin",{username:user.value.trim(),password:pass.value});if(!d.ok)throw Error(d.error);staffToken=d.staffToken;sessionStorage.setItem("moonStaffToken",staffToken);showPanel()}catch(e){loginMsg.textContent="登入失败："+e.message}finally{loginBtn.disabled=false}}
+newBtn.onclick=async()=>{newBtn.disabled=true;newMsg.textContent="正在生成…";try{const d=await api("staffCreateGame",{staffToken});if(!d.ok)throw Error(d.error);const u=GAME_URL+"?g="+encodeURIComponent(d.gameToken);qr.src="https://api.qrserver.com/v1/create-qr-code/?size=320x320&data="+encodeURIComponent(u);qr.classList.remove("hide");gameCode.textContent="本局代码："+d.shortCode+" · 顾客扫码后直接进入摇一摇";newMsg.textContent="已生成"}catch(e){newMsg.textContent="生成失败："+e.message}finally{newBtn.disabled=false}}
+redeemBtn.onclick=async()=>{const code=redeem.value.trim();if(!code)return;redeemBtn.disabled=true;redeemMsg.textContent="查询中…";try{const d=await api("staffRedeem",{staffToken,code});if(!d.ok)throw Error(d.error);redeemMsg.innerHTML=`<span class="ok">核销成功：${d.reward||""}</span>`}catch(e){redeemMsg.innerHTML=`<span class="bad">无法核销：${e.message}</span>`}finally{redeemBtn.disabled=false}}
+logoutBtn.onclick=()=>{sessionStorage.removeItem("moonStaffToken");location.reload()}
+</script></body></html>
