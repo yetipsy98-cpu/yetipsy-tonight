@@ -120,6 +120,7 @@ function doPost(e) {
   try {
     const ss = getDB_();
     let data = {};
+
     if (e && e.postData && e.postData.contents) {
       data = JSON.parse(e.postData.contents);
     }
@@ -142,14 +143,25 @@ function doPost(e) {
       case "verify": return json_(verify_(ss, data));
       case "cancelMatch": return json_(cancelMatch_(ss, data));
       case "completeMatch": return json_(completeMatch_(ss, data));
-      default: return json_({ ok: false, error: "unknown_action", action: data.action || "" });
+
+      // YÉ TIPSY 月满杯盈
+      case "moon": return json_(moonApi_(ss, data));
+
+      default:
+        return json_({
+          ok: false,
+          error: "unknown_action",
+          action: data.action || ""
+        });
     }
   } catch (err) {
     console.error(err);
-    return json_({ ok: false, error: String(err.message || err) });
+    return json_({
+      ok: false,
+      error: String(err.message || err)
+    });
   }
 }
-
 
 /* =====================================================
    PLAYERS
