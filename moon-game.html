@@ -200,43 +200,69 @@ function fitText(ctx,text,maxWidth,startSize,minSize=24){
 }
 async function buildShareCard(){
   if(!rolled)return null;
-  const W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
-  const bg=x.createLinearGradient(0,0,0,H);bg.addColorStop(0,"#050504");bg.addColorStop(.55,"#110d08");bg.addColorStop(1,"#050504");x.fillStyle=bg;x.fillRect(0,0,W,H);
+  const W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;
+  const x=c.getContext("2d"),CX=W/2,SAFE=86;
 
-  // moon glow
-  let rg=x.createRadialGradient(830,230,20,830,230,260);rg.addColorStop(0,"rgba(255,233,171,.95)");rg.addColorStop(.45,"rgba(214,166,74,.42)");rg.addColorStop(1,"rgba(214,166,74,0)");x.fillStyle=rg;x.fillRect(560,0,520,520);
-  x.beginPath();x.arc(835,225,128,0,Math.PI*2);x.fillStyle="#d7a84d";x.fill();
+  // Background
+  const bg=x.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,"#050504");bg.addColorStop(.52,"#100c07");bg.addColorStop(1,"#050504");
+  x.fillStyle=bg;x.fillRect(0,0,W,H);
 
-  // simple brand lockup
-  x.textAlign="center";x.fillStyle="#e2b85f";x.font='700 58px Georgia,serif';x.fillText("YÉ TIPSY",W/2,120);
-  x.font='500 24px system-ui';x.letterSpacing="8px";x.fillText("栖 野 微 醺 · 特 调",W/2,165);
+  // Subtle moon — decorative only, kept away from copy.
+  let glow=x.createRadialGradient(835,205,30,835,205,245);
+  glow.addColorStop(0,"rgba(236,191,94,.34)");glow.addColorStop(1,"rgba(236,191,94,0)");
+  x.fillStyle=glow;x.fillRect(585,0,495,470);
+  x.beginPath();x.arc(845,205,105,0,Math.PI*2);x.fillStyle="#d7a84d";x.fill();
 
-  x.fillStyle="#f4dfaa";x.font='900 112px "Noto Sans SC",system-ui,sans-serif';x.fillText("月满杯盈",W/2,390);
-  x.fillStyle="#d2b06d";x.font='italic 48px Georgia,serif';x.fillText("MOON GAME",W/2,455);
+  x.textAlign="center";x.textBaseline="alphabetic";
 
-  x.strokeStyle="rgba(221,177,88,.35)";x.lineWidth=2;x.beginPath();x.moveTo(100,535);x.lineTo(980,535);x.stroke();
-  x.fillStyle="#a99878";x.font='500 30px system-ui';x.fillText("本局 5 颗骰子结果",W/2,595);
+  // Brand — intentionally compact.
+  x.fillStyle="#e4ba62";x.font='700 54px Georgia,serif';x.fillText("YÉ TIPSY",CX,115);
+  x.fillStyle="#b99958";x.font='500 22px system-ui,sans-serif';x.fillText("栖 野 微 醺  ·  特 调",CX,158);
 
-  const ds=142,gap=34,total=ds*5+gap*4,start=(W-total)/2;
-  rolled.dice.forEach((n,i)=>drawDieCard(x,start+i*(ds+gap),650+(i%2?8:0),ds,n));
+  // Event
+  x.fillStyle="#f6e7c6";x.font='900 92px system-ui,"Noto Sans SC",sans-serif';x.fillText("月满杯盈",CX,345);
+  x.fillStyle="#d2aa5a";x.font='italic 42px Georgia,serif';x.fillText("MOON GAME",CX,405);
 
-  x.fillStyle="#f7ead0";x.font='700 52px system-ui';x.fillText("我摇出了",W/2-150,970);
-  x.fillStyle="#e9b84d";x.font='900 160px system-ui';x.fillText(String(rolled.displayOnes),W/2+80,1010);
-  x.fillStyle="#f7ead0";x.font='800 58px system-ui';x.fillText('个「1」！',W/2+245,970);
+  // Divider / dice label
+  x.strokeStyle="rgba(218,177,91,.28)";x.lineWidth=2;
+  x.beginPath();x.moveTo(SAFE,500);x.lineTo(W-SAFE,500);x.stroke();
+  x.fillStyle="#9e8d70";x.font='500 27px system-ui,sans-serif';x.fillText("本局 5 颗骰子结果",CX,555);
 
-  rr(x,95,1100,890,300,38);x.fillStyle="rgba(27,20,12,.92)";x.fill();x.strokeStyle="rgba(222,177,86,.5)";x.lineWidth=3;x.stroke();
-  x.fillStyle="#9d8b6d";x.font='700 30px system-ui';x.fillText("本 局 战 绩",W/2,1170);
+  // Dice: fixed grid with generous spacing, never touches edge.
+  const ds=132,gap=38,total=ds*5+gap*4,start=(W-total)/2;
+  rolled.dice.forEach((n,i)=>drawDieCard(x,start+i*(ds+gap),615,ds,n));
+
+  // Result: one centered line; no separate independently-positioned fragments.
+  const resultText=`我摇出了 ${rolled.displayOnes} 个「1」！`;
+  fitText(x,resultText,W-SAFE*2,76,48);
+  x.fillStyle="#f5e6c7";x.fillText(resultText,CX,900);
+
+  // Reward card
+  rr(x,SAFE,1005,W-SAFE*2,300,34);
+  x.fillStyle="rgba(24,18,11,.96)";x.fill();
+  x.strokeStyle="rgba(222,177,86,.50)";x.lineWidth=3;x.stroke();
+
+  x.fillStyle="#9d8b6d";x.font='600 26px system-ui,sans-serif';x.fillText("本 局 战 绩",CX,1070);
+
   const reward=String(rolled.reward||"");
-  fitText(x,reward,790,76,42);x.fillStyle="#f0c665";x.fillText(reward,W/2,1285);
-  x.fillStyle="#9e8d70";x.font='500 27px system-ui';x.fillText("奖励于下次光临兑换",W/2,1345);
+  // Long reward names get a smaller font rather than running out of the card.
+  fitText(x,reward,W-SAFE*2-110,70,38);
+  x.fillStyle="#efc363";x.fillText(reward,CX,1185);
 
-  x.fillStyle="#f5e7c8";x.font='900 68px system-ui';x.fillText("你敢来摇吗？",W/2,1535);
-  x.fillStyle="#d5a94f";x.font='700 38px system-ui';x.fillText("来 YÉ TIPSY 摇月亮",W/2,1605);
+  x.fillStyle="#93846c";x.font='500 25px system-ui,sans-serif';x.fillText("奖励于下次光临兑换",CX,1250);
 
-  x.strokeStyle="rgba(221,177,88,.35)";x.beginPath();x.moveTo(250,1690);x.lineTo(830,1690);x.stroke();
-  x.fillStyle="#f0d69b";x.font='600 36px system-ui';x.fillText("Instagram  "+IG_HANDLE,W/2,1760);
-  x.fillStyle="#766a57";x.font='500 22px system-ui';x.fillText("MID-AUTUMN LIMITED · YÉ TIPSY",W/2,1830);
+  // CTA: only one strong message.
+  x.fillStyle="#f7e9ca";x.font='900 64px system-ui,"Noto Sans SC",sans-serif';x.fillText("你敢来摇吗？",CX,1460);
+  x.fillStyle="#d7ad59";x.font='650 34px system-ui,sans-serif';x.fillText("来 YÉ TIPSY 摇月亮",CX,1525);
 
+  x.strokeStyle="rgba(218,177,91,.25)";
+  x.beginPath();x.moveTo(255,1640);x.lineTo(825,1640);x.stroke();
+
+  x.fillStyle="#ead29b";x.font='600 34px system-ui,sans-serif';x.fillText("@ye_tipsy",CX,1710);
+  x.fillStyle="#706552";x.font='500 20px system-ui,sans-serif';x.fillText("MID-AUTUMN LIMITED · YÉ TIPSY",CX,1780);
+
+  // Bottom breathing room reserved for Story UI.
   return await new Promise(resolve=>c.toBlob(resolve,"image/png",.96));
 }
 async function openShareCard(){
