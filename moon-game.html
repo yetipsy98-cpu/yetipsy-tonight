@@ -160,13 +160,21 @@ roll.onclick=async()=>{
   roll.disabled=true; roll.textContent="正在摇月亮…";
   result.classList.remove("show"); dice.classList.remove("rolling"); dice.innerHTML="";
   cup.classList.remove("pour","shaking");
-  const request=api("roll",{unlockToken:token},10000);
+  const request=api("roll",{unlockToken:token},30000);
   await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
   cup.classList.add("shaking");
   if(navigator.vibrate)navigator.vibrate([65,35,70,35,80,40,100]);
   await new Promise(r=>setTimeout(r,1080));
   const d=await request;
-  if(!d.ok){alert("无法开始："+d.error);location.reload();return}
+  if(!d.ok){
+    const msg=d.error==="timeout"
+      ?"后台处理超过 30 秒。请不要再次摇骰，交给员工检查网络后重试。"
+      :"无法开始："+d.error;
+    alert(msg);
+    roll.disabled=false;
+    roll.textContent="重新尝试";
+    return;
+  }
   rolled=d; draw(d.dice);
   roll.textContent="倒出月亮…";
   cup.classList.remove("shaking"); cup.classList.add("pour");
@@ -192,7 +200,7 @@ claimBtn.onclick=async()=>{
     countryCode:country,
     phone:p,
     communityOptIn:community.checked
-  });
+  },30000);
   if(!d.ok){
     claimBtn.disabled=false;
     claimBtn.textContent="领取我的奖励";
