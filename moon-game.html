@@ -5,37 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>YÉ TIPSY · 月满杯盈</title>
 <style>
-:root{--gold:#d8ad57;--cream:#f5ecd8;--bg:#080806}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 75% 0,#62471e55,transparent 26%),var(--bg);color:var(--cream);font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif}.app{max-width:460px;min-height:100vh;margin:auto;padding:20px}.logo{text-align:center;color:#dfb969;letter-spacing:.22em;font:18px Georgia}.logo small{display:block;font:9px system-ui;letter-spacing:.32em;margin-top:5px}.hero{text-align:center;margin:28px 0 10px}.hero h1{font:700 48px KaiTi,serif;color:#f0dca9;margin:6px}.hero p{font-size:12px;color:#a0947e}.small{font-size:10px;color:#807460;text-align:center;line-height:1.65}.stage{height:330px;margin:14px -20px;background:radial-gradient(ellipse,#352417,#0b0806 72%);position:relative;overflow:hidden}.moon{position:absolute;right:24px;top:20px;width:85px;height:85px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff2bd,#d5a34a 65%,#805b24);opacity:.82}.cup{position:absolute;z-index:5;left:50%;top:55px;transform:translateX(-50%);width:180px;height:200px;border-radius:22px 22px 52px 52px;background:linear-gradient(105deg,#3a3027,#080706 38%,#211b15);border:1px solid #5d4930;box-shadow:0 24px 35px #000b}.cup b{display:block;text-align:center;margin-top:85px;color:#cda75c;letter-spacing:.16em;font:18px Georgia}.cup.shaking{animation:cupShake 1.55s cubic-bezier(.36,.07,.19,.97) both}
-.cup.settle{animation:cupSettle .24s ease-out both}
-.cup.reveal{animation:cupReveal .72s cubic-bezier(.22,.61,.36,1) forwards}
-@keyframes cupShake{
-0%{transform:translateX(-50%) translateY(0)}
-7%{transform:translateX(calc(-50% - 13px)) translateY(-2px)}
-15%{transform:translateX(calc(-50% + 17px)) translateY(1px)}
-24%{transform:translateX(calc(-50% - 20px)) translateY(-3px)}
-34%{transform:translateX(calc(-50% + 18px)) translateY(2px)}
-45%{transform:translateX(calc(-50% - 15px)) translateY(-2px)}
-57%{transform:translateX(calc(-50% + 12px)) translateY(1px)}
-68%{transform:translateX(calc(-50% - 9px)) translateY(-1px)}
-77%{transform:translateX(calc(-50% + 14px)) translateY(0)}
-84%{transform:translateX(calc(-50% - 12px)) translateY(-1px)}
-91%{transform:translateX(calc(-50% + 7px)) translateY(0)}
-96%{transform:translateX(calc(-50% - 3px)) translateY(0)}
-100%{transform:translateX(-50%) translateY(0)}
-}
-@keyframes cupSettle{
-0%{transform:translateX(-50%) translateY(-2px)}
-55%{transform:translateX(-50%) translateY(3px)}
-100%{transform:translateX(-50%) translateY(0)}
-}
-@keyframes cupReveal{
-0%{transform:translateX(-50%) translateY(0);opacity:1}
-35%{transform:translateX(-50%) translateY(-48px);opacity:1}
-100%{transform:translateX(-50%) translateY(-235px);opacity:.16}
-}
-.dice{opacity:0;transition:opacity .22s ease}
-.dice.peek{opacity:.38}
-.dice.visible{opacity:1}.dice{position:absolute;left:50%;bottom:45px;transform:translateX(-50%);width:310px;height:95px}.die{position:absolute;width:53px;height:53px;border-radius:11px;background:#f7f1df;box-shadow:0 7px 10px #0008}.pip{position:absolute;width:8px;height:8px;border-radius:50%;background:#191713}.tl{left:10px;top:10px}.tr{right:10px;top:10px}.ml{left:10px;top:22px}.mr{right:10px;top:22px}.c{left:22px;top:22px}.bl{left:10px;bottom:10px}.br{right:10px;bottom:10px}button{width:100%;border:0;border-radius:15px;padding:15px;background:linear-gradient(135deg,#f0ce7d,#c88f32);color:#171009;font-size:16px;font-weight:900}button:disabled{opacity:.45}.result{text-align:center;margin:15px 0;padding:17px;border:1px solid #554225;border-radius:18px;background:#100d09;display:none}.result.show{display:block}.result h2{color:#e3bc6c}.lock,.sheet{position:fixed;inset:0;background:#000d;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}.sheet{display:none;align-items:flex-end;background:#0006}.box{width:min(100%,410px);background:#14100c;border:1px solid #5b472d;border-radius:22px;padding:20px}.box h2{text-align:center;color:#e3bc6c}.box input,.box select{width:100%;padding:13px;border-radius:12px;border:1px solid #493b27;background:#090806;color:#fff;margin:6px 0}.phone{display:flex;gap:6px}.phone select{width:110px}.check{font-size:11px;color:#a99b82;display:flex;gap:8px;margin:10px 0}.check input{width:auto}.code{font:900 24px monospace;background:linear-gradient(135deg,#e8c675,#b9802c);color:#171009;padding:16px;border-radius:14px}.qr{background:#fff;padding:10px;border-radius:14px;width:190px;height:190px;margin:14px auto}.qr img{width:100%;height:100%}
+:root{--gold:#d8ad57;--cream:#f5ecd8;--bg:#080806}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 75% 0,#62471e55,transparent 26%),var(--bg);color:var(--cream);font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif}.app{max-width:460px;min-height:100vh;margin:auto;padding:20px}.logo{text-align:center;color:#dfb969;letter-spacing:.22em;font:18px Georgia}.logo small{display:block;font:9px system-ui;letter-spacing:.32em;margin-top:5px}.hero{text-align:center;margin:28px 0 10px}.hero h1{font:700 48px KaiTi,serif;color:#f0dca9;margin:6px}.hero p{font-size:12px;color:#a0947e}.small{font-size:10px;color:#807460;text-align:center;line-height:1.65}.stage{height:330px;margin:14px -20px;background:radial-gradient(ellipse,#352417,#0b0806 72%);position:relative;overflow:hidden}.moon{position:absolute;right:24px;top:20px;width:85px;height:85px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff2bd,#d5a34a 65%,#805b24);opacity:.82}.cup{position:absolute;z-index:5;left:50%;top:55px;transform:translateX(-50%);width:180px;height:200px;border-radius:22px 22px 52px 52px;background:linear-gradient(105deg,#3a3027,#080706 38%,#211b15);border:1px solid #5d4930;box-shadow:0 24px 35px #000b}.cup b{display:block;text-align:center;margin-top:85px;color:#cda75c;letter-spacing:.16em;font:18px Georgia}.cup.shaking{animation:cupShake 1.05s cubic-bezier(.36,.07,.19,.97) both}
+.cup.pour{animation:cupPour .78s cubic-bezier(.2,.7,.25,1) forwards;transform-origin:78% 82%}
+@keyframes cupShake{0%{transform:translateX(-50%) rotate(0)}12%{transform:translateX(calc(-50% - 17px)) translateY(-3px) rotate(-2deg)}24%{transform:translateX(calc(-50% + 19px)) translateY(2px) rotate(2.5deg)}38%{transform:translateX(calc(-50% - 20px)) translateY(-2px) rotate(-2.2deg)}52%{transform:translateX(calc(-50% + 17px)) translateY(2px) rotate(2deg)}66%{transform:translateX(calc(-50% - 12px)) rotate(-1.5deg)}78%{transform:translateX(calc(-50% + 9px)) rotate(1deg)}90%{transform:translateX(calc(-50% - 4px)) rotate(-.5deg)}100%{transform:translateX(-50%) rotate(0)}}
+@keyframes cupPour{0%{transform:translateX(-50%) translateY(0) rotate(0)}32%{transform:translateX(-38%) translateY(-22px) rotate(16deg)}72%{transform:translateX(-24%) translateY(-50px) rotate(38deg)}100%{transform:translateX(-12%) translateY(-92px) rotate(48deg)}}
+.dice{position:absolute;left:50%;bottom:45px;transform:translateX(-50%);width:310px;height:95px;opacity:0}
+.dice.rolling{opacity:1}
+.die{position:absolute;width:53px;height:53px;border-radius:11px;background:#f7f1df;box-shadow:0 7px 10px #0008;will-change:transform,filter}
+.dice.rolling .die{animation:dieRoll var(--dur) cubic-bezier(.16,.72,.28,1) forwards;animation-delay:var(--delay)}
+@keyframes dieRoll{0%{transform:translate(var(--sx),var(--sy)) rotate(var(--sr)) scale(.82);filter:blur(1.3px)}18%{transform:translate(calc(var(--sx)*.74),calc(var(--sy)*.55 - 18px)) rotate(125deg) scale(.92);filter:blur(.9px)}38%{transform:translate(calc(var(--sx)*.48),calc(var(--sy)*.25 + 7px)) rotate(255deg);filter:blur(.45px)}55%{transform:translate(calc(var(--sx)*.29),-13px) rotate(360deg)}72%{transform:translate(calc(var(--sx)*.14),5px) rotate(430deg)}86%{transform:translate(4px,-4px) rotate(468deg)}100%{transform:translate(0,0) rotate(0deg);filter:blur(0)}}
+button{width:100%;border:0;border-radius:15px;padding:15px;background:linear-gradient(135deg,#f0ce7d,#c88f32);color:#171009;font-size:16px;font-weight:900}button:disabled{opacity:.45}.result{text-align:center;margin:15px 0;padding:17px;border:1px solid #554225;border-radius:18px;background:#100d09;display:none}.result.show{display:block}.result h2{color:#e3bc6c}.lock,.sheet{position:fixed;inset:0;background:#000d;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}.sheet{display:none;align-items:flex-end;background:#0006}.box{width:min(100%,410px);background:#14100c;border:1px solid #5b472d;border-radius:22px;padding:20px}.box h2{text-align:center;color:#e3bc6c}.box input,.box select{width:100%;padding:13px;border-radius:12px;border:1px solid #493b27;background:#090806;color:#fff;margin:6px 0}.phone{display:flex;gap:6px}.phone select{width:110px}.check{font-size:11px;color:#a99b82;display:flex;gap:8px;margin:10px 0}.check input{width:auto}.code{font:900 24px monospace;background:linear-gradient(135deg,#e8c675,#b9802c);color:#171009;padding:16px;border-radius:14px}.qr{background:#fff;padding:10px;border-radius:14px;width:190px;height:190px;margin:14px auto}.qr img{width:100%;height:100%}
 </style>
 </head>
 <body>
@@ -44,7 +23,7 @@
 <div class="hero"><div class="small">MID-AUTUMN LIMITED</div><h1>月满杯盈</h1><p>今晚的月亮，有多圆？</p></div>
 <div class="stage"><div class="moon"></div><div class="cup" id="cup"><b>YÉ TIPSY</b></div><div class="dice" id="dice"></div></div>
 <button id="roll" disabled>摇月亮</button>
-<div class="small">5颗骰子 · 一摇定胜负 · 活动结果以系统设定概率为准</div>
+<div class="small">5颗骰子 · 一摇定胜负 · 各奖项中奖机会不同</div>
 
 <div class="result" id="result"><div id="count"></div><h2 id="reward"></h2><div>🎁 奖励于下次光临兑换</div></div>
 
@@ -116,7 +95,8 @@ async function api(action,data={},timeoutMs=10000){
   }
 }
 function draw(a){
-  dice.innerHTML=a.map((n,i)=>`<div class="die" style="left:${pos[i][0]}px;top:${pos[i][1]}px">${pip[n].map(x=>`<i class="pip ${x}"></i>`).join("")}</div>`).join("");
+  const starts=[["116px","-112px","-24deg","1.04s",".00s"],["92px","-104px","18deg",".94s",".08s"],["126px","-88px","-38deg","1.12s",".04s"],["78px","-120px","31deg","1.00s",".12s"],["108px","-98px","-12deg","1.08s",".16s"]];
+  dice.innerHTML=a.map((n,i)=>`<div class="die" style="left:${pos[i][0]}px;top:${pos[i][1]}px;--sx:${starts[i][0]};--sy:${starts[i][1]};--sr:${starts[i][2]};--dur:${starts[i][3]};--delay:${starts[i][4]}">${pip[n].map(x=>`<i class="pip ${x}"></i>`).join("")}</div>`).join("");
 }
 unlock.onclick=async()=>{
   const password=staff.value.trim();
@@ -177,66 +157,28 @@ staff.addEventListener("keydown",e=>{
   if(e.key==="Enter"&&!unlock.disabled) unlock.click();
 });
 roll.onclick=async()=>{
-  roll.disabled=true;
-  roll.textContent="正在摇月亮…";
-  result.classList.remove("show");
-  dice.classList.remove("peek","visible");
-  dice.innerHTML="";
-  cup.classList.remove("reveal","settle","shaking");
-
-  // 后台结果与视觉动画并行准备；动画不会因为网络很快而被跳过
-  const request=api("roll",{unlockToken:token});
+  roll.disabled=true; roll.textContent="正在摇月亮…";
+  result.classList.remove("show"); dice.classList.remove("rolling"); dice.innerHTML="";
+  cup.classList.remove("pour","shaking");
+  const request=api("roll",{unlockToken:token},10000);
   await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-
   cup.classList.add("shaking");
-  if(navigator.vibrate) navigator.vibrate([70,45,70,45,90,55,55,40,110]);
-
-  // 完整摇盅节奏：1.55s
-  await new Promise(r=>setTimeout(r,1550));
-  cup.classList.remove("shaking");
-  cup.classList.add("settle");
-  roll.textContent="月亮落定…";
-
-  // 让最后一次落桌有一个真实停顿
-  await new Promise(r=>setTimeout(r,280));
-
+  if(navigator.vibrate)navigator.vibrate([65,35,70,35,80,40,100]);
+  await new Promise(r=>setTimeout(r,1080));
   const d=await request;
-  if(!d.ok){
-    alert("无法开始："+d.error);
-    location.reload();
-    return;
-  }
-  rolled=d;
-
-  // 结果此时才绘制在骰盅下面，先完全遮住
-  draw(d.dice);
-  dice.classList.remove("visible","peek");
-
-  // 停一下再开盅
-  await new Promise(r=>setTimeout(r,180));
-  cup.classList.remove("settle");
-  cup.classList.add("reveal");
-
-  // 骰盅抬到一半才开始看到骰子
-  await new Promise(r=>setTimeout(r,260));
-  dice.classList.add("peek");
-  await new Promise(r=>setTimeout(r,210));
-  dice.classList.remove("peek");
-  dice.classList.add("visible");
-
-  // 先让客人看清 5 颗骰子，再公布奖励
+  if(!d.ok){alert("无法开始："+d.error);location.reload();return}
+  rolled=d; draw(d.dice);
+  roll.textContent="倒出月亮…";
+  cup.classList.remove("shaking"); cup.classList.add("pour");
+  await new Promise(r=>setTimeout(r,250));
+  dice.classList.add("rolling");
+  if(navigator.vibrate)navigator.vibrate([35,25,30,25,45]);
+  await new Promise(r=>setTimeout(r,1350));
   roll.textContent="结果揭晓";
-  await new Promise(r=>setTimeout(r,650));
-
-  count.textContent=`你摇出了 ${d.displayOnes} 个「1」`;
-  reward.textContent=d.reward;
-  result.classList.add("show");
-
-  // 奖励信息出现后再稍停，避免领取弹窗马上把骰子吃掉
-  await new Promise(r=>setTimeout(r,700));
-  claimTitle.textContent=d.reward;
-  claim.style.display="flex";
-  roll.textContent="本局已完成";
+  await new Promise(r=>setTimeout(r,420));
+  count.textContent=`你摇出了 ${d.displayOnes} 个「1」`; reward.textContent=d.reward; result.classList.add("show");
+  await new Promise(r=>setTimeout(r,850));
+  claimTitle.textContent=d.reward; claim.style.display="flex"; roll.textContent="本局已完成";
 };
 claimBtn.onclick=async()=>{
   const p=phone.value.replace(/\D/g,"");
@@ -264,6 +206,9 @@ claimBtn.onclick=async()=>{
   success.classList.add("show");
   success.scrollIntoView({behavior:"smooth"});
 };
+
+// 预热 Apps Script 冷启动；不缓存密码，也不跳过每局员工验证。
+setTimeout(()=>{fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"ping"}),cache:"no-store"}).catch(()=>{});},250);
 </script>
 </body>
 </html>
