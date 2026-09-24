@@ -31,7 +31,10 @@
 <div class="logo">YÉ TIPSY<small>2.0 · 栖野微醺</small></div>
 <div class="hero"><div class="small">MID-AUTUMN LIMITED</div><h1>月满杯盈</h1><p>今晚的月亮，有多圆？</p></div>
 <div class="stage"><div class="moon"></div><div class="cup" id="cup"><b>YÉ TIPSY</b></div><div class="dice" id="dice"></div></div>
-<button id="roll" disabled>摇月亮</button>
+<button id="roll" disabled>开启「摇一摇」</button>
+<div id="motionStatus" class="small" style="margin-top:9px">员工授权后，点击开启动作感应</div>
+<div style="height:5px;background:#211a12;border-radius:99px;overflow:hidden;margin:10px 18px 6px"><i id="shakeBar" style="display:block;width:0%;height:100%;background:#d9b56b;transition:width .12s"></i></div>
+<button id="tapFallback" disabled style="margin-top:7px;background:#17120d;color:#bba77f;border:1px solid #4b3b26;font-size:12px;padding:9px">手机不支持？点击开始</button>
 <div class="small">5颗骰子 · 一摇定胜负 · 各奖项中奖机会不同</div>
 
 <div class="result" id="result"><div id="count"></div><h2 id="reward"></h2><div>🎁 奖励于下次光临兑换</div></div>
@@ -152,6 +155,9 @@ unlock.onclick=async()=>{
     setTimeout(()=>{
       lock.style.display="none";
       roll.disabled=false;
+      tapFallback.disabled=false;
+      roll.textContent="开启「摇一摇」";
+      motionStatus.textContent="点击上方按钮后，拿稳手机摇 3 下";
     },180);
   }catch(e){
     console.error(e);
@@ -165,51 +171,59 @@ unlock.onclick=async()=>{
 staff.addEventListener("keydown",e=>{
   if(e.key==="Enter"&&!unlock.disabled) unlock.click();
 });
-roll.onclick=async()=>{
-  if(!preparedRoll){
-    alert("本局结果尚未准备好，请让员工重新授权。");
-    location.reload();
-    return;
-  }
+let gameStarted=false,motionEnabled=false,shakeHits=0,lastHit=0,lastMag=null;
 
-  roll.disabled=true;
-  result.classList.remove("show");
-  dice.classList.remove("revealed");
-  dice.innerHTML="";
-  cup.classList.remove("shaking","pour");
-  void cup.offsetWidth;
-
-  const d=preparedRoll;
-  rolled=d;
-
-  // 1) 基本摇盅动画
-  roll.textContent="正在摇月亮…";
-  cup.classList.add("shaking");
+async function startReveal(){
+  if(gameStarted)return;
+  if(!preparedRoll){alert("本局结果尚未准备好，请让员工重新授权。");location.reload();return}
+  gameStarted=true; roll.disabled=true; tapFallback.disabled=true;
+  motionStatus.textContent="摇到了！🌕"; shakeBar.style.width="100%";
+  result.classList.remove("show"); dice.classList.remove("revealed"); dice.innerHTML="";
+  cup.classList.remove("shaking","pour"); void cup.offsetWidth;
+  const d=preparedRoll; rolled=d;
+  roll.textContent="正在摇月亮…"; cup.classList.add("shaking");
   if(navigator.vibrate)navigator.vibrate([65,35,65,35,90]);
-
   await new Promise(r=>setTimeout(r,1080));
-
-  // 2) 倒盅动画。骰子本身不滚、不旋转。
-  cup.classList.remove("shaking");
-  cup.classList.add("pour");
-  roll.textContent="揭晓中…";
-
-  // 结果已经在员工授权时准备好，这里纯动画，不请求服务器。
-  await new Promise(r=>setTimeout(r,330));
-  draw(d.dice);
-  dice.classList.add("revealed");
-
+  cup.classList.remove("shaking"); cup.classList.add("pour"); roll.textContent="揭晓中…";
+  await new Promise(r=>setTimeout(r,330)); draw(d.dice); dice.classList.add("revealed");
   await new Promise(r=>setTimeout(r,430));
-  count.textContent=`你摇出了 ${d.displayOnes} 个「1」`;
-  reward.textContent=d.reward;
-  result.classList.add("show");
-  roll.textContent="本局已完成";
+  count.textContent=`你摇出了 ${d.displayOnes} 个「1」`; reward.textContent=d.reward;
+  result.classList.add("show"); roll.textContent="本局已完成";
+  await new Promise(r=>setTimeout(r,650)); claimTitle.textContent=d.reward; claim.style.display="flex";
+}
 
-  // 给客人先看清骰子和奖励，再出现领取框
-  await new Promise(r=>setTimeout(r,650));
-  claimTitle.textContent=d.reward;
-  claim.style.display="flex";
-};
+function onMotion(e){
+  if(!motionEnabled||gameStarted)return;
+  const a=e.accelerationIncludingGravity||e.acceleration;
+  if(!a||a.x==null||a.y==null||a.z==null)return;
+  const mag=Math.sqrt(a.x*a.x+a.y*a.y+a.z*a.z);
+  if(lastMag==null){lastMag=mag;return}
+  const delta=Math.abs(mag-lastMag); lastMag=mag; const now=Date.now();
+  if(delta>7.8&&now-lastHit>220){
+    lastHit=now; shakeHits=Math.min(3,shakeHits+1);
+    shakeBar.style.width=(shakeHits/3*100)+"%";
+    motionStatus.textContent=shakeHits<3?`检测到 ${shakeHits}/3 下 · 再摇 ${3-shakeHits} 下`:"检测完成 🌕";
+    cup.animate([{transform:"translateX(-50%) rotate(-2deg)"},{transform:"translateX(-50%) rotate(2deg)"},{transform:"translateX(-50%) rotate(0)"}],{duration:180,easing:"ease-out"});
+    if(navigator.vibrate)navigator.vibrate(25);
+    if(shakeHits>=3)startReveal();
+  }
+}
+
+async function enableMotion(){
+  if(gameStarted)return;
+  if(typeof DeviceMotionEvent==="undefined"){motionStatus.textContent="这台手机不支持动作感应，请使用下方「点击开始」";return}
+  try{
+    if(typeof DeviceMotionEvent.requestPermission==="function"){
+      const permission=await DeviceMotionEvent.requestPermission();
+      if(permission!=="granted"){motionStatus.textContent="动作感应未允许，请使用下方「点击开始」";return}
+    }
+    if(!motionEnabled){window.addEventListener("devicemotion",onMotion,{passive:true});motionEnabled=true}
+    shakeHits=0;lastHit=0;lastMag=null;shakeBar.style.width="0%";
+    roll.textContent="已开启 · 摇手机";motionStatus.textContent="拿稳手机，摇 3 下 🌕";
+  }catch(err){console.error(err);motionStatus.textContent="无法开启动作感应，请使用下方「点击开始」"}
+}
+roll.onclick=enableMotion;
+tapFallback.onclick=startReveal;
 claimBtn.onclick=async()=>{
   const p=phone.value.replace(/\D/g,"");
   const country=cc.value;
