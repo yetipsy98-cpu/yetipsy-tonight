@@ -54,41 +54,98 @@
 </div>
 
 <script>
-const API_URL"https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
+const API_URL="https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
 const pip={1:["c"],2:["tl","br"],3:["tl","c","br"],4:["tl","tr","bl","br"],5:["tl","tr","c","bl","br"],6:["tl","tr","ml","mr","bl","br"]};
 const pos=[[12,20],[72,9],[132,25],[192,8],[252,22]];
 let token="",rolled=null;
 
-async function api(action,data={}){
+async function api(action,data={},timeoutMs=10000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
   try{
     const r=await fetch(API_URL,{
       method:"POST",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify(Object.assign({action:"moon",subaction:action},data))
+      body:JSON.stringify(Object.assign({action:"moon",subaction:action},data)),
+      signal:controller.signal,
+      cache:"no-store",
+      redirect:"follow"
     });
-    return JSON.parse(await r.text());
+    const text=await r.text();
+    if(!r.ok) return {ok:false,error:"http_"+r.status,detail:text.slice(0,180)};
+    try{
+      return JSON.parse(text);
+    }catch(parseErr){
+      return {ok:false,error:"invalid_server_response",detail:text.slice(0,180)};
+    }
   }catch(e){
-    return {ok:false,error:"network_error"};
+    if(e && e.name==="AbortError") return {ok:false,error:"timeout"};
+    return {ok:false,error:"network_error",detail:String(e&&e.message||e)};
+  }finally{
+    clearTimeout(timer);
   }
 }
 function draw(a){
   dice.innerHTML=a.map((n,i)=>`<div class="die" style="left:${pos[i][0]}px;top:${pos[i][1]}px">${pip[n].map(x=>`<i class="pip ${x}"></i>`).join("")}</div>`).join("");
 }
 unlock.onclick=async()=>{
+  const password=staff.value.trim();
   err.textContent="";
-  unlock.disabled=true;
-  const d=await api("unlock",{password:staff.value});
-  unlock.disabled=false;
-  if(!d.ok){
-    const map={wrong_password:"员工密码错误",activity_closed:"活动目前已关闭",staff_password_not_configured:"请先在后台设置员工密码",network_error:"无法连接活动后台"};
-    err.textContent=map[d.error]||("无法解锁："+d.error);
+  if(!password){
+    err.textContent="请输入员工密码";
+    staff.focus();
     return;
   }
-  token=d.unlockToken;
-  staff.value="";
-  lock.style.display="none";
-  roll.disabled=false;
+
+  unlock.disabled=true;
+  const oldLabel=unlock.textContent;
+  unlock.textContent="正在验证…";
+  err.textContent="正在连接活动后台，请稍候…";
+
+  try{
+    const d=await api("unlock",{password},10000);
+
+    if(!d.ok){
+      const map={
+        wrong_password:"员工密码错误",
+        activity_closed:"活动目前已关闭",
+        staff_password_not_configured:"请先在后台设置员工密码",
+        network_error:"无法连接活动后台，请检查 Web App 部署",
+        timeout:"后台超过 10 秒没有回应，请检查 Apps Script 部署",
+        invalid_server_response:"后台返回的不是有效 JSON，请重新部署 Web App",
+        unknown_action:"当前部署还没有 Moon Game 路由，请重新部署 Apps Script 新版本",
+        unknown_moon_action:"Moon Game 后台路由异常"
+      };
+      err.textContent=map[d.error]||("无法解锁："+(d.error||"unknown_error"));
+      if(d.detail) console.error("Moon unlock detail:",d.detail);
+      return;
+    }
+
+    if(!d.unlockToken){
+      err.textContent="后台已回应，但没有取得授权 Token";
+      return;
+    }
+
+    token=d.unlockToken;
+    staff.value="";
+    err.textContent="授权成功";
+    if(navigator.vibrate) navigator.vibrate(40);
+    setTimeout(()=>{
+      lock.style.display="none";
+      roll.disabled=false;
+    },180);
+  }catch(e){
+    console.error(e);
+    err.textContent="解锁发生异常："+String(e&&e.message||e);
+  }finally{
+    unlock.disabled=false;
+    unlock.textContent=oldLabel;
+  }
 };
+
+staff.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&!unlock.disabled) unlock.click();
+});
 roll.onclick=async()=>{
   roll.disabled=true;
   roll.textContent="正在摇月亮…";
