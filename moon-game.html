@@ -5,7 +5,25 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>YÉ TIPSY · 月满杯盈</title>
 <style>
-:root{--gold:#d8ad57;--cream:#f5ecd8;--bg:#080806}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 75% 0,#62471e55,transparent 26%),var(--bg);color:var(--cream);font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif}.app{max-width:460px;min-height:100vh;margin:auto;padding:20px}.logo{text-align:center;color:#dfb969;letter-spacing:.22em;font:18px Georgia}.logo small{display:block;font:9px system-ui;letter-spacing:.32em;margin-top:5px}.hero{text-align:center;margin:28px 0 10px}.hero h1{font:700 48px KaiTi,serif;color:#f0dca9;margin:6px}.hero p{font-size:12px;color:#a0947e}.small{font-size:10px;color:#807460;text-align:center;line-height:1.65}.stage{height:330px;margin:14px -20px;background:radial-gradient(ellipse,#352417,#0b0806 72%);position:relative;overflow:hidden}.moon{position:absolute;right:24px;top:20px;width:85px;height:85px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff2bd,#d5a34a 65%,#805b24);opacity:.82}.cup{position:absolute;z-index:5;left:50%;top:55px;transform:translateX(-50%);width:180px;height:200px;border-radius:22px 22px 52px 52px;background:linear-gradient(105deg,#3a3027,#080706 38%,#211b15);border:1px solid #5d4930;box-shadow:0 24px 35px #000b}.cup b{display:block;text-align:center;margin-top:85px;color:#cda75c;letter-spacing:.16em;font:18px Georgia}.cup.up{animation:up .8s forwards}@keyframes up{to{transform:translate(-50%,-220px);opacity:.08}}.dice{position:absolute;left:50%;bottom:45px;transform:translateX(-50%);width:310px;height:95px}.die{position:absolute;width:53px;height:53px;border-radius:11px;background:#f7f1df;box-shadow:0 7px 10px #0008}.pip{position:absolute;width:8px;height:8px;border-radius:50%;background:#191713}.tl{left:10px;top:10px}.tr{right:10px;top:10px}.ml{left:10px;top:22px}.mr{right:10px;top:22px}.c{left:22px;top:22px}.bl{left:10px;bottom:10px}.br{right:10px;bottom:10px}button{width:100%;border:0;border-radius:15px;padding:15px;background:linear-gradient(135deg,#f0ce7d,#c88f32);color:#171009;font-size:16px;font-weight:900}button:disabled{opacity:.45}.result{text-align:center;margin:15px 0;padding:17px;border:1px solid #554225;border-radius:18px;background:#100d09;display:none}.result.show{display:block}.result h2{color:#e3bc6c}.lock,.sheet{position:fixed;inset:0;background:#000d;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}.sheet{display:none;align-items:flex-end;background:#0006}.box{width:min(100%,410px);background:#14100c;border:1px solid #5b472d;border-radius:22px;padding:20px}.box h2{text-align:center;color:#e3bc6c}.box input,.box select{width:100%;padding:13px;border-radius:12px;border:1px solid #493b27;background:#090806;color:#fff;margin:6px 0}.phone{display:flex;gap:6px}.phone select{width:110px}.check{font-size:11px;color:#a99b82;display:flex;gap:8px;margin:10px 0}.check input{width:auto}.code{font:900 24px monospace;background:linear-gradient(135deg,#e8c675,#b9802c);color:#171009;padding:16px;border-radius:14px}.qr{background:#fff;padding:10px;border-radius:14px;width:190px;height:190px;margin:14px auto}.qr img{width:100%;height:100%}
+:root{--gold:#d8ad57;--cream:#f5ecd8;--bg:#080806}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 75% 0,#62471e55,transparent 26%),var(--bg);color:var(--cream);font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif}.app{max-width:460px;min-height:100vh;margin:auto;padding:20px}.logo{text-align:center;color:#dfb969;letter-spacing:.22em;font:18px Georgia}.logo small{display:block;font:9px system-ui;letter-spacing:.32em;margin-top:5px}.hero{text-align:center;margin:28px 0 10px}.hero h1{font:700 48px KaiTi,serif;color:#f0dca9;margin:6px}.hero p{font-size:12px;color:#a0947e}.small{font-size:10px;color:#807460;text-align:center;line-height:1.65}.stage{height:330px;margin:14px -20px;background:radial-gradient(ellipse,#352417,#0b0806 72%);position:relative;overflow:hidden}.moon{position:absolute;right:24px;top:20px;width:85px;height:85px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff2bd,#d5a34a 65%,#805b24);opacity:.82}.cup{position:absolute;z-index:5;left:50%;top:55px;transform:translateX(-50%);width:180px;height:200px;border-radius:22px 22px 52px 52px;background:linear-gradient(105deg,#3a3027,#080706 38%,#211b15);border:1px solid #5d4930;box-shadow:0 24px 35px #000b}.cup b{display:block;text-align:center;margin-top:85px;color:#cda75c;letter-spacing:.16em;font:18px Georgia}.cup.shaking{animation:basicShake 1.05s cubic-bezier(.36,.07,.19,.97) both}
+.cup.pour{animation:basicPour .72s cubic-bezier(.2,.7,.25,1) forwards;transform-origin:76% 82%}
+@keyframes basicShake{
+0%{transform:translateX(-50%) rotate(0)}
+12%{transform:translateX(calc(-50% - 15px)) rotate(-2deg)}
+25%{transform:translateX(calc(-50% + 17px)) rotate(2deg)}
+39%{transform:translateX(calc(-50% - 18px)) rotate(-2deg)}
+54%{transform:translateX(calc(-50% + 14px)) rotate(1.5deg)}
+68%{transform:translateX(calc(-50% - 10px)) rotate(-1deg)}
+82%{transform:translateX(calc(-50% + 6px)) rotate(.6deg)}
+100%{transform:translateX(-50%) rotate(0)}
+}
+@keyframes basicPour{
+0%{transform:translateX(-50%) translateY(0) rotate(0);opacity:1}
+45%{transform:translateX(-38%) translateY(-28px) rotate(18deg);opacity:1}
+100%{transform:translateX(-18%) translateY(-115px) rotate(38deg);opacity:.18}
+}
+.dice{opacity:0}
+.dice.revealed{opacity:1;transition:opacity .12s ease-out}.dice{position:absolute;left:50%;bottom:45px;transform:translateX(-50%);width:310px;height:95px}.die{position:absolute;width:53px;height:53px;border-radius:11px;background:#f7f1df;box-shadow:0 7px 10px #0008}.pip{position:absolute;width:8px;height:8px;border-radius:50%;background:#191713}.tl{left:10px;top:10px}.tr{right:10px;top:10px}.ml{left:10px;top:22px}.mr{right:10px;top:22px}.c{left:22px;top:22px}.bl{left:10px;bottom:10px}.br{right:10px;bottom:10px}button{width:100%;border:0;border-radius:15px;padding:15px;background:linear-gradient(135deg,#f0ce7d,#c88f32);color:#171009;font-size:16px;font-weight:900}button:disabled{opacity:.45}.result{text-align:center;margin:15px 0;padding:17px;border:1px solid #554225;border-radius:18px;background:#100d09;display:none}.result.show{display:block}.result h2{color:#e3bc6c}.lock,.sheet{position:fixed;inset:0;background:#000d;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}.sheet{display:none;align-items:flex-end;background:#0006}.box{width:min(100%,410px);background:#14100c;border:1px solid #5b472d;border-radius:22px;padding:20px}.box h2{text-align:center;color:#e3bc6c}.box input,.box select{width:100%;padding:13px;border-radius:12px;border:1px solid #493b27;background:#090806;color:#fff;margin:6px 0}.phone{display:flex;gap:6px}.phone select{width:110px}.check{font-size:11px;color:#a99b82;display:flex;gap:8px;margin:10px 0}.check input{width:auto}.code{font:900 24px monospace;background:linear-gradient(135deg,#e8c675,#b9802c);color:#171009;padding:16px;border-radius:14px}.qr{background:#fff;padding:10px;border-radius:14px;width:190px;height:190px;margin:14px auto}.qr img{width:100%;height:100%}
 </style>
 </head>
 <body>
@@ -155,29 +173,42 @@ roll.onclick=async()=>{
   }
 
   roll.disabled=true;
-  roll.textContent="正在摇月亮…";
-  if(navigator.vibrate)navigator.vibrate([80,50,80,50,120]);
+  result.classList.remove("show");
+  dice.classList.remove("revealed");
+  dice.innerHTML="";
+  cup.classList.remove("shaking","pour");
+  void cup.offsetWidth;
 
   const d=preparedRoll;
   rolled=d;
 
-  // 回到第一版：简单、干净。点击后无需再等后台。
-  cup.classList.remove("up");
-  void cup.offsetWidth;
-  cup.classList.add("up");
+  // 1) 基本摇盅动画
+  roll.textContent="正在摇月亮…";
+  cup.classList.add("shaking");
+  if(navigator.vibrate)navigator.vibrate([65,35,65,35,90]);
 
-  setTimeout(()=>{
-    draw(d.dice);
-    count.textContent=`你摇出了 ${d.displayOnes} 个「1」`;
-    reward.textContent=d.reward;
-    result.classList.add("show");
-    roll.textContent="本局已完成";
+  await new Promise(r=>setTimeout(r,1080));
 
-    setTimeout(()=>{
-      claimTitle.textContent=d.reward;
-      claim.style.display="flex";
-    },650);
-  },520);
+  // 2) 倒盅动画。骰子本身不滚、不旋转。
+  cup.classList.remove("shaking");
+  cup.classList.add("pour");
+  roll.textContent="揭晓中…";
+
+  // 结果已经在员工授权时准备好，这里纯动画，不请求服务器。
+  await new Promise(r=>setTimeout(r,330));
+  draw(d.dice);
+  dice.classList.add("revealed");
+
+  await new Promise(r=>setTimeout(r,430));
+  count.textContent=`你摇出了 ${d.displayOnes} 个「1」`;
+  reward.textContent=d.reward;
+  result.classList.add("show");
+  roll.textContent="本局已完成";
+
+  // 给客人先看清骰子和奖励，再出现领取框
+  await new Promise(r=>setTimeout(r,650));
+  claimTitle.textContent=d.reward;
+  claim.style.display="flex";
 };
 claimBtn.onclick=async()=>{
   const p=phone.value.replace(/\D/g,"");
