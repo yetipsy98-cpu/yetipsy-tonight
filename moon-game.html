@@ -73,8 +73,11 @@ box-shadow:inset 0 30px 50px #0008,inset 0 -30px 45px #0007}
 .codehero strong{display:block;font:900 25px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;word-break:break-all}
 .codehero em{display:block;font-style:normal;font-size:10px;margin-top:6px;opacity:.75}
 
+</style><style>
+.unlockback{display:flex;position:fixed;inset:0;background:#080604f3;z-index:999;align-items:center;justify-content:center;padding:22px}.unlockback.hide{display:none}
+.unlockbox{width:min(100%,390px);border:1px solid #66502e;border-radius:24px;padding:24px 19px;background:linear-gradient(180deg,#17120d,#0d0b08);box-shadow:0 25px 80px #000}.unlockbox h2{margin:0 0 6px;color:#e3bc6c;text-align:center;font-size:25px}.unlockbox p{margin:0 0 17px;color:#9d907a;text-align:center;font-size:11px;line-height:1.6}.unlockbox input{width:100%;box-sizing:border-box;border:1px solid #493b27;border-radius:13px;background:#090806;color:#f6eedb;padding:14px;font-size:18px;text-align:center;outline:0}.unlockbox button{width:100%;margin-top:11px;padding:14px;border:0;border-radius:13px;background:#d5aa58;color:#171009;font-weight:900;font-size:16px}.unlockerr{min-height:17px;margin-top:9px!important;color:#c97b6a!important}
 </style></head>
-<body><main class="app">
+<body><div class="unlockback" id="unlockBack"><div class="unlockbox"><h2>员工授权</h2><p>每位顾客开始前，由员工输入密码解锁一次。<br>一次授权只能完成一次奖励领取。</p><input id="staffPassword" type="password" autocomplete="off" placeholder="员工密码"><button id="unlockBtn">解锁本次游戏</button><p class="unlockerr" id="unlockErr"></p></div></div><main class="app">
 <button class="sound-toggle" id="soundToggle" aria-label="音效">🔊</button><div class="logo">YÉ TIPSY<small>2.0 · 栖野微醺</small></div>
 <section class="hero"><div class="eyebrow">MID-AUTUMN LIMITED</div><h1>月满杯盈</h1><p>今晚的月亮，有多圆？</p></section>
 <section class="table">
@@ -98,8 +101,8 @@ box-shadow:inset 0 30px 50px #0008,inset 0 -30px 45px #0007}
 </section>
 <section class="success" id="success">
   <h3>已为你保留奖励 🌕</h3>
-  <p style="color:#b7aa91;font-size:12px">奖励将发送到你填写的 WhatsApp。<br>先把下面的找回码截图保存。</p>
-  <div class="codehero"><small>奖励找回码 · REWARD RECOVERY CODE</small><strong id="verifyCode">—</strong><em>⚠ 建议立即截图保存</em></div><div style="font-size:11px;line-height:1.6;color:#a99b82;text-align:center;margin:8px 4px 12px">奖励会发送到你的 WhatsApp。<br>如果没有收到、信息遗失或需要我们帮你找回奖励，<br><b style="color:#d9b66f">请出示这个找回码。</b></div><div class="voucher" id="voucher"></div>
+  <p style="color:#b7aa91;font-size:12px">奖励将在 <b>3 个工作日内</b>发送至你填写的 WhatsApp。<br>先把下面的找回码截图保存。</p>
+  <div class="codehero"><small>奖励找回码 · REWARD RECOVERY CODE</small><strong id="verifyCode">—</strong><em>⚠ 建议立即截图保存</em></div><div style="font-size:11px;line-height:1.6;color:#a99b82;text-align:center;margin:8px 4px 12px">奖励将在 3 个工作日内发送至你的 WhatsApp。<br>如果超过 3 个工作日仍未收到、信息遗失或需要我们帮你找回奖励，<br><b style="color:#d9b66f">请出示这个找回码。</b></div><div class="voucher" id="voucher"></div>
   <div id="communityInvite" style="margin-top:16px;padding-top:15px;border-top:1px solid #3c3121;text-align:center">
   <div style="font-size:17px;font-weight:900;color:#e1bd74">加入 Ye Tipsy 社群 🌙</div>
   <div style="font-size:11px;line-height:1.6;color:#958870;margin:6px 0 12px">用你自己的手机扫一扫<br>下一场活动 · 限定福利 · 新品消息先知道</div>
@@ -135,11 +138,12 @@ box-shadow:inset 0 30px 50px #0008,inset 0 -30px 45px #0007}
 <script>
 const pipMap={1:["c"],2:["tl","br"],3:["tl","c","br"],4:["tl","tr","bl","br"],5:["tl","tr","c","bl","br"],6:["tl","tr","ml","mr","bl","br"]};
 const pos=[[12,20],[72,9],[132,25],[192,8],[252,22]];
+let currentDice=[];let unlockToken="";
 const dice=document.getElementById("dice"),scene=document.getElementById("scene"),btn=document.getElementById("roll"),res=document.getElementById("result");
 function dieHTML(n,i){return `<div class="die" style="left:${pos[i][0]}px;top:${pos[i][1]}px;animation-delay:${i*.05}s">${pipMap[n].map(p=>`<i class="pip ${p}"></i>`).join("")}</div>`}
 function prize(n){if(n===5)return"断片指南系列 · 任一杯";if(n===4)return"微醺特调系列 · 任一杯";if(n===3)return"彩虹 Shot × 1";return"RM5 Voucher"}
 btn.onclick=()=>{ctx();playShake();btn.disabled=true;res.classList.remove("show");dice.innerHTML="";scene.className="scene shake";if(navigator.vibrate)navigator.vibrate([70,35,70,35,100]);
-setTimeout(()=>{const a=Array.from({length:5},()=>1+Math.floor(Math.random()*6));const ones=a.filter(x=>x===1).length;dice.innerHTML=a.map(dieHTML).join("");scene.className="scene reveal";playReveal();
+setTimeout(()=>{const a=Array.from({length:5},()=>1+Math.floor(Math.random()*6));currentDice=a.slice();const ones=a.filter(x=>x===1).length;dice.innerHTML=a.map(dieHTML).join("");scene.className="scene reveal";playReveal();
 setTimeout(()=>{document.getElementById("count").textContent=`你摇出了 ${ones} 个「1」`;currentOnes=ones;currentReward=prize(ones);document.getElementById("reward").textContent=currentReward;res.classList.add("show");claim.classList.remove("show");success.classList.remove("show");setTimeout(openClaimModal,650);btn.disabled=false;btn.textContent="再试玩一次";res.scrollIntoView({behavior:"smooth",block:"center"})},850)},1100)}
 
 let currentReward="", currentOnes=0;
@@ -195,47 +199,31 @@ function openClaimModal(){document.getElementById("modalReward").textContent=cur
 function closeClaimModal(){claimModal.classList.remove("show");document.body.style.overflow="";}
 
 
-document.getElementById("modalClaimBtn").onclick=()=>{
- const p=modalPhone.value.replace(/\D/g,"");
- const cc=countryCode.value; const valid=(cc==="+65"?p.length===8:p.length>=9&&p.length<=11); if(!valid){modalPhone.focus();modalPhone.style.boxShadow="0 0 0 1px #c86b55 inset";return}
- modalPhone.style.boxShadow="";
- const code="YT-MOON-"+Date.now().toString(36).toUpperCase().slice(-6);
- localStorage.setItem(code,JSON.stringify({phone:cc+p,country:cc,reward:currentReward,ones:currentOnes,community:modalCommunity.checked,created:new Date().toISOString(),status:"pending"}));
- closeClaimModal();
- document.getElementById("verifyCode").textContent=code; voucher.textContent="奖励："+currentReward+" · WhatsApp："+cc+" "+p;
- success.classList.add("show");success.scrollIntoView({behavior:"smooth",block:"center"});
+document.getElementById("modalClaimBtn").onclick=async()=>{
+ const p=modalPhone.value.replace(/\D/g,""),cc=countryCode.value;
+ const valid=(cc==="+65"?p.length===8:p.length>=9&&p.length<=11);
+ if(!valid){modalPhone.focus();return}
+ if(!unlockToken){alert("本次员工授权已失效，请重新解锁。");return}
+ const b=document.getElementById("modalClaimBtn");b.disabled=true;b.textContent="正在保存奖励…";
+ try{
+  const r=await fetch(MOON_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"claim",unlockToken:unlockToken,countryCode:cc,phone:p,dice:currentDice,communityOptIn:modalCommunity.checked})});
+  const data=JSON.parse(await r.text());if(!data.ok)throw new Error(data.error||"save_failed");
+  unlockToken="";currentReward=data.reward;currentOnes=data.ones;closeClaimModal();
+  document.getElementById("verifyCode").textContent=data.recoveryCode;voucher.textContent="奖励："+data.reward+" · WhatsApp："+cc+" "+p;
+  success.classList.add("show");success.scrollIntoView({behavior:"smooth",block:"center"});
+  btn.disabled=true;btn.textContent="下一位顾客需员工重新解锁";
+ }catch(e){b.disabled=false;b.textContent="领取我的奖励";alert("保存失败："+e.message)}
 };
 
 </script>
 <script>
-/* Ye Tipsy Moon Game — production API bridge
-   Backend must implement action: moonGameClaim and return:
-   {success:true,data:{recoveryCode:"YT-MOON-XXXXXX"}}
-*/
-window.YT_MOON_API_URL = 'https://script.google.com/macros/s/AKfycbw2WXwgeHls1AvyAl_dcNW0q2Fd4KOsurqPXky28MqDo6wxMPuVICAhyfr-xex34qgSuw/exec';
-
-window.submitMoonGameClaim = async function(payload) {
-  const controller = window.AbortController ? new AbortController() : null;
-  const timer = controller ? setTimeout(() => controller.abort(), 15000) : null;
-  try {
-    const res = await fetch(window.YT_MOON_API_URL, {
-      method: "POST",
-      redirect: "follow",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        action: "moonGameClaim",
-        token: "",
-        data: payload
-      }),
-      signal: controller ? controller.signal : undefined
-    });
-    const json = JSON.parse(await res.text());
-    if (!json || !json.success) throw new Error((json && json.error && json.error.message) || "SAVE_FAILED");
-    return json.data || {};
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-};
-</script>
-
-</body></html>
+const MOON_API_URL="PASTE_MOON_GAME_WEB_APP_URL_HERE";
+const unlockBack=document.getElementById("unlockBack"),unlockBtn=document.getElementById("unlockBtn"),staffPassword=document.getElementById("staffPassword"),unlockErr=document.getElementById("unlockErr");
+async function unlockGame(){
+ if(MOON_API_URL.startsWith("PASTE_")){unlockErr.textContent="请先填入独立 MoonGame.gs 的 Web App URL";return}
+ if(!staffPassword.value){unlockErr.textContent="请输入员工密码";return}
+ unlockBtn.disabled=true;unlockBtn.textContent="验证中…";unlockErr.textContent="";
+ try{const r=await fetch(MOON_API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"unlock",password:staffPassword.value})});const d=JSON.parse(await r.text());if(!d.ok)throw new Error(d.error);unlockToken=d.unlockToken;staffPassword.value="";unlockBack.classList.add("hide");btn.disabled=false;btn.textContent="摇月亮";}catch(e){unlockErr.textContent=e.message==="wrong_password"?"员工密码错误":"无法连接活动后台";}finally{unlockBtn.disabled=false;unlockBtn.textContent="解锁本次游戏";}
+}
+unlockBtn.onclick=unlockGame;staffPassword.addEventListener("keydown",e=>{if(e.key==="Enter")unlockGame()});btn.disabled=true;
+</script></body></html>
