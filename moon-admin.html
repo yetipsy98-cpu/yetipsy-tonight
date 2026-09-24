@@ -6,7 +6,7 @@
 <div class="card"><h3>最近领取记录</h3><input id="search" placeholder="搜索 WhatsApp / 找回码 / 奖励" oninput="renderClaims()"><div id="claims"></div></div></div>
 <div class="login" id="login"><div class="card"><h2>Admin 登录</h2><input id="pass" type="password" placeholder="Admin 密码"><p><button onclick="loginNow()">登录</button></p><div class="muted" id="loginErr"></div></div></div>
 <script>
-const API_URL="PASTE_EXISTING_MINIGAME_WEB_APP_URL_HERE";let adminToken="",state={rewards:[],claims:[]};
+const API_URL="https://script.google.com/macros/s/AKfycbw2WXwgeHls1AvyAl_dcNW0q2Fd4KOsurqPXky28MqDo6wxMPuVICAhyfr-xex34qgSuw/exec";let adminToken="",state={rewards:[],claims:[]};
 async function api(subaction,data={}){const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action:"moon",subaction,adminToken},data))});return JSON.parse(await r.text())}
 async function loginNow(){const d=await api("adminLogin",{password:pass.value});if(!d.ok){loginErr.textContent="密码错误";return}adminToken=d.adminToken;login.style.display="none";load()}
 async function load(){const d=await api("adminState");if(!d.ok){login.style.display="flex";return}state=d;enabled.value=String(d.config.activityEnabled);ttl.value=d.config.tokenTtl;renderRewards();renderClaims()}
