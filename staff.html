@@ -1,12 +1,12 @@
 <!doctype html><html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>YÉ TIPSY · Staff</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#090806;color:#f2ead9;font-family:system-ui;padding:18px}.wrap{max-width:460px;margin:auto}.brand{color:#dfb867;letter-spacing:.1em}.card{background:#14100c;border:1px solid #493a25;border-radius:18px;padding:18px;margin:14px 0}input,button{width:100%;padding:13px;border-radius:11px;margin:6px 0;font-size:15px}input{background:#090806;color:white;border:1px solid #4b3a25}button{border:0;background:#d9ae5c;color:#171009;font-weight:800}.secondary{background:#30271b;color:#ead9b8}.muted{font-size:12px;color:#9d9079}.hide{display:none!important}#qr{display:block;width:220px;height:220px;background:#fff;padding:10px;border-radius:14px;margin:14px auto}.reward{font-size:20px;color:#dfb867;font-weight:800}.ok{color:#a9d994}.bad{color:#ee9988}</style></head><body><div class="wrap">
+<style>*{box-sizing:border-box}body{margin:0;background:#090806;color:#f2ead9;font-family:system-ui;padding:18px}.wrap{max-width:460px;margin:auto}.brand{color:#dfb867;letter-spacing:.1em}.card{background:#14100c;border:1px solid #493a25;border-radius:18px;padding:18px;margin:14px 0}input,button{width:100%;padding:13px;border-radius:11px;margin:6px 0;font-size:15px}input{background:#090806;color:white;border:1px solid #4b3a25}button{border:0;background:#d9ae5c;color:#171009;font-weight:800}.secondary{background:#30271b;color:#ead9b8}.muted{font-size:12px;color:#9d9079}.hide{display:none!important}#qr{display:block;width:220px;height:220px;background:#fff;padding:10px;border-radius:14px;margin:14px auto}.reward{font-size:20px;color:#dfb867;font-weight:800}.ok{color:#a9d994}.bad{color:#ee9988}</style><script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script></head><body><div class="wrap">
 <h1 class="brand">YÉ TIPSY · STAFF</h1><div class="muted">月满杯盈 · 服务员工作台</div>
 <div id="login" class="card"><h2>服务员登入</h2><input id="user" placeholder="员工账号" value="staff"><input id="pass" type="password" placeholder="密码"><button id="loginBtn">登入</button><div id="loginMsg" class="muted"></div></div>
 <div id="panel" class="hide">
-<div class="card"><h2>生成新一局</h2><div class="muted">每位顾客生成一个独立二维码。二维码使用一次后失效。</div><button id="newBtn">生成顾客二维码</button><div id="newMsg" class="muted"></div><img id="qr" class="hide"><div id="codeText" class="muted"></div>
+<div class="card"><h2>生成新一局</h2><div class="muted">每位顾客生成一个独立二维码。二维码使用一次后失效。</div><button id="newBtn">生成顾客二维码</button><div id="newMsg" class="muted"></div><canvas id="qr" class="hide" width="220" height="220"></canvas><div id="codeText" class="muted"></div>
 <button id="localBtn" class="secondary hide">顾客不扫码？在这台员工手机直接玩</button>
 </div>
-<div class="card"><h2>核销奖励</h2><input id="redeemCode" placeholder="例如 YT-MOON-XXXXXXXX"><button id="lookupBtn" class="secondary">查询兑换码</button><div id="claimInfo"></div><button id="confirmBtn" class="hide">确认核销</button></div>
+<div class="card"><h2>核销奖励</h2><input id="redeemCode" placeholder="输入最后 8 位，例如 A1B2C3D4"><button id="lookupBtn" class="secondary">查询兑换码</button><div id="claimInfo"></div><button id="confirmBtn" class="hide">确认核销</button></div>
 <button id="logoutBtn" class="secondary">登出</button></div></div>
 <script>
 const API_URL="https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
@@ -30,14 +30,25 @@ newBtn.onclick=async()=>{
   const d=await api("staffCreateGame",{staffToken});newBtn.disabled=false;
   if(!d.ok){newMsg.textContent=d.error==="staff_auth"?"登入已过期，请重新登入":"生成失败："+d.error;if(d.error==="staff_auth"){localStorage.removeItem("moon_staff_token");setTimeout(()=>location.reload(),800)}return}
   currentGameUrl=GAME_URL+"?g="+encodeURIComponent(d.gameToken);
-  qr.onload=()=>qr.classList.remove("hide");
-  qr.onerror=()=>{qr.classList.add("hide");newMsg.textContent="本局已生成；二维码图片载入失败，可直接用员工手机开始。"};
-  qr.src="https://api.qrserver.com/v1/create-qr-code/?size=360x360&data="+encodeURIComponent(currentGameUrl);
   codeText.textContent="本局 "+d.shortCode+" · 二维码一次有效";
-  localBtn.classList.remove("hide");newMsg.textContent="本局已生成";
+  localBtn.classList.remove("hide");
+  // 本地生成 QR，不再等第三方 QR 图片服务器。
+  try{
+    if(window.QRCode && QRCode.toCanvas){
+      await QRCode.toCanvas(qr,currentGameUrl,{width:220,margin:1});
+      qr.classList.remove("hide");
+      newMsg.textContent="本局已生成";
+    }else{
+      qr.classList.add("hide");
+      newMsg.textContent="本局已生成；QR 组件未载入，可直接用员工手机开始。";
+    }
+  }catch(e){
+    qr.classList.add("hide");
+    newMsg.textContent="本局已生成；QR 生成失败，可直接用员工手机开始。";
+  }
 };
 localBtn.onclick=()=>{if(currentGameUrl)location.href=currentGameUrl};
-lookupBtn.onclick=async()=>{currentCode=redeemCode.value.trim().toUpperCase();claimInfo.innerHTML="查询中…";confirmBtn.classList.add("hide");const d=await api("staffRedeemLookup",{staffToken,code:currentCode});if(!d.ok){claimInfo.innerHTML='<p class="bad">'+(d.error==="code_not_found"?"找不到这个兑换码":d.error)+"</p>";return}const c=d.claim;claimInfo.innerHTML=`<p class="reward">${c.reward}</p><p>兑换码：<b>${c.code}</b></p><p class="muted">状态：${c.redeemed?"已核销":"尚未核销"} · WhatsApp ${c.phone}</p>`;if(!c.redeemed)confirmBtn.classList.remove("hide")};
+lookupBtn.onclick=async()=>{currentCode=redeemCode.value.trim().toUpperCase();claimInfo.innerHTML="查询中…";confirmBtn.classList.add("hide");const d=await api("staffRedeemLookup",{staffToken,code:currentCode});if(!d.ok){claimInfo.innerHTML='<p class="bad">'+(d.error==="code_not_found"?"找不到这个兑换码":d.error==="code_ambiguous"?"尾号重复，请输入完整兑换码":d.error)+"</p>";return}const c=d.claim;claimInfo.innerHTML=`<p class="reward">${c.reward}</p><p>兑换码：<b>${c.code}</b></p><p class="muted">状态：${c.redeemed?"已核销":"尚未核销"} · WhatsApp ${c.phone}</p>`;if(!c.redeemed)confirmBtn.classList.remove("hide")};
 confirmBtn.onclick=async()=>{if(!currentCode)return;if(!confirm("确认已经给顾客兑换奖励？核销后不能再次使用。"))return;confirmBtn.disabled=true;const d=await api("staffRedeem",{staffToken,code:currentCode});confirmBtn.disabled=false;if(!d.ok){alert(d.error==="already_redeemed"?"此奖励已经核销":"核销失败："+d.error);return}claimInfo.innerHTML=`<p class="ok"><b>✓ 核销成功</b></p><p class="reward">${d.reward}</p><p>${d.code}</p>`;confirmBtn.classList.add("hide")};
 logoutBtn.onclick=()=>{localStorage.removeItem("moon_staff_token");location.reload()};
 </script></body></html>

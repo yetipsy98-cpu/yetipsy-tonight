@@ -176,19 +176,33 @@ function moon_claim_(ss,d){
 function moon_recoveryCode_(sh){for(let i=0;i<30;i++){const c="YT-MOON-"+Utilities.getUuid().replace(/-/g,"").slice(0,8).toUpperCase();if(sh.getLastRow()<2)return c;const f=sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(c).matchEntireCell(true).findNext();if(!f)return c}throw new Error("recovery_code_generation_failed")}
 function moon_claimByCode_(ss,code){
   const sh=ss.getSheetByName(MOON_CLAIMS);if(!sh||sh.getLastRow()<2)return null;
-  const f=sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(String(code||"").trim().toUpperCase()).matchEntireCell(true).findNext();if(!f)return null;
-  const row=f.getRow(),r=sh.getRange(row,1,1,CLAIM_HEADERS.length).getValues()[0];
+  let q=String(code||"").trim().toUpperCase().replace(/\s+/g,"");
+  if(!q)return null;
+
+  // Staff 可以输入完整 YT-MOON-XXXXXXXX，也可以只输入最后 8 位 XXXXXXXX。
+  q=q.replace(/^YT[-_ ]?MOON[-_ ]?/,"");
+  const vals=sh.getRange(2,1,sh.getLastRow()-1,1).getValues();
+  const matches=[];
+  for(let i=0;i<vals.length;i++){
+    const full=String(vals[i][0]||"").trim().toUpperCase();
+    const tail=full.replace(/^YT-MOON-/,"");
+    if(full===q || tail===q)matches.push(i+2);
+  }
+  if(matches.length===0)return null;
+  if(matches.length>1)return{ambiguous:true,count:matches.length};
+
+  const row=matches[0],r=sh.getRange(row,1,1,CLAIM_HEADERS.length).getValues()[0];
   return{row,code:r[0],created:r[1],phone:r[3],dice:r[4],ones:r[5],rewardId:r[6],reward:r[7],status:r[9],sentAt:r[10],redeemed:String(r[11]).toUpperCase()==="YES",redeemedAt:r[12]};
 }
 function moon_staffRedeemLookup_(ss,d){
   if(!moon_staffAuth_(ss,d.staffToken))return{ok:false,error:"staff_auth"};
-  const c=moon_claimByCode_(ss,d.code);if(!c)return{ok:false,error:"code_not_found"};
+  const c=moon_claimByCode_(ss,d.code);if(!c)return{ok:false,error:"code_not_found"};if(c.ambiguous)return{ok:false,error:"code_ambiguous",count:c.count};
   return{ok:true,claim:c};
 }
 function moon_staffRedeem_(ss,d){
   if(!moon_staffAuth_(ss,d.staffToken))return{ok:false,error:"staff_auth"};
   const lock=LockService.getScriptLock();lock.waitLock(7000);
-  try{const c=moon_claimByCode_(ss,d.code);if(!c)return{ok:false,error:"code_not_found"};if(c.redeemed)return{ok:false,error:"already_redeemed",claim:c};
+  try{const c=moon_claimByCode_(ss,d.code);if(!c)return{ok:false,error:"code_not_found"};if(c.ambiguous)return{ok:false,error:"code_ambiguous",count:c.count};if(c.redeemed)return{ok:false,error:"already_redeemed",claim:c};
     const sh=ss.getSheetByName(MOON_CLAIMS),now=new Date();sh.getRange(c.row,12).setValue("YES");sh.getRange(c.row,13).setValue(now);SpreadsheetApp.flush();return{ok:true,reward:c.reward,code:c.code,redeemedAt:now.toISOString()};
   }finally{lock.releaseLock()}
 }
