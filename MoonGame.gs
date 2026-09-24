@@ -65,6 +65,8 @@ function moon_config_(ss,k,f){const r=moon_configRow_(ss.getSheetByName(MOON_CON
 function moon_setConfig_(ss,k,v){const sh=ss.getSheetByName(MOON_CONFIG),r=moon_configRow_(sh,k);if(r)sh.getRange(r.row,2).setValue(v);else sh.appendRow([k,v,""])}
 function moon_enabled_(ss){return String(moon_config_(ss,"ACTIVITY_ENABLED","TRUE")).toUpperCase()==="TRUE"}
 function moon_gameTtl_(ss){return Math.max(2,Math.min(60,Number(moon_config_(ss,"GAME_TOKEN_TTL_MINUTES","10"))||10))*60000}
+/* V10/V11 backward compatibility: old deployed code may still call this name. */
+function moon_tokenTtl_(ss){return moon_gameTtl_(ss)}
 function moon_rewards_(ss){const sh=ss.getSheetByName(MOON_REWARDS);if(!sh||sh.getLastRow()<2)return[];return sh.getRange(2,1,sh.getLastRow()-1,6).getValues().map(r=>({id:String(r[0]),name:String(r[1]),displayOnes:Number(r[2]),probability:Number(r[3]),enabled:String(r[4]).toUpperCase()==="TRUE",sort:Number(r[5])})).sort((a,b)=>a.sort-b.sort)}
 function moon_cachedRewards_(ss){const c=CacheService.getScriptCache(),k="MOON_REWARD_CONFIG_V11",h=c.get(k);if(h){try{return JSON.parse(h)}catch(e){}}const r=moon_rewards_(ss).filter(x=>x.enabled);c.put(k,JSON.stringify(r),300);return r}
 function moon_clearRewardCache_(){CacheService.getScriptCache().remove("MOON_REWARD_CONFIG_V11")}
@@ -81,13 +83,21 @@ function moon_staffLogin_(ss,d){
   const u=String(moon_config_(ss,"STAFF_USERNAME","staff")),p=String(moon_config_(ss,"STAFF_LOGIN_PASSWORD","CHANGE-STAFF"));
   if(String(d.username||"").trim()!==u||String(d.password||"")!==p)return{ok:false,error:"wrong_login"};
   const t=Utilities.getUuid(),now=new Date(),hrs=Math.max(1,Math.min(24,Number(moon_config_(ss,"STAFF_LOGIN_HOURS","12"))||12)),exp=new Date(now.getTime()+hrs*3600000);
-  ss.getSheetByName(MOON_STAFF).appendRow([t,now,exp,u]);return{ok:true,staffToken:t,expiresAt:exp.toISOString(),username:u};
+  ss.getSheetByName(MOON_STAFF).appendRow([t,now,exp,u]);
+  CacheService.getScriptCache().put("moon_staff_"+t,String(exp.getTime()),Math.min(21600,hrs*3600));
+  return{ok:true,staffToken:t,expiresAt:exp.toISOString(),username:u};
 }
 function moon_staffAuth_(ss,t){
+  t=String(t||""); if(!t)return false;
+  const cache=CacheService.getScriptCache(),hit=cache.get("moon_staff_"+t);
+  if(hit && Number(hit)>Date.now())return true;
   const sh=ss.getSheetByName(MOON_STAFF);if(!sh||sh.getLastRow()<2)return false;
-  const v=sh.getRange(2,1,sh.getLastRow()-1,4).getValues(),now=Date.now();
-  for(let i=v.length-1;i>=0;i--)if(String(v[i][0])===String(t||"")&&new Date(v[i][2]).getTime()>now)return true;
-  return false;
+  const finder=sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(t).matchEntireCell(true).findNext();
+  if(!finder)return false;
+  const exp=new Date(sh.getRange(finder.getRow(),3).getValue()).getTime();
+  if(!exp||exp<=Date.now())return false;
+  cache.put("moon_staff_"+t,String(exp),Math.max(1,Math.min(21600,Math.floor((exp-Date.now())/1000))));
+  return true;
 }
 function moon_staffCreateGame_(ss,d){
   if(!moon_staffAuth_(ss,d.staffToken))return{ok:false,error:"staff_auth"};
