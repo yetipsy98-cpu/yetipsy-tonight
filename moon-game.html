@@ -32,7 +32,7 @@
 <div class="hero"><div class="small">MID-AUTUMN LIMITED</div><h1>月满杯盈</h1><p>今晚的月亮，有多圆？</p></div>
 <div class="stage"><div class="moon"></div><div class="cup" id="cup"><b>YÉ TIPSY</b></div><div class="dice" id="dice"></div></div>
 <button id="roll" disabled>开启「摇一摇」</button>
-<div id="motionStatus" class="small" style="margin-top:9px">员工授权后，点击开启动作感应</div>
+<div id="motionStatus" class="small" style="margin-top:9px">扫码成功后，点击开启动作感应</div>
 <div style="height:5px;background:#211a12;border-radius:99px;overflow:hidden;margin:10px 18px 6px"><i id="shakeBar" style="display:block;width:0%;height:100%;background:#d9b56b;transition:width .12s"></i></div>
 <button id="tapFallback" disabled style="margin-top:7px;background:#17120d;color:#bba77f;border:1px solid #4b3b26;font-size:12px;padding:9px">手机不支持？点击开始</button>
 <div class="small">5颗骰子 · 一摇定胜负 · 各奖项中奖机会不同</div>
@@ -50,16 +50,6 @@
 <div class="small">请使用自己的手机扫码加入 · 自愿加入 · 不影响本次奖励</div>
 </div>
 </main>
-
-<div class="lock" id="lock">
-<div class="box">
-<h2>员工授权</h2>
-<p class="small">每位顾客开始前由员工解锁。本次授权只能完成一局。</p>
-<input id="staff" type="password" placeholder="员工密码">
-<button id="unlock">解锁本次游戏</button>
-<p class="small" id="err"></p>
-</div>
-</div>
 
 <div class="sheet" id="claim">
 <div class="box">
@@ -106,71 +96,22 @@ async function api(action,data={},timeoutMs=10000){
     clearTimeout(timer);
   }
 }
+async function bootGame(){
+  const gameToken=new URLSearchParams(location.search).get("g")||"";
+  if(!gameToken){document.body.innerHTML='<main class="app"><div class="logo">YÉ TIPSY</div><div class="result show"><h2>请扫描服务员生成的游戏二维码</h2><div>本页面不能直接开始游戏。</div></div></main>';return}
+  motionStatus.textContent="正在载入本局…";
+  const d=await api("gameOpen",{gameToken},15000);
+  if(!d.ok){document.body.innerHTML='<main class="app"><div class="logo">YÉ TIPSY</div><div class="result show"><h2>这个游戏二维码已失效</h2><div>请向服务员重新生成一局。</div></div></main>';return}
+  token=d.gameToken;preparedRoll=d.rollResult;
+  roll.disabled=false;tapFallback.disabled=false;
+  roll.textContent="开启「摇一摇」";
+  motionStatus.textContent="点击上方按钮后，拿稳手机摇 3 下";
+}
+bootGame();
 function draw(a){
   dice.innerHTML=a.map((n,i)=>`<div class="die" style="left:${pos[i][0]}px;top:${pos[i][1]}px">${pip[n].map(x=>`<i class="pip ${x}"></i>`).join("")}</div>`).join("");
 }
-unlock.onclick=async()=>{
-  const password=staff.value.trim();
-  err.textContent="";
-  if(!password){
-    err.textContent="请输入员工密码";
-    staff.focus();
-    return;
-  }
 
-  unlock.disabled=true;
-  const oldLabel=unlock.textContent;
-  unlock.textContent="正在验证…";
-  err.textContent="正在连接活动后台，请稍候…";
-
-  try{
-    const d=await api("unlock",{password},10000);
-
-    if(!d.ok){
-      const map={
-        wrong_password:"员工密码错误",
-        activity_closed:"活动目前已关闭",
-        staff_password_not_configured:"请先在后台设置员工密码",
-        network_error:"无法连接活动后台，请检查 Web App 部署",
-        timeout:"后台超过 10 秒没有回应，请检查 Apps Script 部署",
-        invalid_server_response:"后台返回的不是有效 JSON，请重新部署 Web App",
-        unknown_action:"当前部署还没有 Moon Game 路由，请重新部署 Apps Script 新版本",
-        unknown_moon_action:"Moon Game 后台路由异常"
-      };
-      err.textContent=map[d.error]||("无法解锁："+(d.error||"unknown_error"));
-      if(d.detail) console.error("Moon unlock detail:",d.detail);
-      return;
-    }
-
-    if(!d.unlockToken){
-      err.textContent="后台已回应，但没有取得授权 Token";
-      return;
-    }
-
-    token=d.unlockToken;
-    preparedRoll=d.rollResult||null;
-    staff.value="";
-    err.textContent="授权成功";
-    if(navigator.vibrate) navigator.vibrate(40);
-    setTimeout(()=>{
-      lock.style.display="none";
-      roll.disabled=false;
-      tapFallback.disabled=false;
-      roll.textContent="开启「摇一摇」";
-      motionStatus.textContent="点击上方按钮后，拿稳手机摇 3 下";
-    },180);
-  }catch(e){
-    console.error(e);
-    err.textContent="解锁发生异常："+String(e&&e.message||e);
-  }finally{
-    unlock.disabled=false;
-    unlock.textContent=oldLabel;
-  }
-};
-
-staff.addEventListener("keydown",e=>{
-  if(e.key==="Enter"&&!unlock.disabled) unlock.click();
-});
 let gameStarted=false,motionEnabled=false,shakeHits=0,lastHit=0,lastMag=null;
 
 async function startReveal(){
@@ -182,7 +123,7 @@ async function startReveal(){
   cup.classList.remove("shaking","pour"); void cup.offsetWidth;
   const d=preparedRoll; rolled=d;
   roll.textContent="正在摇月亮…"; cup.classList.add("shaking");
-  if(navigator.vibrate)navigator.vibrate([65,35,65,35,90]);
+  if(navigator.vibrate)navigator.vibrate([90,45,90,45,140]);
   await new Promise(r=>setTimeout(r,1080));
   cup.classList.remove("shaking"); cup.classList.add("pour"); roll.textContent="揭晓中…";
   await new Promise(r=>setTimeout(r,330)); draw(d.dice); dice.classList.add("revealed");
@@ -204,7 +145,7 @@ function onMotion(e){
     shakeBar.style.width=(shakeHits/3*100)+"%";
     motionStatus.textContent=shakeHits<3?`检测到 ${shakeHits}/3 下 · 再摇 ${3-shakeHits} 下`:"检测完成 🌕";
     cup.animate([{transform:"translateX(-50%) rotate(-2deg)"},{transform:"translateX(-50%) rotate(2deg)"},{transform:"translateX(-50%) rotate(0)"}],{duration:180,easing:"ease-out"});
-    if(navigator.vibrate)navigator.vibrate(25);
+    if(navigator.vibrate)navigator.vibrate([35,20,35]);
     if(shakeHits>=3)startReveal();
   }
 }
@@ -232,7 +173,7 @@ claimBtn.onclick=async()=>{
   claimBtn.disabled=true;
   claimBtn.textContent="正在保存…";
   const d=await api("claim",{
-    unlockToken:token,
+    gameToken:token,
     countryCode:country,
     phone:p,
     communityOptIn:community.checked
