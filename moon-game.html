@@ -24,6 +24,13 @@
 }
 .dice{opacity:0}
 .dice.revealed{opacity:1;transition:opacity .12s ease-out}.dice{position:absolute;left:50%;bottom:45px;transform:translateX(-50%);width:310px;height:95px}.die{position:absolute;width:53px;height:53px;border-radius:11px;background:#f7f1df;box-shadow:0 7px 10px #0008}.pip{position:absolute;width:8px;height:8px;border-radius:50%;background:#191713}.tl{left:10px;top:10px}.tr{right:10px;top:10px}.ml{left:10px;top:22px}.mr{right:10px;top:22px}.c{left:22px;top:22px}.bl{left:10px;bottom:10px}.br{right:10px;bottom:10px}button{width:100%;border:0;border-radius:15px;padding:15px;background:linear-gradient(135deg,#f0ce7d,#c88f32);color:#171009;font-size:16px;font-weight:900}button:disabled{opacity:.45}.result{text-align:center;margin:15px 0;padding:17px;border:1px solid #554225;border-radius:18px;background:#100d09;display:none}.result.show{display:block}.result h2{color:#e3bc6c}.lock,.sheet{position:fixed;inset:0;background:#000d;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}.sheet{display:none;align-items:flex-end;background:#0006}.box{width:min(100%,410px);background:#14100c;border:1px solid #5b472d;border-radius:22px;padding:20px}.box h2{text-align:center;color:#e3bc6c}.box input,.box select{width:100%;padding:13px;border-radius:12px;border:1px solid #493b27;background:#090806;color:#fff;margin:6px 0}.phone{display:flex;gap:6px}.phone select{width:110px}.check{font-size:11px;color:#a99b82;display:flex;gap:8px;margin:10px 0}.check input{width:auto}.code{font:900 24px monospace;background:linear-gradient(135deg,#e8c675,#b9802c);color:#171009;padding:16px;border-radius:14px}.qr{background:#fff;padding:10px;border-radius:14px;width:190px;height:190px;margin:14px auto}.qr img{width:100%;height:100%}
+
+.shareBtn{margin-top:14px;background:linear-gradient(135deg,#f0ce7d,#c88f32)}
+.sharePreview{display:none;position:fixed;inset:0;z-index:80;background:#000e;padding:18px;overflow:auto}
+.sharePreview.show{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.sharePreview img{max-width:min(92vw,405px);max-height:72vh;border-radius:18px;box-shadow:0 18px 60px #000}
+.shareActions{width:min(92vw,405px);display:flex;gap:8px}.shareActions button{flex:1}
+.shareClose{background:#17120d!important;color:#d9c59c!important;border:1px solid #4b3b26!important}
 </style>
 </head>
 <body>
@@ -45,11 +52,20 @@
 <p class="small">请立即截图保存「奖励找回码」</p>
 <div class="code" id="code"></div>
 <p id="summary" class="small"></p>
+<button id="shareResultBtn" class="shareBtn">生成我的战绩卡 · 分享</button>
 <h3 style="color:#e3bc6c">加入 Ye Tipsy 社群 🌙</h3>
 <div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=https%3A%2F%2Fchat.whatsapp.com%2FGvzQip5KbuI6rWLO78880p"></div>
 <div class="small">请使用自己的手机扫码加入 · 自愿加入 · 不影响本次奖励</div>
 </div>
 </main>
+<div class="sharePreview" id="sharePreview">
+  <img id="shareImage" alt="我的月满杯盈战绩卡">
+  <div class="shareActions">
+    <button id="nativeShareBtn">分享图片</button>
+    <button id="saveShareBtn">保存图片</button>
+  </div>
+  <button id="closeShareBtn" class="shareClose" style="width:min(92vw,405px)">返回</button>
+</div>
 
 <div class="sheet" id="claim">
 <div class="box">
@@ -165,6 +181,87 @@ async function enableMotion(){
 }
 roll.onclick=enableMotion;
 tapFallback.onclick=startReveal;
+
+const IG_HANDLE="@ye_tipsy";
+let shareBlob=null,shareUrl="";
+
+function rr(ctx,x,y,w,h,r){
+  const q=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+q,y);ctx.arcTo(x+w,y,x+w,y+h,q);ctx.arcTo(x+w,y+h,x,y+h,q);ctx.arcTo(x,y+h,x,y,q);ctx.arcTo(x,y,x+w,y,q);ctx.closePath();
+}
+function drawDieCard(ctx,x,y,size,n){
+  ctx.save();ctx.shadowColor="rgba(218,166,70,.45)";ctx.shadowBlur=22;
+  const g=ctx.createLinearGradient(x,y,x+size,y+size);g.addColorStop(0,"#fff9e9");g.addColorStop(1,"#d9c8a4");
+  rr(ctx,x,y,size,size,15);ctx.fillStyle=g;ctx.fill();ctx.restore();
+  const pts={1:[[.5,.5]],2:[[.28,.28],[.72,.72]],3:[[.28,.28],[.5,.5],[.72,.72]],4:[[.28,.28],[.72,.28],[.28,.72],[.72,.72]],5:[[.28,.28],[.72,.28],[.5,.5],[.28,.72],[.72,.72]],6:[[.28,.25],[.72,.25],[.28,.5],[.72,.5],[.28,.75],[.72,.75]]}[n]||[];
+  ctx.fillStyle="#17130e";for(const [px,py] of pts){ctx.beginPath();ctx.arc(x+size*px,y+size*py,size*.075,0,Math.PI*2);ctx.fill()}
+}
+function fitText(ctx,text,maxWidth,startSize,minSize=24){
+  let size=startSize;do{ctx.font=`900 ${size}px system-ui,-apple-system,"Noto Sans SC",sans-serif`;if(ctx.measureText(text).width<=maxWidth)return size;size-=2}while(size>minSize);return size;
+}
+async function buildShareCard(){
+  if(!rolled)return null;
+  const W=1080,H=1920,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+  const bg=x.createLinearGradient(0,0,0,H);bg.addColorStop(0,"#050504");bg.addColorStop(.55,"#110d08");bg.addColorStop(1,"#050504");x.fillStyle=bg;x.fillRect(0,0,W,H);
+
+  // moon glow
+  let rg=x.createRadialGradient(830,230,20,830,230,260);rg.addColorStop(0,"rgba(255,233,171,.95)");rg.addColorStop(.45,"rgba(214,166,74,.42)");rg.addColorStop(1,"rgba(214,166,74,0)");x.fillStyle=rg;x.fillRect(560,0,520,520);
+  x.beginPath();x.arc(835,225,128,0,Math.PI*2);x.fillStyle="#d7a84d";x.fill();
+
+  // simple brand lockup
+  x.textAlign="center";x.fillStyle="#e2b85f";x.font='700 58px Georgia,serif';x.fillText("YÉ TIPSY",W/2,120);
+  x.font='500 24px system-ui';x.letterSpacing="8px";x.fillText("栖 野 微 醺 · 特 调",W/2,165);
+
+  x.fillStyle="#f4dfaa";x.font='900 112px "Noto Sans SC",system-ui,sans-serif';x.fillText("月满杯盈",W/2,390);
+  x.fillStyle="#d2b06d";x.font='italic 48px Georgia,serif';x.fillText("MOON GAME",W/2,455);
+
+  x.strokeStyle="rgba(221,177,88,.35)";x.lineWidth=2;x.beginPath();x.moveTo(100,535);x.lineTo(980,535);x.stroke();
+  x.fillStyle="#a99878";x.font='500 30px system-ui';x.fillText("本局 5 颗骰子结果",W/2,595);
+
+  const ds=142,gap=34,total=ds*5+gap*4,start=(W-total)/2;
+  rolled.dice.forEach((n,i)=>drawDieCard(x,start+i*(ds+gap),650+(i%2?8:0),ds,n));
+
+  x.fillStyle="#f7ead0";x.font='700 52px system-ui';x.fillText("我摇出了",W/2-150,970);
+  x.fillStyle="#e9b84d";x.font='900 160px system-ui';x.fillText(String(rolled.displayOnes),W/2+80,1010);
+  x.fillStyle="#f7ead0";x.font='800 58px system-ui';x.fillText('个「1」！',W/2+245,970);
+
+  rr(x,95,1100,890,300,38);x.fillStyle="rgba(27,20,12,.92)";x.fill();x.strokeStyle="rgba(222,177,86,.5)";x.lineWidth=3;x.stroke();
+  x.fillStyle="#9d8b6d";x.font='700 30px system-ui';x.fillText("本 局 战 绩",W/2,1170);
+  const reward=String(rolled.reward||"");
+  fitText(x,reward,790,76,42);x.fillStyle="#f0c665";x.fillText(reward,W/2,1285);
+  x.fillStyle="#9e8d70";x.font='500 27px system-ui';x.fillText("奖励于下次光临兑换",W/2,1345);
+
+  x.fillStyle="#f5e7c8";x.font='900 68px system-ui';x.fillText("你敢来摇吗？",W/2,1535);
+  x.fillStyle="#d5a94f";x.font='700 38px system-ui';x.fillText("来 YÉ TIPSY 摇月亮",W/2,1605);
+
+  x.strokeStyle="rgba(221,177,88,.35)";x.beginPath();x.moveTo(250,1690);x.lineTo(830,1690);x.stroke();
+  x.fillStyle="#f0d69b";x.font='600 36px system-ui';x.fillText("Instagram  "+IG_HANDLE,W/2,1760);
+  x.fillStyle="#766a57";x.font='500 22px system-ui';x.fillText("MID-AUTUMN LIMITED · YÉ TIPSY",W/2,1830);
+
+  return await new Promise(resolve=>c.toBlob(resolve,"image/png",.96));
+}
+async function openShareCard(){
+  shareResultBtn.disabled=true;shareResultBtn.textContent="正在生成战绩卡…";
+  try{
+    shareBlob=await buildShareCard();if(!shareBlob)throw new Error("no_result");
+    if(shareUrl)URL.revokeObjectURL(shareUrl);shareUrl=URL.createObjectURL(shareBlob);shareImage.src=shareUrl;sharePreview.classList.add("show");
+  }catch(e){alert("战绩卡生成失败，请再试一次。")}
+  finally{shareResultBtn.disabled=false;shareResultBtn.textContent="生成我的战绩卡 · 分享"}
+}
+shareResultBtn.onclick=openShareCard;
+closeShareBtn.onclick=()=>sharePreview.classList.remove("show");
+saveShareBtn.onclick=()=>{
+  if(!shareBlob)return;const a=document.createElement("a");a.href=shareUrl;a.download="YETIPSY-MoonGame-"+Date.now()+".png";document.body.appendChild(a);a.click();a.remove();
+};
+nativeShareBtn.onclick=async()=>{
+  if(!shareBlob)return;
+  const f=new File([shareBlob],"YETIPSY-MoonGame.png",{type:"image/png"});
+  try{
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[f]}))){
+      await navigator.share({files:[f],title:"YÉ TIPSY · 月满杯盈",text:"我的摇月亮战绩 🌕 "+IG_HANDLE});
+    }else saveShareBtn.click();
+  }catch(e){if(e.name!=="AbortError")saveShareBtn.click()}
+};
+
 claimBtn.onclick=async()=>{
   const p=phone.value.replace(/\D/g,"");
   const country=cc.value;
