@@ -14,6 +14,11 @@
 .die{position:absolute;width:53px;height:53px;border-radius:11px;background:#f7f1df;box-shadow:0 7px 10px #0008;will-change:transform,filter}
 .dice.rolling .die{animation:dieRoll var(--dur) cubic-bezier(.16,.72,.28,1) forwards;animation-delay:var(--delay)}
 @keyframes dieRoll{0%{transform:translate(var(--sx),var(--sy)) rotate(var(--sr)) scale(.82);filter:blur(1.3px)}18%{transform:translate(calc(var(--sx)*.74),calc(var(--sy)*.55 - 18px)) rotate(125deg) scale(.92);filter:blur(.9px)}38%{transform:translate(calc(var(--sx)*.48),calc(var(--sy)*.25 + 7px)) rotate(255deg);filter:blur(.45px)}55%{transform:translate(calc(var(--sx)*.29),-13px) rotate(360deg)}72%{transform:translate(calc(var(--sx)*.14),5px) rotate(430deg)}86%{transform:translate(4px,-4px) rotate(468deg)}100%{transform:translate(0,0) rotate(0deg);filter:blur(0)}}
+.pip{position:absolute;width:8px;height:8px;border-radius:50%;background:#191713;box-shadow:inset 0 1px 1px #0005}
+.tl{left:10px;top:10px}.tr{right:10px;top:10px}
+.ml{left:10px;top:22px}.mr{right:10px;top:22px}
+.c{left:22px;top:22px}
+.bl{left:10px;bottom:10px}.br{right:10px;bottom:10px}
 button{width:100%;border:0;border-radius:15px;padding:15px;background:linear-gradient(135deg,#f0ce7d,#c88f32);color:#171009;font-size:16px;font-weight:900}button:disabled{opacity:.45}.result{text-align:center;margin:15px 0;padding:17px;border:1px solid #554225;border-radius:18px;background:#100d09;display:none}.result.show{display:block}.result h2{color:#e3bc6c}.lock,.sheet{position:fixed;inset:0;background:#000d;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}.sheet{display:none;align-items:flex-end;background:#0006}.box{width:min(100%,410px);background:#14100c;border:1px solid #5b472d;border-radius:22px;padding:20px}.box h2{text-align:center;color:#e3bc6c}.box input,.box select{width:100%;padding:13px;border-radius:12px;border:1px solid #493b27;background:#090806;color:#fff;margin:6px 0}.phone{display:flex;gap:6px}.phone select{width:110px}.check{font-size:11px;color:#a99b82;display:flex;gap:8px;margin:10px 0}.check input{width:auto}.code{font:900 24px monospace;background:linear-gradient(135deg,#e8c675,#b9802c);color:#171009;padding:16px;border-radius:14px}.qr{background:#fff;padding:10px;border-radius:14px;width:190px;height:190px;margin:14px auto}.qr img{width:100%;height:100%}
 </style>
 </head>
@@ -65,7 +70,7 @@ button{width:100%;border:0;border-radius:15px;padding:15px;background:linear-gra
 <script>
 const API_URL="https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
 const pip={1:["c"],2:["tl","br"],3:["tl","c","br"],4:["tl","tr","bl","br"],5:["tl","tr","c","bl","br"],6:["tl","tr","ml","mr","bl","br"]};
-const pos=[[12,20],[72,9],[132,25],[192,8],[252,22]];
+const pos=[[14,24],[73,10],[134,30],[194,8],[253,26]];
 let token="",rolled=null;
 
 async function api(action,data={},timeoutMs=10000){
