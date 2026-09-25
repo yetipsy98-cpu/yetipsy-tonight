@@ -1,5 +1,5 @@
 /*
-YÉ TIPSY · 月满杯盈 V15.7 NO MONITORING
+YÉ TIPSY · 月满杯盈 V15.8 CLAIM HOTFIX
 Staff QR / Customer Game / Claim / Redeem / Admin
 与 Tonight Code.gs 共用同一个 Apps Script Project。
 Code.gs 需要保留：
@@ -191,6 +191,7 @@ function moon_staffCreateGame_(ss,d){
   if(!moon_enabled_(ss))return{ok:false,error:"activity_closed"};
   const token=Utilities.getUuid(),now=new Date(),exp=new Date(now.getTime()+moon_gameTtl_(ss));
   const result=moon_preparedResult_(ss);
+  moon_ensureSheet_(ss,MOON_SESSIONS,SESSION_HEADERS);
   // Every generated QR is an independent session. Creating another QR NEVER cancels earlier READY sessions.
   ss.getSheetByName(MOON_SESSIONS).appendRow([token,now,exp,"","READY",result.rewardId,result.dice.join(","),staffUser]);
   return{ok:true,gameToken:token,shortCode:token.replace(/-/g,"").slice(0,8).toUpperCase(),expiresAt:exp.toISOString(),createdBy:staffUser};
@@ -226,7 +227,11 @@ function moon_gameOpen_(ss,d){
 
 /* CLAIM */
 function moon_claim_(ss,d){
-  const lock=LockService.getScriptLock();lock.waitLock(10000);
+  // Self-heal columns so an upgrade cannot break customer registration even if setupMoonGame was not rerun.
+  moon_ensureSheet_(ss,MOON_CLAIMS,CLAIM_HEADERS);
+  moon_ensureSheet_(ss,MOON_SESSIONS,SESSION_HEADERS);
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(3000))return{ok:false,error:"busy_retry"};
   try{
     const c=moon_validGame_(ss,d.gameToken);if(!c.ok)return c;
     const id=String(c.session.data[5]||""),diceText=String(c.session.data[6]||"");
@@ -239,11 +244,12 @@ function moon_claim_(ss,d){
 
     const sh=ss.getSheetByName(MOON_CLAIMS),code=moon_recoveryCode_(sh),now=new Date();
     const dice=diceText.split(",").map(Number);
-    sh.appendRow([
+    const row=[
       code,now,cc==="+65"?"SG":"MY",phone,diceText,dice.filter(n=>n===1).length,
       rw.id,rw.name,d.communityOptIn?"YES":"NO","PENDING","","NO","","","",
-      String(c.session.data[7]||"")
-    ]);
+      String((c.session.data&&c.session.data.length>7?c.session.data[7]:"")||"")
+    ];
+    sh.getRange(sh.getLastRow()+1,1,1,CLAIM_HEADERS.length).setValues([row]);
     c.sheet.getRange(c.session.row,4).setValue(now);
     c.sheet.getRange(c.session.row,5).setValue("USED");
     SpreadsheetApp.flush();

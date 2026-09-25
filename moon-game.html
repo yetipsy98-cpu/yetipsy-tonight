@@ -314,7 +314,12 @@ claimBtn.onclick=async()=>{
   if(!d.ok){
     claimBtn.disabled=false;
     claimBtn.textContent="领取我的奖励";
-    alert("保存失败："+d.error);
+    const msg=d.error==="busy_retry"?"系统刚好繁忙，请再按一次「领取我的奖励」。":
+      d.error==="invalid_phone"?"手机号码格式不正确，请检查后再试。":
+      d.error==="expired"||d.error==="game_expired"?"本局二维码已过期，请向 Staff 获取新二维码。":
+      d.error==="used"||d.error==="game_used"?"本局奖励已经登记过。":
+      "保存失败："+d.error;
+    alert(msg);
     return;
   }
   token="";
