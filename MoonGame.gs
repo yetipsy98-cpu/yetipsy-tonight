@@ -1,5 +1,5 @@
 /*
-YÉ TIPSY · 月满杯盈 V15 CLEAN
+YÉ TIPSY · 月满杯盈 V15.1 REDEEM REF
 Staff QR / Customer Game / Claim / Redeem / Admin
 与 Tonight Code.gs 共用同一个 Apps Script Project。
 Code.gs 需要保留：
@@ -13,7 +13,7 @@ const MOON_REWARDS="MOON_REWARDS";
 const MOON_STAFF="MOON_STAFF_SESSIONS";
 const MOON_STAFF_ACCOUNTS="MOON_STAFF_ACCOUNTS";
 
-const CLAIM_HEADERS=["recovery_code","created_at","country","whatsapp","dice","ones","reward_id","reward_name","community_opt_in","whatsapp_status","sent_at","redeemed","redeemed_at"];
+const CLAIM_HEADERS=["recovery_code","created_at","country","whatsapp","dice","ones","reward_id","reward_name","community_opt_in","whatsapp_status","sent_at","redeemed","redeemed_at","redeem_ref","redeemed_by"];
 const SESSION_HEADERS=["game_token","created_at","expires_at","used_at","status","reward_id","dice"];
 const CONFIG_HEADERS=["key","value","note"];
 const REWARD_HEADERS=["reward_id","reward_name","display_ones","probability","enabled","sort_order"];
@@ -167,7 +167,7 @@ function moon_staffAuth_(ss,t){
   if(hit){
     try{
       const h=JSON.parse(hit),a=moon_staffAccount_(ss,h.u);
-      if(Number(h.exp)>Date.now()&&a&&a.enabled&&a.authVersion===Number(h.v))return true;
+      if(Number(h.exp)>Date.now()&&a&&a.enabled&&a.authVersion===Number(h.v))return a.username;
     }catch(e){}
   }
   const sh=ss.getSheetByName(MOON_STAFF);if(!sh||sh.getLastRow()<2)return false;
@@ -178,7 +178,7 @@ function moon_staffAuth_(ss,t){
   const u=String(vals[3]),v=Number(vals[4])||1,a=moon_staffAccount_(ss,u);
   if(!exp||exp<=Date.now()||!a||!a.enabled||a.authVersion!==v)return false;
   moon_cacheStaff_(t,new Date(exp),u,v);
-  return true;
+  return a.username;
 }
 function moon_staffCreateGame_(ss,d){
   if(!moon_staffAuth_(ss,d.staffToken))return{ok:false,error:"staff_auth"};
@@ -281,7 +281,7 @@ function moon_claimByCode_(ss,code){
   return{
     row:row,code:String(r[0]||""),created:r[1],phone:r[3],dice:r[4],ones:r[5],
     rewardId:r[6],reward:r[7],status:r[9],sentAt:r[10],
-    redeemed:String(r[11]||"").trim().toUpperCase()==="YES",redeemedAt:r[12]
+    redeemed:String(r[11]||"").trim().toUpperCase()==="YES",redeemedAt:r[12],redeemRef:r[13]||"",redeemedBy:r[14]||""
   };
 }
 function moon_staffRedeemLookup_(ss,d){
@@ -291,19 +291,46 @@ function moon_staffRedeemLookup_(ss,d){
   if(c.ambiguous)return{ok:false,error:"code_ambiguous",count:c.count};
   return{ok:true,claim:c};
 }
+function moon_newRedeemRef_(sh){
+  // Example: RD-250925-7K4M2P — short enough to read back, unique enough for daily ops.
+  const tz=Session.getScriptTimeZone()||"Asia/Kuala_Lumpur";
+  const day=Utilities.formatDate(new Date(),tz,"yyMMdd");
+  for(let i=0;i<30;i++){
+    const tail=Utilities.getUuid().replace(/-/g,"").slice(0,6).toUpperCase();
+    const ref="RD-"+day+"-"+tail;
+    if(sh.getLastRow()<2)return ref;
+    const vals=sh.getRange(2,14,sh.getLastRow()-1,1).getDisplayValues().flat();
+    if(!vals.includes(ref))return ref;
+  }
+  throw new Error("redeem_ref_generation_failed");
+}
 function moon_staffRedeem_(ss,d){
-  if(!moon_staffAuth_(ss,d.staffToken))return{ok:false,error:"staff_auth"};
+  const staffUser=moon_staffAuth_(ss,d.staffToken);
+  if(!staffUser)return{ok:false,error:"staff_auth"};
   const lock=LockService.getScriptLock();lock.waitLock(7000);
   try{
     const c=moon_claimByCode_(ss,d.code);
     if(!c)return{ok:false,error:"code_not_found"};
     if(c.ambiguous)return{ok:false,error:"code_ambiguous",count:c.count};
     if(c.redeemed)return{ok:false,error:"already_redeemed",claim:c};
+
     const sh=ss.getSheetByName(MOON_CLAIMS),now=new Date();
+    const ref=moon_newRedeemRef_(sh);
+
     sh.getRange(c.row,12).setValue("YES");
     sh.getRange(c.row,13).setValue(now);
+    sh.getRange(c.row,14).setValue(ref);
+    sh.getRange(c.row,15).setValue(staffUser);
     SpreadsheetApp.flush();
-    return{ok:true,reward:c.reward,code:c.code,redeemedAt:now.toISOString()};
+
+    return{
+      ok:true,
+      reward:c.reward,
+      code:c.code,
+      redeemedAt:now.toISOString(),
+      redeemRef:ref,
+      redeemedBy:staffUser
+    };
   }finally{lock.releaseLock()}
 }
 
@@ -324,7 +351,7 @@ function moon_adminState_(ss,d){
     rows.forEach(r=>claims.push({
       code:r[0],created:r[1],country:r[2],phone:r[3],dice:r[4],ones:r[5],
       rewardId:r[6],reward:r[7],community:r[8],status:r[9],sentAt:r[10],
-      redeemed:r[11],redeemedAt:r[12]
+      redeemed:r[11],redeemedAt:r[12],redeemRef:r[13]||"",redeemedBy:r[14]||""
     }));
   }
   return{
