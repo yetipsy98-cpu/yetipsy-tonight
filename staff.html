@@ -61,6 +61,12 @@ button:disabled{opacity:.55}.secondary{background:#30271b;color:#ead9b8}.redeemB
 <button id="lookupBtn" class="secondary">查询兑换码</button>
 <div id="claimInfo"></div>
 <button id="confirmBtn" class="hide">确认核销</button>
+<button id="overrideBtn" class="secondary hide">破例核销</button>
+<div id="overrideBox" class="hide">
+  <input id="overridePassword" type="password" placeholder="输入破例密码">
+  <button id="overrideConfirmBtn">验证密码并破例核销</button>
+  <div id="overrideMsg" class="muted"></div>
+</div>
 </div>
 
 <div id="redeemSuccess" class="hide">
@@ -131,7 +137,7 @@ $("localBtn").onclick=()=>{if(currentGameUrl)location.href=currentGameUrl};
 
 function openRedeem(){
   $("redeemModal").classList.remove("hide");$("redeemSuccess").classList.add("hide");$("redeemForm").classList.remove("hide");
-  $("redeemCode").value="";$("claimInfo").innerHTML="";$("confirmBtn").classList.add("hide");currentCode="";lastReceipt=null;
+  $("redeemCode").value="";$("claimInfo").innerHTML="";$("confirmBtn").classList.add("hide");$("overrideBtn").classList.add("hide");$("overrideBox").classList.add("hide");currentCode="";lastReceipt=null;
   setTimeout(()=>$("redeemCode").focus(),150);
 }
 function closeRedeem(){$("redeemModal").classList.add("hide")}
@@ -146,8 +152,27 @@ $("lookupBtn").onclick=async()=>{
     $("claimInfo").innerHTML='<p class="bad">'+(d.error==="code_not_found"?"找不到这个兑换码":d.error==="code_ambiguous"?"尾号重复，请输入完整兑换码":d.error==="staff_auth"?"登入已过期":d.error)+'</p>';return;
   }
   const c=d.claim;
-  $("claimInfo").innerHTML=`<p class="reward">${escapeHtml(c.reward)}</p><p>兑换码：<b>${escapeHtml(c.code)}</b></p><p class="muted">状态：${c.redeemed?"已核销":"尚未核销"} · WhatsApp ${escapeHtml(c.phone||"")}${c.redeemRef?`<br>REF：${escapeHtml(c.redeemRef)}`:""}</p>`;
-  if(!c.redeemed)$("confirmBtn").classList.remove("hide");
+  const stateText=c.redeemed?"已核销":c.redeemState==="NOT_STARTED"?"今天不可兑换":c.redeemState==="EXPIRED"?"已过兑换期限":"可以兑换";
+  $("claimInfo").innerHTML=`<p class="reward">${escapeHtml(c.reward)}</p><p>兑换码：<b>${escapeHtml(c.code)}</b></p><p><b>${stateText}</b></p><p class="muted">兑换期：${escapeHtml(c.redeemFrom||"")} ～ ${escapeHtml(c.redeemUntil||"")}<br>领取当天不可兑换 · 30天内有效<br>WhatsApp ${escapeHtml(c.phone||"")}${c.redeemRef?`<br>REF：${escapeHtml(c.redeemRef)}`:""}</p>`;
+  if(!c.redeemed&&c.redeemState==="VALID")$("confirmBtn").classList.remove("hide");
+  if(!c.redeemed&&(c.redeemState==="NOT_STARTED"||c.redeemState==="EXPIRED"))$("overrideBtn").classList.remove("hide");
+};
+$("overrideBtn").onclick=()=>{
+  $("overrideBox").classList.remove("hide");$("overridePassword").value="";$("overrideMsg").textContent="破例仅越过日期限制，仍然不能重复核销。";
+  setTimeout(()=>$("overridePassword").focus(),100);
+};
+$("overrideConfirmBtn").onclick=async()=>{
+  const password=$("overridePassword").value;
+  if(!password)return;
+  $("overrideConfirmBtn").disabled=true;$("overrideMsg").textContent="验证中…";
+  const auth=await api("staffRedeemOverrideCheck",{staffToken,code:currentCode,password});
+  if(!auth.ok){$("overrideConfirmBtn").disabled=false;$("overrideMsg").textContent=auth.error==="wrong_override_password"?"破例密码错误":"验证失败："+auth.error;return}
+  if(!confirm("确认破例核销？本次会越过日期限制，并记录 REF。")){$("overrideConfirmBtn").disabled=false;return}
+  const d=await api("staffRedeem",{staffToken,code:currentCode,overrideToken:auth.overrideToken});
+  $("overrideConfirmBtn").disabled=false;
+  if(!d.ok){$("overrideMsg").textContent="破例核销失败："+d.error;return}
+  lastReceipt={reward:d.reward,code:d.code,ref:d.redeemRef||"",staff:d.redeemedBy||localStorage.getItem("moon_staff_user")||"",time:d.redeemedAt||new Date().toISOString(),override:true};
+  showReceipt(lastReceipt);
 };
 $("confirmBtn").onclick=async()=>{
   if(!currentCode)return;
@@ -155,13 +180,13 @@ $("confirmBtn").onclick=async()=>{
   $("confirmBtn").disabled=true;
   const d=await api("staffRedeem",{staffToken,code:currentCode});
   $("confirmBtn").disabled=false;
-  if(!d.ok){alert(d.error==="already_redeemed"?"此奖励已经核销":"核销失败："+d.error);return}
+  if(!d.ok){alert(d.error==="already_redeemed"?"此奖励已经核销":d.error==="redeem_not_started"?`今天不能兑换，${d.redeemFrom} 起可兑换。`:d.error==="redeem_expired"?`兑换期限已过，最后兑换日 ${d.redeemUntil}。`:"核销失败："+d.error);return}
   lastReceipt={reward:d.reward,code:d.code,ref:d.redeemRef||"",staff:d.redeemedBy||localStorage.getItem("moon_staff_user")||"",time:d.redeemedAt||new Date().toISOString()};
   showReceipt(lastReceipt);
 };
 function showReceipt(r){
   $("redeemForm").classList.add("hide");$("redeemSuccess").classList.remove("hide");
-  $("rReward").textContent=r.reward;$("rCode").textContent=r.code;$("rRef").textContent=r.ref;$("rStaff").textContent=r.staff;$("rTime").textContent=formatTime(r.time);$("saveMsg").textContent="";
+  $("rReward").textContent=r.reward+(r.override?" · 破例核销":"");$("rCode").textContent=r.code;$("rRef").textContent=r.ref;$("rStaff").textContent=r.staff;$("rTime").textContent=formatTime(r.time);$("saveMsg").textContent="";
 }
 function formatTime(v){
   const d=new Date(v);if(isNaN(d))return String(v||"");
@@ -189,7 +214,7 @@ async function buildReceiptPng(r){
   x.fillStyle="#80611e";x.font="600 32px system-ui";x.fillText("月满杯盈 · 核销记录",540,188);
   x.strokeStyle="#d5c8b5";x.lineWidth=2;x.beginPath();x.moveTo(100,245);x.lineTo(980,245);x.stroke();
   x.fillStyle="#18130d";x.font="800 46px system-ui";x.fillText("✓ 核销成功",540,330);
-  const rows=[["奖励",r.reward],["兑换码",r.code],["REF",r.ref],["员工",r.staff],["时间",formatTime(r.time)]];
+  const rows=[["奖励",r.reward+(r.override?" · 破例核销":"")],["兑换码",r.code],["REF",r.ref],["员工",r.staff],["时间",formatTime(r.time)]];
   let y=445;
   for(const [k,v] of rows){
     x.textAlign="left";x.fillStyle="#756b5e";x.font="500 30px system-ui";x.fillText(k,120,y);
