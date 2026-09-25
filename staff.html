@@ -37,7 +37,7 @@ button:disabled{opacity:.55}.secondary{background:#30271b;color:#ead9b8}.redeemB
 <div id="panel" class="hide">
 <div class="card">
 <h2>生成新一局</h2>
-<div class="muted">每位顾客生成一个独立二维码；领取后本局失效。</div>
+<div class="muted">每次生成都是独立二维码。重新生成不会令之前的二维码失效；旧二维码会继续有效至本身到期或被领取。</div>
 <button id="newBtn">生成顾客二维码</button>
 <div id="newMsg" class="muted"></div>
 <img id="qr" class="hide" alt="顾客游戏二维码">
@@ -47,8 +47,9 @@ button:disabled{opacity:.55}.secondary{background:#30271b;color:#ead9b8}.redeemB
 
 <div class="actions">
 <button id="openRedeemBtn" class="redeemBtn">核销奖励</button>
-<button id="logoutBtn" class="secondary">登出</button>
+<button id="openLogBtn" class="secondary">登记记录</button>
 </div>
+<button id="logoutBtn" class="secondary">登出</button>
 </div>
 </div>
 
@@ -84,6 +85,16 @@ button:disabled{opacity:.55}.secondary{background:#30271b;color:#ead9b8}.redeemB
 <button id="doneBtn" class="secondary">完成</button>
 <div id="saveMsg" class="muted"></div>
 </div>
+</div>
+</div>
+
+
+<div id="logModal" class="modal hide">
+<div class="sheet">
+<div class="sheetHead"><h2>我的登记记录</h2><button id="closeLogBtn" class="close">关闭</button></div>
+<div class="muted">显示由当前员工生成二维码、并已由顾客成功登记领取的奖励。最近 50 笔。</div>
+<button id="refreshLogBtn" class="secondary">刷新记录</button>
+<div id="staffLogList" style="margin-top:10px"></div>
 </div>
 </div>
 
@@ -232,6 +243,24 @@ function fitCanvasText(ctx,text,rightX,y,maxWidth){
   while(ctx.measureText(text).width>maxWidth&&size>20){size-=1;ctx.font=ctx.font.replace(/\d+px/,size+"px")}
   ctx.fillText(text,rightX,y);
 }
+
+async function loadStaffLog(){
+  $("staffLogList").innerHTML='<p class="muted">读取中…</p>';
+  const d=await api("staffLog",{staffToken,limit:50});
+  if(!d.ok){$("staffLogList").innerHTML='<p class="bad">读取失败：'+escapeHtml(d.error)+'</p>';return}
+  const items=d.items||[];
+  $("staffLogList").innerHTML=items.length?items.map(x=>`
+    <div style="padding:12px 0;border-bottom:1px solid #30271b">
+      <div style="display:flex;justify-content:space-between;gap:10px"><b style="color:#dfb867">${escapeHtml(x.reward)}</b><span class="muted">${x.redeemed?"已核销":"已登记"}</span></div>
+      <div class="muted" style="margin-top:5px">${escapeHtml(x.code)} · ${escapeHtml(x.phone||"")}</div>
+      <div class="muted">${formatTime(x.created)}${x.redeemRef?` · REF ${escapeHtml(x.redeemRef)}`:""}</div>
+    </div>`).join(""):'<p class="muted">目前还没有已登记奖励。</p>';
+}
+$("openLogBtn").onclick=()=>{$("logModal").classList.remove("hide");loadStaffLog()};
+$("closeLogBtn").onclick=()=>$("logModal").classList.add("hide");
+$("refreshLogBtn").onclick=loadStaffLog;
+$("logModal").onclick=e=>{if(e.target===$("logModal"))$("logModal").classList.add("hide")};
+
 $("logoutBtn").onclick=()=>{localStorage.removeItem("moon_staff_token");location.reload()};
 </script>
 </body></html>

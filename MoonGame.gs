@@ -1,5 +1,5 @@
 /*
-YÉ TIPSY · 月满杯盈 V15.5 ADMIN REPORTS
+YÉ TIPSY · 月满杯盈 V15.6 STABILITY + STAFF LOG
 Staff QR / Customer Game / Claim / Redeem / Admin
 与 Tonight Code.gs 共用同一个 Apps Script Project。
 Code.gs 需要保留：
@@ -14,8 +14,8 @@ const MOON_STAFF="MOON_STAFF_SESSIONS";
 const MOON_STAFF_ACCOUNTS="MOON_STAFF_ACCOUNTS";
 const MOON_PRESENCE="MOON_PRESENCE";
 
-const CLAIM_HEADERS=["recovery_code","created_at","country","whatsapp","dice","ones","reward_id","reward_name","community_opt_in","whatsapp_status","sent_at","redeemed","redeemed_at","redeem_ref","redeemed_by"];
-const SESSION_HEADERS=["game_token","created_at","expires_at","used_at","status","reward_id","dice"];
+const CLAIM_HEADERS=["recovery_code","created_at","country","whatsapp","dice","ones","reward_id","reward_name","community_opt_in","whatsapp_status","sent_at","redeemed","redeemed_at","redeem_ref","redeemed_by","registered_by"];
+const SESSION_HEADERS=["game_token","created_at","expires_at","used_at","status","reward_id","dice","created_by"];
 const CONFIG_HEADERS=["key","value","note"];
 const REWARD_HEADERS=["reward_id","reward_name","display_ones","probability","enabled","sort_order"];
 const STAFF_HEADERS=["staff_token","created_at","expires_at","username","auth_version"];
@@ -68,6 +68,7 @@ function moonApi_(ss,d){
     case "staffCheck": return {ok:moon_staffAuth_(ss,d.staffToken)};
     case "staffCreateGame": return moon_staffCreateGame_(ss,d);
     case "staffRedeemLookup": return moon_staffRedeemLookup_(ss,d);
+    case "staffLog": return moon_staffLog_(ss,d);
     case "staffRedeem": return moon_staffRedeem_(ss,d);
     case "staffRedeemOverrideCheck": return moon_staffRedeemOverrideCheck_(ss,d);
     case "gameOpen": return moon_gameOpen_(ss,d);
@@ -189,12 +190,14 @@ function moon_staffAuth_(ss,t){
   return a.username;
 }
 function moon_staffCreateGame_(ss,d){
-  if(!moon_staffAuth_(ss,d.staffToken))return{ok:false,error:"staff_auth"};
+  const staffUser=moon_staffAuth_(ss,d.staffToken);
+  if(!staffUser)return{ok:false,error:"staff_auth"};
   if(!moon_enabled_(ss))return{ok:false,error:"activity_closed"};
   const token=Utilities.getUuid(),now=new Date(),exp=new Date(now.getTime()+moon_gameTtl_(ss));
   const result=moon_preparedResult_(ss);
-  ss.getSheetByName(MOON_SESSIONS).appendRow([token,now,exp,"","READY",result.rewardId,result.dice.join(",")]);
-  return{ok:true,gameToken:token,shortCode:token.replace(/-/g,"").slice(0,8).toUpperCase(),expiresAt:exp.toISOString()};
+  // Every generated QR is an independent session. Creating another QR NEVER cancels earlier READY sessions.
+  ss.getSheetByName(MOON_SESSIONS).appendRow([token,now,exp,"","READY",result.rewardId,result.dice.join(","),staffUser]);
+  return{ok:true,gameToken:token,shortCode:token.replace(/-/g,"").slice(0,8).toUpperCase(),expiresAt:exp.toISOString(),createdBy:staffUser};
 }
 
 /* GAME */
@@ -242,7 +245,8 @@ function moon_claim_(ss,d){
     const dice=diceText.split(",").map(Number);
     sh.appendRow([
       code,now,cc==="+65"?"SG":"MY",phone,diceText,dice.filter(n=>n===1).length,
-      rw.id,rw.name,d.communityOptIn?"YES":"NO","PENDING","","NO",""
+      rw.id,rw.name,d.communityOptIn?"YES":"NO","PENDING","","NO","","","",
+      String(c.session.data[7]||"")
     ]);
     c.sheet.getRange(c.session.row,4).setValue(now);
     c.sheet.getRange(c.session.row,5).setValue("USED");
@@ -403,23 +407,49 @@ function moon_staffRedeem_(ss,d){
 }
 
 
+/* STAFF LOG */
+function moon_staffLog_(ss,d){
+  const staffUser=moon_staffAuth_(ss,d.staffToken);
+  if(!staffUser)return{ok:false,error:"staff_auth"};
+  const limit=Math.max(10,Math.min(100,Number(d.limit)||50)),items=[];
+  const sh=ss.getSheetByName(MOON_CLAIMS);
+  if(sh&&sh.getLastRow()>=2){
+    const rows=sh.getRange(2,1,sh.getLastRow()-1,CLAIM_HEADERS.length).getValues();
+    for(let i=rows.length-1;i>=0&&items.length<limit;i--){
+      const r=rows[i],registeredBy=String(r[15]||"");
+      if(registeredBy!==staffUser)continue;
+      items.push({
+        code:r[0],created:r[1],phone:r[3],reward:r[7],status:r[9],
+        redeemed:String(r[11]||"").toUpperCase()==="YES",
+        redeemedAt:r[12]||"",redeemRef:r[13]||"",redeemedBy:r[14]||"",
+        registeredBy:registeredBy
+      });
+    }
+  }
+  return{ok:true,username:staffUser,items:items};
+}
+
 /* LIVE PRESENCE + REPORTS */
 function moon_presencePing_(ss,d){
   const id=String(d.clientId||"").trim().slice(0,80);
   if(!id)return{ok:false,error:"missing_client_id"};
-  const sh=ss.getSheetByName(MOON_PRESENCE)||moon_ensureSheet_(ss,MOON_PRESENCE,PRESENCE_HEADERS);
-  const now=new Date(),page=String(d.page||"game").slice(0,30);
-  if(sh.getLastRow()>=2){
-    const f=sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(id).matchEntireCell(true).findNext();
-    if(f){sh.getRange(f.getRow(),2,1,2).setValues([[now,page]]);return{ok:true}}
-  }
-  sh.appendRow([id,now,page]);return{ok:true};
+  const cache=CacheService.getScriptCache(),key="moon_presence_map";
+  const lock=LockService.getScriptLock();
+  try{
+    if(!lock.tryLock(800))return{ok:true}; // presence must never block gameplay
+    let map={};try{map=JSON.parse(cache.get(key)||"{}")}catch(e){}
+    const now=Date.now(),cutoff=now-180000;
+    Object.keys(map).forEach(k=>{if(Number(map[k])<cutoff)delete map[k]});
+    map[id]=now;
+    cache.put(key,JSON.stringify(map),300);
+  }finally{try{lock.releaseLock()}catch(e){}}
+  return{ok:true};
 }
 function moon_onlineCount_(ss){
-  const sh=ss.getSheetByName(MOON_PRESENCE);if(!sh||sh.getLastRow()<2)return 0;
-  const cutoff=Date.now()-120000,rows=sh.getRange(2,1,sh.getLastRow()-1,3).getValues(),seen={};
-  rows.forEach(r=>{const t=r[1] instanceof Date?r[1].getTime():new Date(r[1]).getTime();if(t>=cutoff)seen[String(r[0])]=1});
-  return Object.keys(seen).length;
+  const cache=CacheService.getScriptCache();let map={};
+  try{map=JSON.parse(cache.get("moon_presence_map")||"{}")}catch(e){}
+  const cutoff=Date.now()-120000;
+  return Object.keys(map).filter(k=>Number(map[k])>=cutoff).length;
 }
 function moon_stats_(ss){
   const sh=ss.getSheetByName(MOON_CLAIMS),out={totalClaims:0,totalRedeemed:0,pending:0,sent:0,todayClaims:0,todayRedeemed:0,rewards:{},daily:[]};
@@ -459,7 +489,7 @@ function moon_adminState_(ss,d){
     rows.forEach(r=>claims.push({
       code:r[0],created:r[1],country:r[2],phone:r[3],dice:r[4],ones:r[5],
       rewardId:r[6],reward:r[7],community:r[8],status:r[9],sentAt:r[10],
-      redeemed:r[11],redeemedAt:r[12],redeemRef:r[13]||"",redeemedBy:r[14]||""
+      redeemed:r[11],redeemedAt:r[12],redeemRef:r[13]||"",redeemedBy:r[14]||"",registeredBy:r[15]||""
     }));
   }
   return{
