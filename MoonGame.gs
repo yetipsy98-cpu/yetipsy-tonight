@@ -1,5 +1,5 @@
 /*
-YÉ TIPSY · 月满杯盈 V15.3 OVERRIDE
+YÉ TIPSY · 月满杯盈 V15.5 ADMIN REPORTS
 Staff QR / Customer Game / Claim / Redeem / Admin
 与 Tonight Code.gs 共用同一个 Apps Script Project。
 Code.gs 需要保留：
@@ -12,6 +12,7 @@ const MOON_CONFIG="MOON_CONFIG";
 const MOON_REWARDS="MOON_REWARDS";
 const MOON_STAFF="MOON_STAFF_SESSIONS";
 const MOON_STAFF_ACCOUNTS="MOON_STAFF_ACCOUNTS";
+const MOON_PRESENCE="MOON_PRESENCE";
 
 const CLAIM_HEADERS=["recovery_code","created_at","country","whatsapp","dice","ones","reward_id","reward_name","community_opt_in","whatsapp_status","sent_at","redeemed","redeemed_at","redeem_ref","redeemed_by"];
 const SESSION_HEADERS=["game_token","created_at","expires_at","used_at","status","reward_id","dice"];
@@ -19,6 +20,7 @@ const CONFIG_HEADERS=["key","value","note"];
 const REWARD_HEADERS=["reward_id","reward_name","display_ones","probability","enabled","sort_order"];
 const STAFF_HEADERS=["staff_token","created_at","expires_at","username","auth_version"];
 const STAFF_ACCOUNT_HEADERS=["username","password","display_name","enabled","auth_version"];
+const PRESENCE_HEADERS=["client_id","last_seen","page"];
 
 function setupMoonGame(){
   const ss=getDB_();
@@ -28,6 +30,7 @@ function setupMoonGame(){
   const rw=moon_ensureSheet_(ss,MOON_REWARDS,REWARD_HEADERS);
   moon_ensureSheet_(ss,MOON_STAFF,STAFF_HEADERS);
   const staff=moon_ensureSheet_(ss,MOON_STAFF_ACCOUNTS,STAFF_ACCOUNT_HEADERS);
+  moon_ensureSheet_(ss,MOON_PRESENCE,PRESENCE_HEADERS);
 
   moon_defaultConfig_(cfg,"ACTIVITY_ENABLED","TRUE","TRUE=开放 / FALSE=关闭");
   moon_defaultConfig_(cfg,"ADMIN_PASSWORD","CHANGE-ADMIN","Admin 页面密码");
@@ -69,6 +72,7 @@ function moonApi_(ss,d){
     case "staffRedeemOverrideCheck": return moon_staffRedeemOverrideCheck_(ss,d);
     case "gameOpen": return moon_gameOpen_(ss,d);
     case "claim": return moon_claim_(ss,d);
+    case "presencePing": return moon_presencePing_(ss,d);
     case "adminLogin": return moon_adminLogin_(ss,d);
     case "adminState": return moon_adminState_(ss,d);
     case "adminSaveConfig": return moon_adminSaveConfig_(ss,d);
@@ -243,9 +247,13 @@ function moon_claim_(ss,d){
     c.sheet.getRange(c.session.row,4).setValue(now);
     c.sheet.getRange(c.session.row,5).setValue("USED");
     SpreadsheetApp.flush();
+    const w=moon_redeemWindow_(ss,now);
     return{
       ok:true,recoveryCode:code,reward:rw.name,whatsapp:phone,status:"PENDING",
-      sendWithinBusinessDays:Number(moon_config_(ss,"WHATSAPP_SEND_DAYS","3"))||3
+      sendWithinBusinessDays:Number(moon_config_(ss,"WHATSAPP_SEND_DAYS","3"))||3,
+      redeemFrom:w.ok?w.redeemFrom:"",
+      redeemUntil:w.ok?w.redeemUntil:"",
+      redeemRule:"领取当天不可使用，次日起方可消费核销"
     };
   }finally{lock.releaseLock()}
 }
@@ -394,6 +402,46 @@ function moon_staffRedeem_(ss,d){
   }finally{lock.releaseLock()}
 }
 
+
+/* LIVE PRESENCE + REPORTS */
+function moon_presencePing_(ss,d){
+  const id=String(d.clientId||"").trim().slice(0,80);
+  if(!id)return{ok:false,error:"missing_client_id"};
+  const sh=ss.getSheetByName(MOON_PRESENCE)||moon_ensureSheet_(ss,MOON_PRESENCE,PRESENCE_HEADERS);
+  const now=new Date(),page=String(d.page||"game").slice(0,30);
+  if(sh.getLastRow()>=2){
+    const f=sh.getRange(2,1,sh.getLastRow()-1,1).createTextFinder(id).matchEntireCell(true).findNext();
+    if(f){sh.getRange(f.getRow(),2,1,2).setValues([[now,page]]);return{ok:true}}
+  }
+  sh.appendRow([id,now,page]);return{ok:true};
+}
+function moon_onlineCount_(ss){
+  const sh=ss.getSheetByName(MOON_PRESENCE);if(!sh||sh.getLastRow()<2)return 0;
+  const cutoff=Date.now()-120000,rows=sh.getRange(2,1,sh.getLastRow()-1,3).getValues(),seen={};
+  rows.forEach(r=>{const t=r[1] instanceof Date?r[1].getTime():new Date(r[1]).getTime();if(t>=cutoff)seen[String(r[0])]=1});
+  return Object.keys(seen).length;
+}
+function moon_stats_(ss){
+  const sh=ss.getSheetByName(MOON_CLAIMS),out={totalClaims:0,totalRedeemed:0,pending:0,sent:0,todayClaims:0,todayRedeemed:0,rewards:{},daily:[]};
+  if(!sh||sh.getLastRow()<2)return out;
+  const tz=Session.getScriptTimeZone()||"Asia/Kuala_Lumpur",today=Utilities.formatDate(new Date(),tz,"yyyy-MM-dd");
+  const rows=sh.getRange(2,1,sh.getLastRow()-1,CLAIM_HEADERS.length).getValues(),daily={};
+  rows.forEach(r=>{
+    out.totalClaims++;
+    const created=r[1] instanceof Date?r[1]:new Date(r[1]),cd=isNaN(created)?"" : Utilities.formatDate(created,tz,"yyyy-MM-dd");
+    const redeemed=String(r[11]||"").toUpperCase()==="YES",status=String(r[9]||"").toUpperCase(),reward=String(r[7]||"未知");
+    if(redeemed)out.totalRedeemed++;
+    if(status==="PENDING")out.pending++;
+    if(status==="SENT")out.sent++;
+    if(cd===today)out.todayClaims++;
+    if(redeemed&&r[12]){const rd=r[12] instanceof Date?r[12]:new Date(r[12]);if(!isNaN(rd)&&Utilities.formatDate(rd,tz,"yyyy-MM-dd")===today)out.todayRedeemed++}
+    out.rewards[reward]=(out.rewards[reward]||0)+1;
+    if(cd){daily[cd]=(daily[cd]||0)+1}
+  });
+  out.daily=Object.keys(daily).sort().slice(-14).map(date=>({date,count:daily[date]}));
+  return out;
+}
+
 /* ADMIN */
 function moon_adminLogin_(ss,d){
   if(String(d.password||"")!==String(moon_config_(ss,"ADMIN_PASSWORD","")))return{ok:false,error:"wrong_admin_password"};
@@ -423,7 +471,9 @@ function moon_adminState_(ss,d){
       sendDays:Number(moon_config_(ss,"WHATSAPP_SEND_DAYS","3"))
     },
     rewards:moon_rewards_(ss),
-    claims:claims
+    claims:claims,
+    online:moon_onlineCount_(ss),
+    stats:moon_stats_(ss)
   };
 }
 function moon_adminSaveConfig_(ss,d){
