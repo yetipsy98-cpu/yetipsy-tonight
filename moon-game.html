@@ -326,13 +326,7 @@ claimBtn.onclick=async()=>{
   success.scrollIntoView({behavior:"smooth"});
 };
 
-// Anonymous live-presence heartbeat for Admin dashboard. No phone/recovery code is sent.
-const moonPresenceId=localStorage.getItem("moon_presence_id")||("mp_"+Date.now().toString(36)+Math.random().toString(36).slice(2));
-localStorage.setItem("moon_presence_id",moonPresenceId);
-async function moonPresencePing(){
-  try{await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"moon",subaction:"presencePing",clientId:moonPresenceId,page:"game"})})}catch(e){}
-}
-moonPresencePing();setInterval(moonPresencePing,60000);
+
 
 </script>
 </body>

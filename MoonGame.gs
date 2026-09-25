@@ -1,5 +1,5 @@
 /*
-YÉ TIPSY · 月满杯盈 V15.6 STABILITY + STAFF LOG
+YÉ TIPSY · 月满杯盈 V15.7 NO MONITORING
 Staff QR / Customer Game / Claim / Redeem / Admin
 与 Tonight Code.gs 共用同一个 Apps Script Project。
 Code.gs 需要保留：
@@ -12,7 +12,6 @@ const MOON_CONFIG="MOON_CONFIG";
 const MOON_REWARDS="MOON_REWARDS";
 const MOON_STAFF="MOON_STAFF_SESSIONS";
 const MOON_STAFF_ACCOUNTS="MOON_STAFF_ACCOUNTS";
-const MOON_PRESENCE="MOON_PRESENCE";
 
 const CLAIM_HEADERS=["recovery_code","created_at","country","whatsapp","dice","ones","reward_id","reward_name","community_opt_in","whatsapp_status","sent_at","redeemed","redeemed_at","redeem_ref","redeemed_by","registered_by"];
 const SESSION_HEADERS=["game_token","created_at","expires_at","used_at","status","reward_id","dice","created_by"];
@@ -20,7 +19,6 @@ const CONFIG_HEADERS=["key","value","note"];
 const REWARD_HEADERS=["reward_id","reward_name","display_ones","probability","enabled","sort_order"];
 const STAFF_HEADERS=["staff_token","created_at","expires_at","username","auth_version"];
 const STAFF_ACCOUNT_HEADERS=["username","password","display_name","enabled","auth_version"];
-const PRESENCE_HEADERS=["client_id","last_seen","page"];
 
 function setupMoonGame(){
   const ss=getDB_();
@@ -30,7 +28,6 @@ function setupMoonGame(){
   const rw=moon_ensureSheet_(ss,MOON_REWARDS,REWARD_HEADERS);
   moon_ensureSheet_(ss,MOON_STAFF,STAFF_HEADERS);
   const staff=moon_ensureSheet_(ss,MOON_STAFF_ACCOUNTS,STAFF_ACCOUNT_HEADERS);
-  moon_ensureSheet_(ss,MOON_PRESENCE,PRESENCE_HEADERS);
 
   moon_defaultConfig_(cfg,"ACTIVITY_ENABLED","TRUE","TRUE=开放 / FALSE=关闭");
   moon_defaultConfig_(cfg,"ADMIN_PASSWORD","CHANGE-ADMIN","Admin 页面密码");
@@ -73,7 +70,6 @@ function moonApi_(ss,d){
     case "staffRedeemOverrideCheck": return moon_staffRedeemOverrideCheck_(ss,d);
     case "gameOpen": return moon_gameOpen_(ss,d);
     case "claim": return moon_claim_(ss,d);
-    case "presencePing": return moon_presencePing_(ss,d);
     case "adminLogin": return moon_adminLogin_(ss,d);
     case "adminState": return moon_adminState_(ss,d);
     case "adminSaveConfig": return moon_adminSaveConfig_(ss,d);
@@ -430,27 +426,6 @@ function moon_staffLog_(ss,d){
 }
 
 /* LIVE PRESENCE + REPORTS */
-function moon_presencePing_(ss,d){
-  const id=String(d.clientId||"").trim().slice(0,80);
-  if(!id)return{ok:false,error:"missing_client_id"};
-  const cache=CacheService.getScriptCache(),key="moon_presence_map";
-  const lock=LockService.getScriptLock();
-  try{
-    if(!lock.tryLock(800))return{ok:true}; // presence must never block gameplay
-    let map={};try{map=JSON.parse(cache.get(key)||"{}")}catch(e){}
-    const now=Date.now(),cutoff=now-180000;
-    Object.keys(map).forEach(k=>{if(Number(map[k])<cutoff)delete map[k]});
-    map[id]=now;
-    cache.put(key,JSON.stringify(map),300);
-  }finally{try{lock.releaseLock()}catch(e){}}
-  return{ok:true};
-}
-function moon_onlineCount_(ss){
-  const cache=CacheService.getScriptCache();let map={};
-  try{map=JSON.parse(cache.get("moon_presence_map")||"{}")}catch(e){}
-  const cutoff=Date.now()-120000;
-  return Object.keys(map).filter(k=>Number(map[k])>=cutoff).length;
-}
 function moon_stats_(ss){
   const sh=ss.getSheetByName(MOON_CLAIMS),out={totalClaims:0,totalRedeemed:0,pending:0,sent:0,todayClaims:0,todayRedeemed:0,rewards:{},daily:[]};
   if(!sh||sh.getLastRow()<2)return out;
@@ -502,7 +477,6 @@ function moon_adminState_(ss,d){
     },
     rewards:moon_rewards_(ss),
     claims:claims,
-    online:moon_onlineCount_(ss),
     stats:moon_stats_(ss)
   };
 }
