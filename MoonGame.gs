@@ -1,5 +1,5 @@
 /*
-YÉ TIPSY · 月满杯盈 V15.1 REDEEM REF
+YÉ TIPSY · 月满杯盈 V15.3 OVERRIDE
 Staff QR / Customer Game / Claim / Redeem / Admin
 与 Tonight Code.gs 共用同一个 Apps Script Project。
 Code.gs 需要保留：
@@ -34,6 +34,9 @@ function setupMoonGame(){
   moon_defaultConfig_(cfg,"GAME_TOKEN_TTL_MINUTES","20","每局二维码有效分钟");
   moon_defaultConfig_(cfg,"STAFF_LOGIN_DAYS","30","员工设备保持登入天数");
   moon_defaultConfig_(cfg,"WHATSAPP_SEND_DAYS","3","奖励发送工作日");
+  moon_defaultConfig_(cfg,"REDEEM_START_NEXT_DAY","TRUE","TRUE=领取次日才可兑换");
+  moon_defaultConfig_(cfg,"REDEEM_VALID_DAYS","30","领取日起30天内有效");
+  moon_defaultConfig_(cfg,"REDEEM_OVERRIDE_PASSWORD","CHANGE-OVERRIDE","破例核销密码；仅用于越过日期规则");
 
   if(staff.getLastRow()<2){
     staff.getRange(2,1,3,5).setValues([
@@ -63,6 +66,7 @@ function moonApi_(ss,d){
     case "staffCreateGame": return moon_staffCreateGame_(ss,d);
     case "staffRedeemLookup": return moon_staffRedeemLookup_(ss,d);
     case "staffRedeem": return moon_staffRedeem_(ss,d);
+    case "staffRedeemOverrideCheck": return moon_staffRedeemOverrideCheck_(ss,d);
     case "gameOpen": return moon_gameOpen_(ss,d);
     case "claim": return moon_claim_(ss,d);
     case "adminLogin": return moon_adminLogin_(ss,d);
@@ -255,7 +259,24 @@ function moon_recoveryCode_(sh){
   throw new Error("recovery_code_generation_failed");
 }
 
-/* REDEEM — V15: full code or final 8 chars */
+
+function moon_redeemWindow_(ss,created){
+  const tz=Session.getScriptTimeZone()||"Asia/Kuala_Lumpur";
+  const toDay=v=>{
+    const d=v instanceof Date?v:new Date(v); if(isNaN(d.getTime()))return null;
+    const p=Utilities.formatDate(d,tz,"yyyy-MM-dd").split("-").map(Number);
+    return new Date(p[0],p[1]-1,p[2]);
+  };
+  const base=toDay(created),today=toDay(new Date());
+  if(!base)return{ok:false,error:"invalid_created_at"};
+  const start=new Date(base); start.setDate(start.getDate()+1);
+  const days=Math.max(1,Math.min(365,Number(moon_config_(ss,"REDEEM_VALID_DAYS","30"))||30));
+  const end=new Date(base); end.setDate(end.getDate()+days);
+  const fmt=d=>Utilities.formatDate(d,tz,"yyyy-MM-dd");
+  return{ok:true,state:today<start?"NOT_STARTED":today>end?"EXPIRED":"VALID",redeemFrom:fmt(start),redeemUntil:fmt(end),validDays:days};
+}
+
+/* REDEEM — V15.2 */
 function moon_normalizeRecoveryCode_(value){
   let q=String(value==null?"":value).trim().toUpperCase();
   q=q.replace(/^YT[\s\-_]*MOON[\s\-_]*/,"");
@@ -289,7 +310,35 @@ function moon_staffRedeemLookup_(ss,d){
   const c=moon_claimByCode_(ss,d.code);
   if(!c)return{ok:false,error:"code_not_found"};
   if(c.ambiguous)return{ok:false,error:"code_ambiguous",count:c.count};
+  const w=moon_redeemWindow_(ss,c.created);
+  if(!w.ok)return w;
+  c.redeemState=w.state;c.redeemFrom=w.redeemFrom;c.redeemUntil=w.redeemUntil;c.validDays=w.validDays;
   return{ok:true,claim:c};
+}
+function moon_staffRedeemOverrideCheck_(ss,d){
+  if(!moon_staffAuth_(ss,d.staffToken))return{ok:false,error:"staff_auth"};
+  const expected=String(moon_config_(ss,"REDEEM_OVERRIDE_PASSWORD",""));
+  if(!expected||String(d.password||"")!==expected)return{ok:false,error:"wrong_override_password"};
+  return{ok:true,overrideToken:moon_makeOverrideToken_(d.staffToken,d.code)};
+}
+function moon_makeOverrideToken_(staffToken,code){
+  const token=Utilities.getUuid();
+  CacheService.getScriptCache().put(
+    "moon_override_"+token,
+    JSON.stringify({staffToken:String(staffToken||""),code:moon_normalizeRecoveryCode_(code),exp:Date.now()+120000}),
+    120
+  );
+  return token;
+}
+function moon_useOverrideToken_(staffToken,code,token){
+  token=String(token||"");if(!token)return false;
+  const cache=CacheService.getScriptCache(),key="moon_override_"+token,hit=cache.get(key);
+  if(!hit)return false;
+  cache.remove(key); // one-time token
+  try{
+    const o=JSON.parse(hit);
+    return o.exp>Date.now()&&o.staffToken===String(staffToken||"")&&o.code===moon_normalizeRecoveryCode_(code);
+  }catch(e){return false}
 }
 function moon_newRedeemRef_(sh){
   // Example: RD-250925-7K4M2P — short enough to read back, unique enough for daily ops.
@@ -313,6 +362,16 @@ function moon_staffRedeem_(ss,d){
     if(!c)return{ok:false,error:"code_not_found"};
     if(c.ambiguous)return{ok:false,error:"code_ambiguous",count:c.count};
     if(c.redeemed)return{ok:false,error:"already_redeemed",claim:c};
+    const w=moon_redeemWindow_(ss,c.created);
+    if(!w.ok)return w;
+    let overrideUsed=false;
+    if(w.state!=="VALID"){
+      overrideUsed=moon_useOverrideToken_(d.staffToken,d.code,d.overrideToken);
+      if(!overrideUsed){
+        if(w.state==="NOT_STARTED")return{ok:false,error:"redeem_not_started",redeemFrom:w.redeemFrom,redeemUntil:w.redeemUntil,canOverride:true};
+        if(w.state==="EXPIRED")return{ok:false,error:"redeem_expired",redeemFrom:w.redeemFrom,redeemUntil:w.redeemUntil,canOverride:true};
+      }
+    }
 
     const sh=ss.getSheetByName(MOON_CLAIMS),now=new Date();
     const ref=moon_newRedeemRef_(sh);
@@ -329,7 +388,8 @@ function moon_staffRedeem_(ss,d){
       code:c.code,
       redeemedAt:now.toISOString(),
       redeemRef:ref,
-      redeemedBy:staffUser
+      redeemedBy:staffUser,
+      overrideUsed:overrideUsed
     };
   }finally{lock.releaseLock()}
 }
