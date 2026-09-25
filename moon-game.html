@@ -52,6 +52,16 @@
 <p class="small">请立即截图保存「奖励找回码」</p>
 <div class="code" id="code"></div>
 <p id="summary" class="small"></p>
+<div id="validityBox" style="margin:14px 0;padding:14px;border:1px solid #66502d;border-radius:14px;background:#0b0906">
+  <div style="color:#e3bc6c;font-weight:800">奖励使用须知</div>
+  <div id="validityDates" style="margin-top:6px;font-size:13px"></div>
+  <div style="margin-top:6px;font-size:12px;color:#b9a98b">⚠️ 领取当天不可消费核销 · 次日起方可使用</div>
+</div>
+<div style="margin:16px 0;padding:16px;border-radius:16px;background:linear-gradient(135deg,#20170c,#0c0906);border:1px solid #8b6933;text-align:left">
+  <div style="font-size:11px;letter-spacing:.16em;color:#9f8a63">COMING THIS OCTOBER</div>
+  <div style="font-size:20px;font-weight:900;color:#efc86f;margin-top:5px">YÉ TIPSY 2.0 即将登场</div>
+  <div style="font-size:13px;line-height:1.65;color:#d5c7aa;margin-top:6px">新品即将解锁。先把奖励留好——10 月回来兑换，顺便看看 2.0 新菜单，到时兑换更划算 🌙</div>
+</div>
 <button id="shareResultBtn" class="shareBtn">生成我的战绩卡 · 分享</button>
 <h3 style="color:#e3bc6c">加入 Ye Tipsy 社群 🌙</h3>
 <div class="qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=https%3A%2F%2Fchat.whatsapp.com%2FGvzQip5KbuI6rWLO78880p"></div>
@@ -311,6 +321,7 @@ claimBtn.onclick=async()=>{
   claim.style.display="none";
   code.textContent=d.recoveryCode;
   summary.textContent="奖励："+d.reward+" · WhatsApp："+country+" "+p;
+  validityDates.textContent=d.redeemFrom&&d.redeemUntil?("有效兑换日期："+d.redeemFrom+" ～ "+d.redeemUntil):"有效期：领取次日起 30 天内";
   success.classList.add("show");
   success.scrollIntoView({behavior:"smooth"});
 };
