@@ -333,9 +333,102 @@ claimBtn.onclick=async()=>{
 
 
 
-const I18N_EN={"月满杯盈":"MOON GAME","5颗骰子 · 一摇定胜负 · 各奖项中奖机会不同":"5 dice · One roll decides it · Prize chances vary","摇月亮":"SHAKE THE MOON","领取我的奖励":"CLAIM MY REWARD","奖励使用须知":"REWARD VALIDITY","领取当天不可消费核销 · 次日起方可使用":"Not valid on claim day · Redeem from the next day","YÉ TIPSY 2.0 即将登场":"YÉ TIPSY 2.0 IS COMING","新品即将解锁。先把奖励留好——10 月回来兑换，顺便看看 2.0 新菜单，到时兑换更划算 🌙":"New drinks are coming. Keep your reward — come back in October and discover the 2.0 menu. 🌙","生成我的战绩卡 · 分享":"CREATE & SHARE MY RESULT","找回码":"RECOVERY CODE","关闭":"CLOSE"};
+const I18N_EN={
+"月满杯盈":"MOON GAME",
+"5颗骰子 · 一摇定胜负 · 各奖项中奖机会不同":"5 dice · One roll decides it · Prize chances vary",
+"5 颗骰子 · 一摇定胜负 · 各奖项中奖机会不同":"5 dice · One roll decides it · Prize chances vary",
+"摇月亮":"SHAKE THE MOON",
+"摇一摇手机":"SHAKE YOUR PHONE",
+"请摇动手机":"SHAKE YOUR PHONE",
+"点击开始":"TAP TO START",
+"开始游戏":"START GAME",
+"再摇一次":"SHAKE AGAIN",
+"本局结果":"YOUR RESULT",
+"恭喜你":"CONGRATULATIONS",
+"你摇出了":"YOU ROLLED",
+"个「1」":" ONE(S)",
+"领取奖励":"CLAIM REWARD",
+"领取我的奖励":"CLAIM MY REWARD",
+"填写 WhatsApp 领取":"ENTER WHATSAPP TO CLAIM",
+"请选择国家/地区":"SELECT COUNTRY / REGION",
+"马来西亚 +60":"MALAYSIA +60",
+"新加坡 +65":"SINGAPORE +65",
+"手机号码":"MOBILE NUMBER",
+"请输入 WhatsApp 手机号码":"ENTER YOUR WHATSAPP NUMBER",
+"请输入手机号":"ENTER MOBILE NUMBER",
+"加入 YÉ TIPSY WhatsApp 社群":"JOIN YÉ TIPSY WHATSAPP COMMUNITY",
+"加入 WhatsApp 社群":"JOIN WHATSAPP COMMUNITY",
+"可选，不影响奖励":"OPTIONAL · DOES NOT AFFECT YOUR REWARD",
+"奖励领取成功":"REWARD CLAIMED",
+"领取成功":"CLAIM SUCCESSFUL",
+"你的奖励":"YOUR REWARD",
+"奖励使用须知":"REWARD VALIDITY",
+"⚠️ 领取当天不可消费核销 · 次日起方可使用":"⚠️ NOT VALID ON CLAIM DAY · REDEEM FROM THE NEXT DAY",
+"领取当天不可消费核销 · 次日起方可使用":"NOT VALID ON CLAIM DAY · REDEEM FROM THE NEXT DAY",
+"领取当天不可使用，次日起方可消费核销":"NOT VALID ON CLAIM DAY. REDEEM FROM THE NEXT DAY.",
+"有效兑换日期：":"VALID DATES: ",
+"有效期：领取次日起 30 天内":"VALIDITY: 30 DAYS FROM THE NEXT DAY",
+"找回码":"RECOVERY CODE",
+"请保存好找回码":"KEEP YOUR RECOVERY CODE",
+"如未收到 WhatsApp，可凭找回码向 Staff 查询。":"IF YOU DO NOT RECEIVE WHATSAPP, SHOW THIS CODE TO STAFF.",
+"奖励会在 3 个工作日内通过 WhatsApp 发出。":"YOUR REWARD WILL BE SENT VIA WHATSAPP WITHIN 3 BUSINESS DAYS.",
+"奖励将在":"YOUR REWARD WILL BE SENT WITHIN ",
+"个工作日内通过 WhatsApp 发出":" BUSINESS DAYS VIA WHATSAPP",
+"COMING THIS OCTOBER":"COMING THIS OCTOBER",
+"YÉ TIPSY 2.0 即将登场":"YÉ TIPSY 2.0 IS COMING",
+"新品即将解锁。先把奖励留好——10 月回来兑换，顺便看看 2.0 新菜单，到时兑换更划算 🌙":"NEW DRINKS ARE COMING. KEEP YOUR REWARD — COME BACK IN OCTOBER, DISCOVER THE 2.0 MENU AND MAKE YOUR REDEMPTION EVEN MORE WORTHWHILE. 🌙",
+"新品即将解锁":"NEW DRINKS ARE COMING",
+"10 月回来兑换":"COME BACK IN OCTOBER TO REDEEM",
+"生成我的战绩卡 · 分享":"CREATE & SHARE MY RESULT",
+"生成战绩卡":"CREATE RESULT CARD",
+"分享":"SHARE",
+"保存图片":"SAVE IMAGE",
+"关闭":"CLOSE",
+"我摇出了":"I ROLLED",
+"奖励：":"REWARD: ",
+"你敢来摇吗？":"DARE TO ROLL?",
+"栖野微醺 · 特调":"CRAFT COCKTAILS",
+"系统刚好繁忙，请再按一次「领取我的奖励」。":"THE SYSTEM IS BUSY. PLEASE TAP “CLAIM MY REWARD” AGAIN.",
+"手机号码格式不正确，请检查后再试。":"INVALID MOBILE NUMBER. PLEASE CHECK AND TRY AGAIN.",
+"本局二维码已过期，请向 Staff 获取新二维码。":"THIS QR CODE HAS EXPIRED. PLEASE ASK STAFF FOR A NEW ONE.",
+"本局奖励已经登记过。":"THIS REWARD HAS ALREADY BEEN CLAIMED.",
+"保存失败：":"SAVE FAILED: ",
+"本局已使用":"THIS GAME HAS ALREADY BEEN USED",
+"本局已过期":"THIS GAME HAS EXPIRED",
+"活动暂未开放":"THE EVENT IS CURRENTLY CLOSED",
+"加载中…":"LOADING…",
+"准备中…":"GETTING READY…",
+"请稍候…":"PLEASE WAIT…",
+"确定":"OK",
+"取消":"CANCEL"
+};
 let moonLang=localStorage.getItem("moon_lang")||"zh";
-function applyLang(){const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),a=[];while(w.nextNode())a.push(w.currentNode);a.forEach(n=>{if(n.parentElement&&["SCRIPT","STYLE"].includes(n.parentElement.tagName))return;if(n._zh===undefined)n._zh=n.nodeValue;if(moonLang==="zh")n.nodeValue=n._zh;else{let s=n._zh;Object.entries(I18N_EN).forEach(([z,e])=>s=s.split(z).join(e));s=s.replace(/有效兑换日期：/g,"Valid dates: ").replace(/有效期：领取次日起 30 天内/g,"Validity: 30 days from the next day").replace(/奖励：/g,"Reward: ");n.nodeValue=s}});document.documentElement.lang=moonLang==="zh"?"zh-Hans":"en";langZh.classList.toggle("active",moonLang==="zh");langEn.classList.toggle("active",moonLang==="en")}
-langZh.onclick=()=>{moonLang="zh";localStorage.setItem("moon_lang",moonLang);applyLang()};langEn.onclick=()=>{moonLang="en";localStorage.setItem("moon_lang",moonLang);applyLang()};new MutationObserver(()=>{clearTimeout(window.lt);window.lt=setTimeout(applyLang,50)}).observe(document.body,{childList:true,subtree:true});setTimeout(applyLang,0);</script>
+function moonEn(s){
+  Object.entries(I18N_EN).sort((a,b)=>b[0].length-a[0].length).forEach(([z,e])=>{s=s.split(z).join(e)});
+  s=s.replace(/有效兑换日期[:：]\s*/g,"VALID DATES: ")
+     .replace(/有效期[:：]\s*领取次日起\s*30\s*天内/g,"VALIDITY: 30 DAYS FROM THE NEXT DAY")
+     .replace(/我摇出了\s*(\d+)\s*个[「“\"]?1[」”\"]?[！!]?/g,"I ROLLED $1 ONE(S)!")
+     .replace(/摇出了\s*(\d+)\s*个[「“\"]?1[」”\"]?/g,"ROLLED $1 ONE(S)")
+     .replace(/(\d+)\s*个工作日/g,"$1 BUSINESS DAYS");
+  return s;
+}
+function applyLang(){
+ const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),a=[];while(w.nextNode())a.push(w.currentNode);
+ a.forEach(n=>{
+   if(n.parentElement&&["SCRIPT","STYLE"].includes(n.parentElement.tagName))return;
+   if(n._zh===undefined)n._zh=n.nodeValue;
+   n.nodeValue=moonLang==="zh"?n._zh:moonEn(n._zh);
+ });
+ document.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(el=>{
+   if(el._zhph===undefined)el._zhph=el.getAttribute("placeholder")||"";
+   el.setAttribute("placeholder",moonLang==="zh"?el._zhph:moonEn(el._zhph));
+ });
+ document.documentElement.lang=moonLang==="zh"?"zh-Hans":"en";
+ langZh.classList.toggle("active",moonLang==="zh");langEn.classList.toggle("active",moonLang==="en");
+}
+langZh.onclick=()=>{moonLang="zh";localStorage.setItem("moon_lang",moonLang);applyLang()};
+langEn.onclick=()=>{moonLang="en";localStorage.setItem("moon_lang",moonLang);applyLang()};
+new MutationObserver(()=>{clearTimeout(window.lt);window.lt=setTimeout(applyLang,25)}).observe(document.body,{childList:true,subtree:true,characterData:true});
+setTimeout(applyLang,0);</script>
 </body>
 </html>
