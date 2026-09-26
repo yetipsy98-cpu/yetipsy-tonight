@@ -31,9 +31,9 @@
 .sharePreview img{max-width:min(92vw,405px);max-height:72vh;border-radius:18px;box-shadow:0 18px 60px #000}
 .shareActions{width:min(92vw,405px);display:flex;gap:8px}.shareActions button{flex:1}
 .shareClose{background:#17120d!important;color:#d9c59c!important;border:1px solid #4b3b26!important}
-</style>
+.langSwitch{position:fixed;top:12px;right:12px;z-index:99;display:flex;background:#15110c;border:1px solid #59472d;border-radius:99px;padding:3px}.langSwitch button{width:auto;margin:0;padding:7px 10px;border-radius:99px;background:transparent;color:#a99b82;font-size:11px}.langSwitch button.active{background:#d9ae5c;color:#171009}</style>
 </head>
-<body>
+<body><div class="langSwitch"><button id="langZh" class="active">中文</button><button id="langEn">EN</button></div>
 <main class="app">
 <div class="logo">YÉ TIPSY<small>2.0 · 栖野微醺</small></div>
 <div class="hero"><div class="small">MID-AUTUMN LIMITED</div><h1>月满杯盈</h1><p>今晚的月亮，有多圆？</p></div>
@@ -333,6 +333,9 @@ claimBtn.onclick=async()=>{
 
 
 
-</script>
+const I18N_EN={"月满杯盈":"MOON GAME","5颗骰子 · 一摇定胜负 · 各奖项中奖机会不同":"5 dice · One roll decides it · Prize chances vary","摇月亮":"SHAKE THE MOON","领取我的奖励":"CLAIM MY REWARD","奖励使用须知":"REWARD VALIDITY","领取当天不可消费核销 · 次日起方可使用":"Not valid on claim day · Redeem from the next day","YÉ TIPSY 2.0 即将登场":"YÉ TIPSY 2.0 IS COMING","新品即将解锁。先把奖励留好——10 月回来兑换，顺便看看 2.0 新菜单，到时兑换更划算 🌙":"New drinks are coming. Keep your reward — come back in October and discover the 2.0 menu. 🌙","生成我的战绩卡 · 分享":"CREATE & SHARE MY RESULT","找回码":"RECOVERY CODE","关闭":"CLOSE"};
+let moonLang=localStorage.getItem("moon_lang")||"zh";
+function applyLang(){const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT),a=[];while(w.nextNode())a.push(w.currentNode);a.forEach(n=>{if(n.parentElement&&["SCRIPT","STYLE"].includes(n.parentElement.tagName))return;if(n._zh===undefined)n._zh=n.nodeValue;if(moonLang==="zh")n.nodeValue=n._zh;else{let s=n._zh;Object.entries(I18N_EN).forEach(([z,e])=>s=s.split(z).join(e));s=s.replace(/有效兑换日期：/g,"Valid dates: ").replace(/有效期：领取次日起 30 天内/g,"Validity: 30 days from the next day").replace(/奖励：/g,"Reward: ");n.nodeValue=s}});document.documentElement.lang=moonLang==="zh"?"zh-Hans":"en";langZh.classList.toggle("active",moonLang==="zh");langEn.classList.toggle("active",moonLang==="en")}
+langZh.onclick=()=>{moonLang="zh";localStorage.setItem("moon_lang",moonLang);applyLang()};langEn.onclick=()=>{moonLang="en";localStorage.setItem("moon_lang",moonLang);applyLang()};new MutationObserver(()=>{clearTimeout(window.lt);window.lt=setTimeout(applyLang,50)}).observe(document.body,{childList:true,subtree:true});setTimeout(applyLang,0);</script>
 </body>
 </html>
