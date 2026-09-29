@@ -25,7 +25,49 @@ function renderRewards(){rewards.innerHTML=state.rewards.map((r,i)=>`<div class=
 function sumProb(){let t=0;document.querySelectorAll('[data-k="probability"]').forEach(x=>{const c=document.querySelector(`[data-i="${x.dataset.i}"][data-k="enabled"]`);if(c&&c.checked)t+=+x.value||0});total.textContent=t.toFixed(2)+"%"}
 async function saveConfig(){const d=await api("adminSaveConfig",{activityEnabled:enabled.value==="true",adminPassword:adminPass.value,gameTtl:+ttl.value||20,staffDays:+staffDays.value||30});if(!d.ok)return alert("保存失败："+d.error);adminPass.value="";alert("已保存")}
 async function saveRewards(){document.querySelectorAll("#rewards input").forEach(x=>{const r=state.rewards[+x.dataset.i],k=x.dataset.k;r[k]=k==="enabled"?x.checked:(k==="probability"||k==="displayOnes"?+x.value:x.value)});const d=await api("adminSaveRewards",{rewards:state.rewards});if(!d.ok)return alert("保存失败："+d.error);loadState()}
-function renderClaims(){const q=(search.value||"").toLowerCase(),arr=(state.claims||[]).filter(x=>JSON.stringify(x).toLowerCase().includes(q));claims.innerHTML=arr.map(x=>`<div class="claim"><div><b>${esc(String(x.code))}</b><br><span class="muted">${fmt(x.created)}${x.redeemRef?`<br>REF ${esc(String(x.redeemRef))}`:""}</span></div><div>${esc(String(x.phone))}</div><div>${esc(String(x.reward))}</div><div>${x.redeemed==="YES"?"已兑换":esc(String(x.status))}</div><div class="actions"><button onclick="markClaim('${attr(String(x.code))}','SENT')">已发送</button><button class="secondary" onclick="markClaim('${attr(String(x.code))}','REDEEMED')">已兑换</button></div></div>`).join("")||'<p class="muted">暂无记录</p>'}
+function renderClaims(){const q=(search.value||"").toLowerCase(),arr=(state.claims||[]).filter(x=>JSON.stringify(x).toLowerCase().includes(q));claims.innerHTML=arr.map(x=>`<div class="claim"><div><b>${esc(String(x.code))}</b><br><span class="muted">${fmt(x.created)}${x.redeemRef?`<br>REF ${esc(String(x.redeemRef))}`:""}</span></div><div>${esc(String(x.phone))}</div><div>${esc(String(x.reward))}</div><div>${x.redeemed==="YES"?"已兑换":esc(String(x.status))}</div><div class="actions"><button onclick="openClaimWhatsApp(${(state.claims||[]).indexOf(x)})">WhatsApp</button><button onclick="markClaim('${attr(String(x.code))}','SENT')">已发送</button><button class="secondary" onclick="markClaim('${attr(String(x.code))}','REDEEMED')">已兑换</button></div></div>`).join("")||'<p class="muted">暂无记录</p>'}
+function claimValidDates(x){const d=new Date(x.created);if(isNaN(d))return"";const a=new Date(d),z=new Date(d);a.setDate(a.getDate()+1);z.setDate(z.getDate()+30);const f=v=>String(v.getDate()).padStart(2,"0")+"/"+String(v.getMonth()+1).padStart(2,"0")+"/"+v.getFullYear();return f(a)+" – "+f(z)}
+function normalizeWhatsAppPhone(v){
+  let p=String(v||"").replace(/\D/g,"");
+  if(!p)return"";
+  if(p.startsWith("60")||p.startsWith("65"))return p;
+  if(p.startsWith("0"))p=p.slice(1);
+  return"60"+p;
+}
+function sameWhatsApp(a,b){
+  return normalizeWhatsAppPhone(a)===normalizeWhatsAppPhone(b);
+}
+function openClaimWhatsApp(i){
+  const x=(state.claims||[])[i];
+  if(!x)return alert("找不到这笔奖励记录");
+  const phone=normalizeWhatsAppPhone(x.phone);
+  if(!phone)return alert("这笔记录没有 WhatsApp 手机号码");
+
+  // Group every reward registered under the same WhatsApp number into one message.
+  const all=(state.claims||[]).filter(r=>sameWhatsApp(r.phone,x.phone));
+  all.sort((a,b)=>new Date(a.created)-new Date(b.created));
+
+  const rewardLines=all.map((r,idx)=>{
+    return `${all.length>1?(idx+1)+". ":""}🎁 ${r.reward||""}
+🎟️ Code：${r.code||""}
+📅 Valid：${claimValidDates(r)}`;
+  }).join("\n\n");
+
+  const msg=`🌙 YÉ TIPSY｜月满杯盈
+
+恭喜获得 / You’ve won 🎉
+
+${rewardLines}
+
+📍 到店后请出示此 WhatsApp 给店员核销
+Please show this WhatsApp message to our staff for redemption.
+
+👀 YÉ TIPSY 2.0 · Coming this October
+
+See you soon · @ye_tipsy`;
+
+  window.open("https://wa.me/"+phone+"?text="+encodeURIComponent(msg),"_blank","noopener");
+}
 async function markClaim(c,s){const d=await api("adminUpdateClaim",{code:c,status:s});if(!d.ok)alert("更新失败："+d.error);else loadState()}
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}function attr(s){return s.replace(/'/g,"\\\\'")}function fmt(v){try{return new Date(v).toLocaleString()}catch(e){return String(v)}}
 
