@@ -1,0 +1,73 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yetipsy Ambassador</title><link rel="stylesheet" href="styles.css"></head><body><div class="wrap"><div class="topbar"><div><div class="brand" id="ambaTitle">Ambassador</div><div class="sub">Hi, <span id="who"></span></div></div><div class="row" id="ownerNav"></div></div><div id="notice"></div>
+<div class="grid g3"><div class="card"><div class="label">Redeemed Sales</div><div class="stat" id="sales">RM 0.00</div></div><div class="card"><div class="label">Wallet</div><div class="stat" id="wallet">RM 0.00</div></div><div class="card"><div class="label">Redeemed / Issued</div><div class="stat" id="count">0 / 0</div></div></div>
+<div class="card compact-card" style="margin-top:12px"><div class="row between"><h3 class="section-title">Today’s Price</h3><span id="todayRule" class="badge"></span></div><div class="price-pair"><div class="price-chip"><div class="k">Male</div><div class="v" id="todayMale">RM 0.00</div></div><div class="price-chip"><div class="k">Female</div><div class="v" id="todayFemale">RM 0.00</div></div></div><div id="miniPrices" class="mini-price-table tight"></div></div>
+
+<div id="ownerAmbaNote" class="hidden notice tight">Owner 生成的 Pass 归 Owner 自己，默认不会产生 Ambassador Commission；适合店家直接发 Pass 给顾客。</div><div class="grid g2" style="margin-top:12px"><div class="card compact-card"><h3 class="section-title">Issue Guest Pass</h3><div class="compact-grid"><label>Date *<input id="rdate" type="date"></label><label>Pax *<input id="pax" type="number" min="1" value="1" required></label><label>Type<select id="ptype"><option value="GROUP">Group</option><option value="INDIVIDUAL">Individual</option></select></label></div><div class="compact-grid two"><label>Label / Name<input id="label" placeholder="Friday Group A"></label><label>Remark<input id="remark" placeholder="Optional"></label></div><button style="margin-top:10px" onclick="createPass()">Generate QR</button>
+<div id="qrResult" class="hidden" style="margin-top:16px"><div class="invite-wrap"><canvas id="inviteCanvas" class="invite-canvas" width="864" height="1536"></canvas><div class="small muted">这张邀请函会自动带入：二维码 + 日期 + Ref。若现场扫不上，Staff 可直接输入 Ref 查询。</div><div class="actions"><button onclick="downloadInvite()">Download Invitation</button><button class="btn2" onclick="showRawQR()">Show Raw QR</button></div><div id="rawQR" class="hidden" style="margin-top:10px"><div id="qrcode" class="qrbox"></div><div class="mono" id="passref" style="margin-top:10px"></div></div></div></div></div>
+<div class="card compact-card"><h3 class="section-title">My Passes</h3><div class="muted" style="margin-bottom:10px">未开始 Check-in 的预定可以修改。</div><div id="passes" class="list"></div></div></div>
+<div class="card compact-card hidden" id="editCard" style="margin-top:12px"><h3 class="section-title">Edit Reservation</h3><input id="editId" type="hidden"><div class="grid g2"><label>Date *<input id="editDate" type="date"></label><label>Pax *<input id="editPax" type="number" min="1"></label></div><label>Type<select id="editType"><option value="GROUP">Group</option><option value="INDIVIDUAL">Individual</option></select></label><label>Label / Name<input id="editLabel"></label><label>Remark<textarea id="editRemark"></textarea></label><div class="row" style="margin-top:14px"><button onclick="saveEdit()">Save Changes</button><button class="btn2" onclick="cancelEdit()">Cancel</button></div></div>
+<div class="card compact-card" style="margin-top:12px"><h3 class="section-title">Wallet History</h3><div id="walletList"></div></div></div>
+<div id="qrTemp" class="hidden"></div><div id="inviteQRTemp" class="hidden"></div>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="config.js"></script><script src="app.js"></script><script>
+let dashboard=null,lastInvite=null;const sess=session(),isOwner=sess?.role==='admin';if(requireRole('ambassador')){if(isOwner){$('#ownerAmbaNote').classList.remove('hidden');$('#ambaTitle').textContent='Owner · Ambassador Mode';$('#ownerNav').innerHTML='<a class="modebtn" href="admin.html">Owner Dashboard</a><a class="modebtn" href="staff.html">Staff Mode</a><a class="modebtn active" href="ambassador.html">Ambassador Mode</a><button class="btn2" onclick="logout()">Logout</button>'}else{$('#ownerNav').innerHTML='<button class="btn2" onclick="logout()">Logout</button>'}setToday('#rdate');load()}
+async function load(){try{const d=await api('ambassadorDashboard');dashboard=d;$('#sales').textContent=money(d.sales);$('#wallet').textContent=money(d.wallet);$('#count').textContent=`${d.redeemed_count} / ${d.issued_count}`;if(d.today_price){$('#todayMale').textContent=money(d.today_price.male_price);$('#todayFemale').textContent=money(d.today_price.female_price);$('#todayRule').textContent=d.today_price.source||''}$('#miniPrices').innerHTML=(d.price_calendar||[]).map(x=>`<div class="mini-price-row ${x.is_today?'today':''}"><span>${esc(x.day_label)}</span><span>${money(x.male_price)} M</span><span>${money(x.female_price)} F</span></div>`).join('');$('#passes').innerHTML=d.passes.map(p=>`<div class="item"><div class="row between"><b>${esc(p.label||p.pass_ref)}</b><span class="pill">${esc(p.status)}</span></div><div class="muted">${esc(p.reservation_date)} · ${esc(p.type)} · ${esc(p.pass_ref)}</div><div style="margin-top:6px">Reserved: <b>${Number(p.planned_pax||0)} pax</b></div><div>Actual: ${Number(p.actual_pax||0)} pax (${Number(p.actual_male||0)}M/${Number(p.actual_female||0)}F)</div><div>Sales: <b>${money(p.sales||0)}</b></div><div class="row" style="margin-top:8px"><button class="btn2" onclick="previewInvite('${jsq(p.qr_token)}','${jsq(p.pass_ref)}','${jsq(p.reservation_date)}')">Invitation</button>${p.can_edit?`<button class="btn2" onclick="editPass('${p.pass_id}')">Edit</button>`:''}</div></div>`).join('')||'<div class="muted">No passes yet</div>';$('#walletList').innerHTML=`<table><tr><th>Ref</th><th>Type</th><th>Amount</th><th>Time</th></tr>${d.wallet_history.map(x=>`<tr><td>${esc(x.redeem_ref||'-')}</td><td>${esc(x.type)}</td><td class="money">${money(x.amount)}</td><td>${fmtDate(x.created_at)}</td></tr>`).join('')}</table>`}catch(e){toast(e.message,'error')}}
+async function createPass(){try{const pax=Number($('#pax').value);if(!(pax>0))throw new Error('请填写人数');if(!$('#rdate').value)throw new Error('请选择日期');const d=await api('createPass',{type:$('#ptype').value,label:$('#label').value,reservation_date:$('#rdate').value,planned_pax:pax,remark:$('#remark').value});$('#label').value='';$('#remark').value=''; await previewInvite(d.qr_token,d.pass_ref,d.reservation_date); load()}catch(e){toast(e.message,'error')}}
+function editPass(id){const p=dashboard.passes.find(x=>x.pass_id===id);if(!p)return;$('#editId').value=p.pass_id;$('#editDate').value=p.reservation_date;$('#editPax').value=p.planned_pax;$('#editType').value=p.type;$('#editLabel').value=p.label||'';$('#editRemark').value=p.remark||'';$('#editCard').classList.remove('hidden');$('#editCard').scrollIntoView({behavior:'smooth'})}
+function cancelEdit(){$('#editCard').classList.add('hidden')}
+async function saveEdit(){try{await api('updatePass',{pass_id:$('#editId').value,reservation_date:$('#editDate').value,planned_pax:$('#editPax').value,type:$('#editType').value,label:$('#editLabel').value,remark:$('#editRemark').value});toast('Reservation updated','success');cancelEdit();load()}catch(e){toast(e.message,'error')}}
+function showRawQR(){ $('#rawQR').classList.toggle('hidden') }
+async function previewInvite(token,ref,dateStr){
+  $('#qrResult').classList.remove('hidden');
+  lastInvite={token,ref,dateStr};
+
+  // Raw QR remains black/white for fallback display
+  $('#qrcode').innerHTML='';
+  new QRCode($('#qrcode'),{text:'YT:'+token,width:220,height:220});
+  $('#passref').textContent='Ref: '+ref;
+
+  // Invitation QR uses black background + gold modules for style
+  const inviteHolder=$('#inviteQRTemp');
+  inviteHolder.innerHTML='';
+  new QRCode(inviteHolder,{text:'YT:'+token,width:300,height:300,colorDark:'#d6b15a',colorLight:'#0a0a0a'});
+
+  await new Promise(r=>setTimeout(r,260));
+  const source=inviteHolder.querySelector('canvas')||inviteHolder.querySelector('img');
+  if(!source){toast('QR generation failed','error');return}
+
+  const bg=new Image(); bg.src='assets/invitation-template.png';
+  await new Promise((resolve,reject)=>{bg.onload=resolve; bg.onerror=reject});
+  const qrImg = new Image(); qrImg.src = source.tagName==='CANVAS' ? source.toDataURL('image/png') : source.src;
+  await new Promise((resolve,reject)=>{qrImg.onload=resolve; qrImg.onerror=reject});
+
+  const c=$('#inviteCanvas'),ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+  ctx.drawImage(bg,0,0,c.width,c.height);
+
+  // Move QR/date/ref upward and make colors closer to the provided gold reference
+  const panelX=215,panelY=600,panelW=434,panelH=555;
+  ctx.fillStyle='rgba(0,0,0,0.28)';
+  ctx.fillRect(panelX,panelY,panelW,panelH);
+
+  const qx=282,qy=667,qw=300,qh=300;
+  ctx.fillStyle='#0a0a0a';
+  ctx.fillRect(qx,qy,qw,qh);
+  ctx.drawImage(qrImg,qx,qy,qw,qh);
+
+  ctx.textAlign='center';
+  ctx.shadowColor='rgba(255,215,120,0.28)';
+  ctx.shadowBlur=8;
+  ctx.fillStyle='#edd37f';
+  ctx.font='600 34px Georgia, serif';
+  ctx.fillText(formatDateCard(dateStr), c.width/2, 1048);
+
+  ctx.shadowBlur=5;
+  ctx.fillStyle='#dcb45a';
+  ctx.font='700 20px Arial, sans-serif';
+  ctx.fillText('REF: '+ref, c.width/2, 1088);
+  ctx.shadowBlur=0;
+
+  $('#qrResult').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function formatDateCard(s){const m=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']; const [y,mo,d]=String(s).split('-'); return `${d} ${m[Number(mo)-1]||''} ${y}`}
+function downloadInvite(){ if(!lastInvite)return toast('No invitation generated','error'); const a=document.createElement('a'); a.href=$('#inviteCanvas').toDataURL('image/png'); a.download=`${lastInvite.ref}.png`; a.click(); }
+</script></body></html>
