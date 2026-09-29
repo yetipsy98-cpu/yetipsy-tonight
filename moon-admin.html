@@ -48,21 +48,21 @@ function openClaimWhatsApp(i){
   all.sort((a,b)=>new Date(a.created)-new Date(b.created));
 
   const rewardLines=all.map((r,idx)=>{
-    return `${all.length>1?(idx+1)+". ":""}🎁 ${r.reward||""}
-🎟️ Code：${r.code||""}
-📅 Valid：${claimValidDates(r)}`;
+    return `${all.length>1?(idx+1)+". ":""}${r.reward||""}
+Code：${r.code||""}
+Valid：${claimValidDates(r)}`;
   }).join("\n\n");
 
-  const msg=`🌙 YÉ TIPSY｜月满杯盈
+  const msg=`YÉ TIPSY｜月满杯盈
 
-恭喜获得 / You’ve won 🎉
+恭喜获得 / You’ve won
 
 ${rewardLines}
 
-📍 到店后请出示此 WhatsApp 给店员核销
+到店后请出示此 WhatsApp 给店员核销
 Please show this WhatsApp message to our staff for redemption.
 
-👀 YÉ TIPSY 2.0 · Coming this October
+YÉ TIPSY 2.0 · Coming this October
 
 See you soon · @ye_tipsy`;
 
