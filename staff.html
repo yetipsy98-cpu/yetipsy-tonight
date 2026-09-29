@@ -1,19 +1,266 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yetipsy Staff</title><link rel="stylesheet" href="styles.css"></head><body><div class="wrap"><div class="topbar"><div><div class="brand" id="staffTitle">Staff</div><div class="sub">Hi, <span id="who"></span></div></div><div class="row" id="ownerNav"></div></div><div id="notice"></div>
-<div class="grid g2"><div class="card compact-card"><div class="row between"><h3 class="section-title">Scan Pass</h3><span id="scanState" class="badge">Ready</span></div><div id="reader" style="max-width:350px"></div><div class="scan-status">扫到二维码后直接打开资料。</div><div class="inline-search tight"><label style="margin:0">扫不上？输入 Ref<input id="tokenInput" class="mini-input" placeholder="YT-G-XXXXXX" onkeydown="if(event.key==='Enter')manualLookup()"></label><button class="btn2" onclick="manualLookup()">Search</button></div></div>
-<div class="card compact-card hidden" id="passCard"><div class="row between"><h3 class="section-title">Pass</h3><button class="btn2 scan-next" onclick="scanNext()">Scan Next</button></div><div id="passInfo"></div><hr class="line"><h3 class="section-title">Check-in & Payment</h3><div class="compact-grid"><label>Male<input id="amale" type="number" min="0" value="0"></label><label>Female<input id="afemale" type="number" min="0" value="0"></label><label>Pax<input id="apax" type="number" readonly value="0"></label></div><div class="compact-grid two"><label>Table<input id="tableNo" placeholder="T03"></label><label>Remark<input id="checkRemark" placeholder="Optional"></label></div><div id="ownerCustomPrice" class="hidden owner-price-box"><div class="row between"><b>Owner Custom Price</b><span class="small muted">Only this check-in</span></div><div class="compact-grid two"><label>Male Price<input id="customMale" type="number" min="0" step="0.01"></label><label>Female Price<input id="customFemale" type="number" min="0" step="0.01"></label></div><button class="btn2" type="button" onclick="resetOwnerPrice()" style="margin-top:8px">Use System Price</button></div><div id="batchPreview" class="pricebox"></div><button class="ok" onclick="checkinPay()" style="margin-top:10px">Confirm Check-in & Payment</button><div id="lastResult" class="hidden pricebox"></div></div></div>
-<div class="card compact-card" style="margin-top:12px"><h3 class="section-title">Recent Payments</h3><div id="recent" class="table-scroll"></div></div></div>
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script><script src="config.js"></script><script src="app.js"></script><script>
-let current=null,scanner=null,scanning=false;const sess=session(),isOwner=sess?.role==='admin';if(requireRole('staff')){if(isOwner){$('#staffTitle').textContent='Owner · Staff Mode';$('#ownerNav').innerHTML='<a class="modebtn" href="admin.html">Owner Dashboard</a><a class="modebtn active" href="staff.html">Staff Mode</a><a class="modebtn" href="ambassador.html">Ambassador Mode</a><button class="btn2" onclick="logout()">Logout</button>';$('#ownerCustomPrice').classList.remove('hidden')}else{$('#ownerNav').innerHTML='<button class="btn2" onclick="logout()">Logout</button>'}startScanner();loadRecent();['amale','afemale'].forEach(id=>$('#'+id).addEventListener('input',syncPax));['customMale','customFemale'].forEach(id=>$('#'+id)?.addEventListener('input',updatePreview))}
-function startScanner(){if(scanning)return;scanning=true;$('#scanState').textContent='Scanning';try{scanner=new Html5QrcodeScanner('reader',{fps:10,qrbox:205,rememberLastUsedCamera:true},false);scanner.render(async text=>{if(!scanning)return;scanning=false;$('#scanState').textContent='Loading';try{await scanner.clear()}catch(e){}await loadPass(text)},()=>{})}catch(e){scanning=false;$('#scanState').textContent='Camera unavailable'}}
-async function loadPass(raw){try{const t=String(raw||'').trim().replace(/^YT:/,'');current=await api('lookupPass',{token_or_ref:t});$('#passCard').classList.remove('hidden');$('#scanState').textContent='Loaded';$('#lastResult').classList.add('hidden');renderPass();$('#passCard').scrollIntoView({behavior:'smooth',block:'start'})}catch(e){toast(e.message,'error');$('#scanState').textContent='Ready';startScanner()}}
-async function manualLookup(){const v=$('#tokenInput').value.trim();if(!v)return;await loadPass(v)}
-function scanNext(){current=null;$('#passCard').classList.add('hidden');$('#tokenInput').value='';$('#amale').value='0';$('#afemale').value='0';$('#apax').value='0';$('#tableNo').value='';$('#checkRemark').value='';$('#lastResult').classList.add('hidden');$('#scanState').textContent='Ready';$('#reader').innerHTML='';startScanner()}
-function renderPass(){const p=current;const closed=['CLOSED','PAID','VOID'].includes(String(p.status));if(isOwner){$('#customMale').value=Number(p.male_price||0).toFixed(2);$('#customFemale').value=Number(p.female_price||0).toFixed(2)}$('#passInfo').innerHTML=`<div class="row between"><b>${esc(p.pass_ref)}</b><span class="pill">${esc(p.status)}</span></div><div class="pass-summary"><div class="summary-cell"><div class="k">Ambassador</div><div class="v">${esc(p.ambassador_name)}</div></div><div class="summary-cell"><div class="k">Date</div><div class="v">${esc(p.reservation_date)}</div></div><div class="summary-cell"><div class="k">Reserved</div><div class="v">${Number(p.planned_pax||0)} pax</div></div><div class="summary-cell"><div class="k">Actual</div><div class="v">${Number(p.actual_pax||0)} · ${Number(p.actual_male||0)}M/${Number(p.actual_female||0)}F</div></div></div><div class="price-pair tight"><div class="price-chip"><div class="k">Male</div><div class="v">${money(p.male_price)}</div></div><div class="price-chip"><div class="k">Female</div><div class="v">${money(p.female_price)}</div></div></div><div class="muted small tight">${esc(p.price_source||'')} ${p.price_note?'· '+esc(p.price_note):''} · Sales ${money(p.sales||0)}</div>${closed?'<div class="notice error tight">Pass 已关闭，不能再 Check-in。</div>':''}`;document.querySelector('.ok').disabled=closed;syncPax()}
-function syncPax(){const m=Math.max(0,Number($('#amale').value||0)),f=Math.max(0,Number($('#afemale').value||0));$('#apax').value=m+f;updatePreview()}
-function effectivePrices(){return{mp:isOwner&&$('#customMale').value!==''?Number($('#customMale').value):Number(current?.male_price||0),fp:isOwner&&$('#customFemale').value!==''?Number($('#customFemale').value):Number(current?.female_price||0)}}
-function resetOwnerPrice(){if(!current)return;$('#customMale').value=Number(current.male_price||0).toFixed(2);$('#customFemale').value=Number(current.female_price||0).toFixed(2);updatePreview()}
-function updatePreview(){if(!current)return;const m=Number($('#amale').value||0),f=Number($('#afemale').value||0),{mp,fp}=effectivePrices(),amt=Math.round((m*mp+f*fp)*100)/100;const after=Number(current.actual_pax||0)+m+f;const full=after>=Number(current.planned_pax||0);$('#batchPreview').innerHTML=`${m}M × ${money(mp)} + ${f}F × ${money(fp)} = <span class="bigdue">${money(amt)}</span><br><span class="small muted">After check-in: ${after}/${Number(current.planned_pax||0)} pax ${full?'· 满员后自动 Close Pass':''}</span>`}
-async function checkinPay(){try{const m=Number($('#amale').value||0),f=Number($('#afemale').value||0),pax=m+f;if(!(pax>0))throw new Error('请输入男女人数');const {mp,fp}=effectivePrices();if(mp<0||fp<0)throw new Error('价格不能小于 0');const amount=Math.round((m*mp+f*fp)*100)/100;if(!confirm(`确认 Check-in ${pax} pax，并收款 ${money(amount)}？
-确认后 Sales / Commission 会立即入账。`))return;const payload={pass_id:current.pass_id,male:m,female:f,table_no:$('#tableNo').value,remark:$('#checkRemark').value};if(isOwner){payload.custom_male_price=mp;payload.custom_female_price=fp}const d=await api('partialRedeem',payload);current=d.pass;$('#lastResult').classList.remove('hidden');$('#lastResult').innerHTML=`Paid <b>${money(d.sales_amount)}</b> · Ref <b>${esc(d.redeem_ref)}</b>${d.closed?'<br><b>PASS CLOSED</b>':''}`;toast(d.closed?'Payment confirmed · Pass closed':'Payment confirmed','success');$('#amale').value='0';$('#afemale').value='0';$('#apax').value='0';$('#checkRemark').value='';renderPass();loadRecent()}catch(e){toast(e.message,'error')}}
-async function loadRecent(){try{const d=await api('staffRecent');$('#recent').innerHTML=`<table><tr><th>Ref</th><th>Pass</th><th>M/F</th><th>Sales</th><th>Time</th></tr>${d.map(x=>`<tr><td>${esc(x.redeem_ref)}</td><td>${esc(x.pass_ref)}</td><td>${Number(x.male_charged||0)}/${Number(x.female_charged||0)}</td><td>${money(x.sales_amount)}</td><td>${fmtDate(x.created_at)}</td></tr>`).join('')}</table>`}catch(e){}}
-</script></body></html>
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>YÉ TIPSY · Staff</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#090806;color:#f2ead9;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;padding:18px}
+.wrap{max-width:460px;margin:auto}.brand{color:#dfb867;letter-spacing:.1em;margin-bottom:4px}
+.card{background:#14100c;border:1px solid #493a25;border-radius:18px;padding:18px;margin:14px 0}
+input,button{width:100%;padding:13px;border-radius:11px;margin:6px 0;font-size:15px}
+input{background:#090806;color:white;border:1px solid #4b3a25}
+button{border:0;background:#d9ae5c;color:#171009;font-weight:800;cursor:pointer}
+button:disabled{opacity:.55}.secondary{background:#30271b;color:#ead9b8}.redeemBtn{background:#1e1912;color:#dfb867;border:1px solid #806532}
+.muted{font-size:12px;color:#9d9079}.hide{display:none!important}#qr{display:block;width:220px;height:220px;background:#fff;padding:10px;border-radius:14px;margin:14px auto}
+.reward{font-size:20px;color:#dfb867;font-weight:800}.ok{color:#a9d994}.bad{color:#ee9988}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions button{margin:0}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:14px}
+.sheet{width:min(100%,460px);max-height:90vh;overflow:auto;background:#14100c;border:1px solid #5b472c;border-radius:22px;padding:18px;box-shadow:0 -20px 70px rgba(0,0,0,.5)}
+.sheetHead{display:flex;justify-content:space-between;align-items:center;gap:10px}.sheetHead h2{margin:4px 0 12px}.close{width:auto;padding:8px 12px;background:#30271b;color:#ead9b8}
+.refBox{border:1px solid #806532;background:#0c0a07;border-radius:16px;padding:16px;text-align:center;margin:12px 0}
+.refLabel{font-size:12px;color:#9d9079;letter-spacing:.12em}.ref{font-size:25px;font-weight:900;color:#dfb867;letter-spacing:.04em;margin-top:6px;word-break:break-all}
+.receipt{background:#f5efe4;color:#18130d;border-radius:18px;padding:22px;margin:14px 0}.receipt h2{margin:0 0 4px}.receipt .gold{color:#80611e}.receipt hr{border:0;border-top:1px solid #d5c8b5;margin:16px 0}
+.row{display:flex;justify-content:space-between;gap:16px;margin:9px 0;font-size:14px}.row span:first-child{color:#756b5e}.row b{text-align:right;word-break:break-word}
+</style>
+</head>
+<body><div class="wrap">
+<h1 class="brand">YÉ TIPSY · STAFF</h1><div class="muted">月满杯盈 · 服务员工作台</div>
+
+<div id="login" class="card">
+<h2>服务员登入</h2>
+<input id="user" placeholder="员工账号">
+<input id="pass" type="password" placeholder="密码">
+<button id="loginBtn">登入</button><div id="loginMsg" class="muted"></div>
+</div>
+
+<div id="panel" class="hide">
+<div class="card">
+<h2>生成新一局</h2>
+<div class="muted">每次生成都是独立二维码。重新生成不会令之前的二维码失效；旧二维码会继续有效至本身到期或被领取。</div>
+<button id="newBtn">生成顾客二维码</button>
+<div id="newMsg" class="muted"></div>
+<img id="qr" class="hide" alt="顾客游戏二维码">
+<div id="codeText" class="muted"></div>
+<button id="localBtn" class="secondary hide">顾客不扫码？在这台员工手机直接玩</button>
+</div>
+
+<div class="actions">
+<button id="openRedeemBtn" class="redeemBtn">核销奖励</button>
+<button id="openLogBtn" class="secondary">登记记录</button>
+</div>
+<button id="logoutBtn" class="secondary">登出</button>
+</div>
+</div>
+
+<!-- Redeem modal -->
+<div id="redeemModal" class="modal hide">
+<div class="sheet">
+<div class="sheetHead"><h2>核销奖励</h2><button id="closeRedeemBtn" class="close">关闭</button></div>
+<div id="redeemForm">
+<input id="redeemCode" autocomplete="off" autocapitalize="characters" placeholder="输入最后 8 位，例如 A1B2C3D4">
+<button id="lookupBtn" class="secondary">查询兑换码</button>
+<div id="claimInfo"></div>
+<button id="confirmBtn" class="hide">确认核销</button>
+<button id="overrideBtn" class="secondary hide">破例核销</button>
+<div id="overrideBox" class="hide">
+  <input id="overridePassword" type="password" placeholder="输入破例密码">
+  <button id="overrideConfirmBtn">验证密码并破例核销</button>
+  <div id="overrideMsg" class="muted"></div>
+</div>
+</div>
+
+<div id="redeemSuccess" class="hide">
+<div id="receipt" class="receipt">
+<h2>YÉ TIPSY</h2><div class="gold">月满杯盈 · 核销记录</div><hr>
+<div class="row"><span>状态</span><b>✓ 核销成功</b></div>
+<div class="row"><span>奖励</span><b id="rReward"></b></div>
+<div class="row"><span>兑换码</span><b id="rCode"></b></div>
+<div class="row"><span>REF</span><b id="rRef" class="gold"></b></div>
+<div class="row"><span>员工</span><b id="rStaff"></b></div>
+<div class="row"><span>时间</span><b id="rTime"></b></div>
+<hr><div style="text-align:center;font-size:12px;color:#756b5e">@ye_tipsy · Internal redemption record</div>
+</div>
+<button id="saveReceiptBtn">保存核销截图</button>
+<button id="doneBtn" class="secondary">完成</button>
+<div id="saveMsg" class="muted"></div>
+</div>
+</div>
+</div>
+
+
+<div id="logModal" class="modal hide">
+<div class="sheet">
+<div class="sheetHead"><h2>我的登记记录</h2><button id="closeLogBtn" class="close">关闭</button></div>
+<div class="muted">显示由当前员工生成二维码、并已由顾客成功登记领取的奖励。最近 50 笔。</div>
+<button id="refreshLogBtn" class="secondary">刷新记录</button>
+<div id="staffLogList" style="margin-top:10px"></div>
+</div>
+</div>
+
+<script>
+const API_URL="https://script.google.com/macros/s/AKfycbzCFtnhDubjakfhj3fbdDKa7hUZ0eJV6GCfc62TqQkwWETfTkvcglbip1sYxcuI4hqlNg/exec";
+const GAME_URL=new URL("moon-game.html",location.href).href;
+let staffToken=localStorage.getItem("moon_staff_token")||"",currentCode="",currentGameUrl="",lastReceipt=null;
+const $=id=>document.getElementById(id);
+const savedUser=localStorage.getItem("moon_staff_user")||"";
+if(savedUser)$("user").value=savedUser;
+
+fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"ping"}),cache:"no-store"}).catch(()=>{});
+async function api(subaction,data={}){
+  try{
+    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"moon",subaction,...data})});
+    return JSON.parse(await r.text());
+  }catch(e){return{ok:false,error:"network_error"}}
+}
+function enter(){$("login").classList.add("hide");$("panel").classList.remove("hide")}
+if(staffToken){
+  enter();
+  api("staffCheck",{staffToken}).then(d=>{
+    if(!d.ok){localStorage.removeItem("moon_staff_token");$("panel").classList.add("hide");$("login").classList.remove("hide");$("loginMsg").textContent="登入已过期，请重新登入一次";}
+  });
+}
+$("loginBtn").onclick=async()=>{
+  $("loginBtn").disabled=true;$("loginMsg").textContent="登入中…";
+  const d=await api("staffLogin",{username:$("user").value.trim(),password:$("pass").value});
+  $("loginBtn").disabled=false;
+  if(!d.ok){$("loginMsg").textContent="登入失败："+d.error;return}
+  staffToken=d.staffToken;localStorage.setItem("moon_staff_token",staffToken);localStorage.setItem("moon_staff_user",$("user").value.trim());enter();
+};
+
+$("newBtn").onclick=async()=>{
+  $("newBtn").disabled=true;$("newMsg").textContent="正在生成本局…";$("qr").classList.add("hide");$("localBtn").classList.add("hide");$("codeText").textContent="";
+  const d=await api("staffCreateGame",{staffToken});$("newBtn").disabled=false;
+  if(!d.ok){
+    $("newMsg").textContent=d.error==="staff_auth"?"登入已过期，请重新登入":"生成失败："+d.error;
+    if(d.error==="staff_auth"){localStorage.removeItem("moon_staff_token");setTimeout(()=>location.reload(),800)}
+    return;
+  }
+  currentGameUrl=GAME_URL+"?g="+encodeURIComponent(d.gameToken);
+  $("codeText").textContent="本局 "+d.shortCode+" · 二维码一次有效";$("localBtn").classList.remove("hide");
+  const qrUrl="https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=8&data="+encodeURIComponent(currentGameUrl);
+  let retried=false;
+  $("qr").onload=()=>{$("qr").classList.remove("hide");$("newMsg").textContent="本局已生成 · 可扫码或直接本机玩"};
+  $("qr").onerror=()=>{if(!retried){retried=true;setTimeout(()=>{$("qr").src=qrUrl+"&_="+Date.now()},350)}else{$("qr").classList.add("hide");$("newMsg").textContent="本局已生成；二维码暂时无法载入，可直接用员工手机开始。"}};
+  $("qr").src=qrUrl;
+};
+$("localBtn").onclick=()=>{if(currentGameUrl)location.href=currentGameUrl};
+
+function openRedeem(){
+  $("redeemModal").classList.remove("hide");$("redeemSuccess").classList.add("hide");$("redeemForm").classList.remove("hide");
+  $("redeemCode").value="";$("claimInfo").innerHTML="";$("confirmBtn").classList.add("hide");$("overrideBtn").classList.add("hide");$("overrideBox").classList.add("hide");currentCode="";lastReceipt=null;
+  setTimeout(()=>$("redeemCode").focus(),150);
+}
+function closeRedeem(){$("redeemModal").classList.add("hide")}
+$("openRedeemBtn").onclick=openRedeem;
+$("closeRedeemBtn").onclick=closeRedeem;
+$("redeemModal").onclick=e=>{if(e.target===$("redeemModal"))closeRedeem()};
+
+$("lookupBtn").onclick=async()=>{
+  currentCode=$("redeemCode").value.trim().toUpperCase();$("claimInfo").innerHTML="查询中…";$("confirmBtn").classList.add("hide");
+  const d=await api("staffRedeemLookup",{staffToken,code:currentCode});
+  if(!d.ok){
+    $("claimInfo").innerHTML='<p class="bad">'+(d.error==="code_not_found"?"找不到这个兑换码":d.error==="code_ambiguous"?"尾号重复，请输入完整兑换码":d.error==="staff_auth"?"登入已过期":d.error)+'</p>';return;
+  }
+  const c=d.claim;
+  const stateText=c.redeemed?"已核销":c.redeemState==="NOT_STARTED"?"今天不可兑换":c.redeemState==="EXPIRED"?"已过兑换期限":"可以兑换";
+  $("claimInfo").innerHTML=`<p class="reward">${escapeHtml(c.reward)}</p><p>兑换码：<b>${escapeHtml(c.code)}</b></p><p><b>${stateText}</b></p><p class="muted">兑换期：${escapeHtml(c.redeemFrom||"")} ～ ${escapeHtml(c.redeemUntil||"")}<br>领取当天不可兑换 · 30天内有效<br>WhatsApp ${escapeHtml(c.phone||"")}${c.redeemRef?`<br>REF：${escapeHtml(c.redeemRef)}`:""}</p>`;
+  if(!c.redeemed&&c.redeemState==="VALID")$("confirmBtn").classList.remove("hide");
+  if(!c.redeemed&&(c.redeemState==="NOT_STARTED"||c.redeemState==="EXPIRED"))$("overrideBtn").classList.remove("hide");
+};
+$("overrideBtn").onclick=()=>{
+  $("overrideBox").classList.remove("hide");$("overridePassword").value="";$("overrideMsg").textContent="破例仅越过日期限制，仍然不能重复核销。";
+  setTimeout(()=>$("overridePassword").focus(),100);
+};
+$("overrideConfirmBtn").onclick=async()=>{
+  const password=$("overridePassword").value;
+  if(!password)return;
+  $("overrideConfirmBtn").disabled=true;$("overrideMsg").textContent="验证中…";
+  const auth=await api("staffRedeemOverrideCheck",{staffToken,code:currentCode,password});
+  if(!auth.ok){$("overrideConfirmBtn").disabled=false;$("overrideMsg").textContent=auth.error==="wrong_override_password"?"破例密码错误":"验证失败："+auth.error;return}
+  if(!confirm("确认破例核销？本次会越过日期限制，并记录 REF。")){$("overrideConfirmBtn").disabled=false;return}
+  const d=await api("staffRedeem",{staffToken,code:currentCode,overrideToken:auth.overrideToken});
+  $("overrideConfirmBtn").disabled=false;
+  if(!d.ok){$("overrideMsg").textContent="破例核销失败："+d.error;return}
+  lastReceipt={reward:d.reward,code:d.code,ref:d.redeemRef||"",staff:d.redeemedBy||localStorage.getItem("moon_staff_user")||"",time:d.redeemedAt||new Date().toISOString(),override:true};
+  showReceipt(lastReceipt);
+};
+$("confirmBtn").onclick=async()=>{
+  if(!currentCode)return;
+  if(!confirm("确认已经给顾客兑换奖励？核销后不能再次使用。"))return;
+  $("confirmBtn").disabled=true;
+  const d=await api("staffRedeem",{staffToken,code:currentCode});
+  $("confirmBtn").disabled=false;
+  if(!d.ok){alert(d.error==="already_redeemed"?"此奖励已经核销":d.error==="redeem_not_started"?`今天不能兑换，${d.redeemFrom} 起可兑换。`:d.error==="redeem_expired"?`兑换期限已过，最后兑换日 ${d.redeemUntil}。`:"核销失败："+d.error);return}
+  lastReceipt={reward:d.reward,code:d.code,ref:d.redeemRef||"",staff:d.redeemedBy||localStorage.getItem("moon_staff_user")||"",time:d.redeemedAt||new Date().toISOString()};
+  showReceipt(lastReceipt);
+};
+function showReceipt(r){
+  $("redeemForm").classList.add("hide");$("redeemSuccess").classList.remove("hide");
+  $("rReward").textContent=r.reward+(r.override?" · 破例核销":"");$("rCode").textContent=r.code;$("rRef").textContent=r.ref;$("rStaff").textContent=r.staff;$("rTime").textContent=formatTime(r.time);$("saveMsg").textContent="";
+}
+function formatTime(v){
+  const d=new Date(v);if(isNaN(d))return String(v||"");
+  return new Intl.DateTimeFormat("zh-MY",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(d);
+}
+function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+
+$("saveReceiptBtn").onclick=async()=>{
+  if(!lastReceipt)return;
+  const blob=await buildReceiptPng(lastReceipt);
+  const file=new File([blob],`YETIPSY-${lastReceipt.ref||"REDEEM"}.png`,{type:"image/png"});
+  // 手机上优先调出系统保存/分享面板；不支持时直接下载 PNG。
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:"YÉ TIPSY 核销记录"});$("saveMsg").textContent="核销记录已生成，可保存到相册。";return}catch(e){if(e.name==="AbortError")return}
+  }
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  $("saveMsg").textContent="核销记录图片已保存/下载。";
+};
+$("doneBtn").onclick=closeRedeem;
+
+async function buildReceiptPng(r){
+  const c=document.createElement("canvas");c.width=1080;c.height=1350;const x=c.getContext("2d");
+  x.fillStyle="#f5efe4";x.fillRect(0,0,c.width,c.height);
+  x.fillStyle="#18130d";x.textAlign="center";x.font="900 68px system-ui";x.fillText("YÉ TIPSY",540,130);
+  x.fillStyle="#80611e";x.font="600 32px system-ui";x.fillText("月满杯盈 · 核销记录",540,188);
+  x.strokeStyle="#d5c8b5";x.lineWidth=2;x.beginPath();x.moveTo(100,245);x.lineTo(980,245);x.stroke();
+  x.fillStyle="#18130d";x.font="800 46px system-ui";x.fillText("✓ 核销成功",540,330);
+  const rows=[["奖励",r.reward+(r.override?" · 破例核销":"")],["兑换码",r.code],["REF",r.ref],["员工",r.staff],["时间",formatTime(r.time)]];
+  let y=445;
+  for(const [k,v] of rows){
+    x.textAlign="left";x.fillStyle="#756b5e";x.font="500 30px system-ui";x.fillText(k,120,y);
+    x.textAlign="right";x.fillStyle=k==="REF"?"#80611e":"#18130d";x.font=k==="REF"?"900 38px system-ui":"700 31px system-ui";
+    fitCanvasText(x,String(v||""),960,y,650);
+    y+=125;
+  }
+  x.strokeStyle="#d5c8b5";x.beginPath();x.moveTo(100,1080);x.lineTo(980,1080);x.stroke();
+  x.textAlign="center";x.fillStyle="#756b5e";x.font="500 27px system-ui";x.fillText("@ye_tipsy · Internal redemption record",540,1160);
+  x.font="500 23px system-ui";x.fillText("请以系统 MOON_GAME 记录为最终核销依据",540,1210);
+  return await new Promise(res=>c.toBlob(res,"image/png",0.95));
+}
+function fitCanvasText(ctx,text,rightX,y,maxWidth){
+  let size=parseInt(ctx.font)||31;
+  while(ctx.measureText(text).width>maxWidth&&size>20){size-=1;ctx.font=ctx.font.replace(/\d+px/,size+"px")}
+  ctx.fillText(text,rightX,y);
+}
+
+async function loadStaffLog(){
+  $("staffLogList").innerHTML='<p class="muted">读取中…</p>';
+  const d=await api("staffLog",{staffToken,limit:50});
+  if(!d.ok){$("staffLogList").innerHTML='<p class="bad">读取失败：'+escapeHtml(d.error)+'</p>';return}
+  const items=d.items||[];
+  $("staffLogList").innerHTML=items.length?items.map(x=>`
+    <div style="padding:12px 0;border-bottom:1px solid #30271b">
+      <div style="display:flex;justify-content:space-between;gap:10px"><b style="color:#dfb867">${escapeHtml(x.reward)}</b><span class="muted">${x.redeemed?"已核销":"已登记"}</span></div>
+      <div class="muted" style="margin-top:5px">${escapeHtml(x.code)} · ${escapeHtml(x.phone||"")}</div>
+      <div class="muted">${formatTime(x.created)}${x.redeemRef?` · REF ${escapeHtml(x.redeemRef)}`:""}</div>
+    </div>`).join(""):'<p class="muted">目前还没有已登记奖励。</p>';
+}
+$("openLogBtn").onclick=()=>{$("logModal").classList.remove("hide");loadStaffLog()};
+$("closeLogBtn").onclick=()=>$("logModal").classList.add("hide");
+$("refreshLogBtn").onclick=loadStaffLog;
+$("logModal").onclick=e=>{if(e.target===$("logModal"))$("logModal").classList.add("hide")};
+
+$("logoutBtn").onclick=()=>{localStorage.removeItem("moon_staff_token");location.reload()};
+</script>
+</body></html>

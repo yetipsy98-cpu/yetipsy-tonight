@@ -1,201 +1,1071 @@
-const SHEETS={USERS:'Users',PASSES:'QR_Passes',CHECKINS:'Checkins',REDEEMS:'Redeem_Log',WALLET:'Wallet',PAYOUTS:'Payouts',PRICING:'Daily_Pricing',SETTINGS:'Settings',SESSIONS:'Sessions',AUDIT:'Audit_Log'};
-const TZ='Asia/Kuala_Lumpur';
+/*
+=========================================================
+YETIPSY · 今晚有局
+Backend V2.4.3
+=========================================================
 
-function doPost(e){
-  try{
-    const p=e.parameter||{}, action=p.action;
-    if(!action) throw new Error('Missing action');
-    const publicActions=['login'];
-    let user=null;
-    if(!publicActions.includes(action)) user=requireSession_(p.session_token);
-    const map={
-      login:()=>login_(p), ambassadorDashboard:()=>ambassadorDashboard_(user), createPass:()=>createPass_(user,p),
-      updatePass:()=>updatePass_(user,p), lookupPass:()=>lookupPass_(user,p), partialRedeem:()=>partialRedeem_(user,p),
-      staffRecent:()=>staffRecent_(user), adminDashboard:()=>adminDashboard_(user),
-      createAmbassador:()=>createAmbassador_(user,p), savePricingDefaults:()=>savePricingDefaults_(user,p),
-      getPricingDefaults:()=>getPricingDefaults_(user), saveDateOverride:()=>saveDateOverride_(user,p),
-      listDateOverrides:()=>listDateOverrides_(user), deleteDateOverride:()=>deleteDateOverride_(user,p),
-      createPayout:()=>createPayout_(user,p), payoutHistory:()=>payoutHistory_(user,p),
-      listManagedUsers:()=>listManagedUsers_(user), resetUserPassword:()=>resetUserPassword_(user,p),
-      changeOwnPassword:()=>changeOwnPassword_(user,p)
-    };
-    if(!map[action]) throw new Error('Unknown action');
-    return json_({ok:true,data:map[action]()});
-  }catch(err){ return json_({ok:false,error:String(err.message||err)}) }
-}
-function json_(o){return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON)}
-function ss_(){return SpreadsheetApp.getActive()}
-function sh_(name){const s=ss_().getSheetByName(name);if(!s)throw new Error('Missing sheet '+name+'. Run setupSheets() first.');return s}
-function rows_(name){const s=sh_(name),v=s.getDataRange().getValues();if(v.length<2)return[];const h=v[0];return v.slice(1).filter(r=>r.some(x=>x!=='' )).map(r=>Object.fromEntries(h.map((k,j)=>[k,r[j]])))}
-function append_(name,obj){const s=sh_(name),h=s.getRange(1,1,1,s.getLastColumn()).getValues()[0];s.appendRow(h.map(k=>obj[k]??''))}
-function updateById_(name,idField,idValue,patch){const s=sh_(name),v=s.getDataRange().getValues(),h=v[0],idx=h.indexOf(idField);for(let i=1;i<v.length;i++){if(String(v[i][idx])===String(idValue)){Object.entries(patch).forEach(([k,val])=>{const c=h.indexOf(k);if(c>=0)s.getRange(i+1,c+1).setValue(val)});return true}}return false}
-function uuid_(prefix){return prefix+'-'+Utilities.getUuid().replace(/-/g,'').slice(0,10).toUpperCase()}
-function now_(){return new Date()}
-function hash_(s){return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,String(s),Utilities.Charset.UTF_8).map(b=>(b+256)%256).map(b=>b.toString(16).padStart(2,'0')).join('')}
-function dateKey_(x){if(!x)return'';if(Object.prototype.toString.call(x)==='[object Date]')return Utilities.formatDate(x,TZ,'yyyy-MM-dd');return String(x).slice(0,10)}
-function num_(x){const n=Number(x);return Number.isFinite(n)?n:0}
-function requireRole_(u,roles){if(!roles.includes(String(u.role)))throw new Error('Permission denied')}
-function audit_(u,action,entity,entity_id,detail){append_(SHEETS.AUDIT,{audit_id:uuid_('AUD'),user_id:u.user_id,action,entity,entity_id,detail,created_at:now_()})}
-function getSetting_(k,def=''){const r=rows_(SHEETS.SETTINGS).find(x=>String(x.setting_key)===String(k));return r?String(r.setting_value):def}
-function setSetting_(k,v,userId){const cur=rows_(SHEETS.SETTINGS).find(x=>String(x.setting_key)===String(k));if(cur)updateById_(SHEETS.SETTINGS,'setting_key',k,{setting_value:v,updated_by:userId,updated_at:now_()});else append_(SHEETS.SETTINGS,{setting_key:k,setting_value:v,updated_by:userId,updated_at:now_()})}
-function dayType_(dateStr){const d=new Date(dateStr+'T00:00:00');const day=d.getDay();return(day===5||day===6)?'WEEKEND':'NORMAL'}
+核心：
+- Lobby：同桌先全部进来，再开桌
+- 每一题所有人先看题
+- 每个人先按 READY；FIRST READY 只取得本题 Lead 权
+- 只有所有在线玩家都 READY 后，Lead Phone 才播放 READY / 3 / 2 / 1 / POINT
+- 其他手机只显示游戏进行中
+- 初始 3 题后进入 Tonight Lobby / Break
+- 之后交替：跨桌 Social Event -> Late Table Round -> Social Event...
+- Match 有共同 Mission、双向验证码、取消、完成、历史去重
+- 旧桌局 8 小时后自动视为新一晚
 
-function setupSheets(){
-  const defs={
-    Users:['user_id','role','name','username','password_hash','commission_rate','status','created_at'],
-    QR_Passes:['pass_id','pass_ref','qr_token','ambassador_id','type','label','reservation_date','planned_pax','remark','status','actual_pax','actual_male','actual_female','sales','created_at','updated_at','closed_at'],
-    Checkins:['checkin_ref','pass_id','ambassador_id','staff_id','pax','male','female','table_no','remark','created_at'],
-    Redeem_Log:['redeem_ref','pass_id','pass_ref','ambassador_id','staff_id','reservation_date','table_no','male_charged','female_charged','male_price','female_price','sales_amount','commission_rate','commission_amount','final_payment','created_at','status'],
-    Wallet:['wallet_txn_id','ambassador_id','redeem_ref','type','amount','created_at'],
-    Payouts:['payout_ref','ambassador_id','amount','method','note','paid_by','created_at'],
-    Daily_Pricing:['price_id','price_date','male_price','female_price','note','status','updated_by','updated_at'],
-    Settings:['setting_key','setting_value','updated_by','updated_at'],
-    Sessions:['session_token','user_id','role','created_at','expires_at'],
-    Audit_Log:['audit_id','user_id','action','entity','entity_id','detail','created_at']
-  };
-  Object.entries(defs).forEach(([n,h])=>{let s=ss_().getSheetByName(n);if(!s)s=ss_().insertSheet(n);if(s.getLastRow()===0){s.appendRow(h)}else{const old=s.getRange(1,1,1,s.getLastColumn()).getValues()[0];h.forEach(col=>{if(!old.includes(col)){s.getRange(1,s.getLastColumn()+1).setValue(col);old.push(col)}})}});
-  const defaults={normal_male_price:'20',normal_female_price:'20',weekend_male_price:'25',weekend_female_price:'25'};
-  Object.entries(defaults).forEach(([k,v])=>{if(getSetting_(k,'')==='')setSetting_(k,v,'system')});
-}
-function seedDemoUsers(){setupSheets();const users=rows_(SHEETS.USERS);if(!users.find(x=>String(x.username)==='owner'))append_(SHEETS.USERS,{user_id:uuid_('ADM'),role:'admin',name:'Owner',username:'owner',password_hash:hash_('ChangeMe123!'),commission_rate:'',status:'ACTIVE',created_at:now_()});if(!users.find(x=>String(x.username)==='staff1'))append_(SHEETS.USERS,{user_id:uuid_('STF'),role:'staff',name:'Staff 1',username:'staff1',password_hash:hash_('ChangeMe123!'),commission_rate:'',status:'ACTIVE',created_at:now_()})}
+第一次覆盖后：
+1. 保存
+2. 运行 setup()
+3. 管理部署 -> 编辑 -> 新版本 -> 部署
+=========================================================
+*/
 
-function login_(p){
-  const role=String(p.role||'').toLowerCase();
-  const username=String(p.username||'').trim();
-  const matches=rows_(SHEETS.USERS).filter(x=>String(x.username).trim()===username&&String(x.role).toLowerCase()===role&&String(x.status||'ACTIVE')==='ACTIVE');
-  if(matches.length>1)throw new Error('Duplicate username detected. Owner must remove duplicate account rows first.');
-  const u=matches[0];
-  if(!u||String(u.password_hash)!==hash_(p.password||''))throw new Error('Invalid login');
-  const token=uuid_('SES');
-  append_(SHEETS.SESSIONS,{session_token:token,user_id:u.user_id,role:u.role,created_at:now_(),expires_at:new Date(Date.now()+1000*60*60*24*7)});
-  return{token,role:u.role,name:u.name,username:u.username,user_id:u.user_id};
-}
-function requireSession_(token){const s=rows_(SHEETS.SESSIONS).find(x=>String(x.session_token)===String(token));if(!s||new Date(s.expires_at)<new Date())throw new Error('Session expired');const u=rows_(SHEETS.USERS).find(x=>String(x.user_id)===String(s.user_id)&&String(x.status||'ACTIVE')==='ACTIVE');if(!u)throw new Error('User not found');return u}
-function createAmbassador_(u,p){requireRole_(u,['admin']);if(!p.name||!p.username||!p.password)throw new Error('Missing fields');if(rows_(SHEETS.USERS).some(x=>String(x.username)===String(p.username)))throw new Error('Username exists');const rate=num_(p.commission_rate);if(rate<0||rate>100)throw new Error('Invalid commission rate');append_(SHEETS.USERS,{user_id:uuid_('AMB'),role:'ambassador',name:p.name,username:p.username,password_hash:hash_(p.password),commission_rate:rate,status:'ACTIVE',created_at:now_()});audit_(u,'CREATE_AMBASSADOR','user',p.username,p.name);return true}
+const PROP_SHEET_ID = "YETIPSY_SHEET_ID";
+const ONLINE_MS = 7 * 60 * 1000;
+const READY_ONLINE_MS = 90 * 1000;
+const STALE_SESSION_MS = 8 * 60 * 60 * 1000;
+const LEAD_STALE_MS = 15 * 1000;
+const LEAD_TAKEOVER_MS = 60 * 1000;
+const FIRST_BREAK_MS = 12 * 60 * 1000;
+const NORMAL_BREAK_MS = 15 * 60 * 1000;
+const MISSION_COUNT = 24;
+const WARM_COUNT = 48;
+const LATE_COUNT = 24;
 
-function listManagedUsers_(u){
-  requireRole_(u,['admin']);
-  return rows_(SHEETS.USERS).filter(x=>['admin','staff','ambassador'].includes(String(x.role))).map(x=>({user_id:x.user_id,role:x.role,name:x.name,username:x.username,status:x.status||'ACTIVE',commission_rate:num_(x.commission_rate)}));
-}
-function deleteSessionsForUser_(userId){
-  const s=sh_(SHEETS.SESSIONS),v=s.getDataRange().getValues();
-  if(v.length<2)return;
-  const h=v[0],idx=h.indexOf('user_id');
-  for(let i=v.length-1;i>=1;i--){
-    if(String(v[i][idx])===String(userId))s.deleteRow(i+1);
-  }
-}
-function writePasswordAndVerify_(userId,newPassword){
-  const newHash=hash_(newPassword);
-  const ok=updateById_(SHEETS.USERS,'user_id',userId,{password_hash:newHash});
-  if(!ok)throw new Error('Password update failed: user row not found');
+const PLAYER_HEADERS = [
+  "device_id", "nick", "table_id", "mode", "status",
+  "joined_at", "last_seen", "current_match", "history"
+];
+
+const MATCH_HEADERS = [
+  "match_id", "a_device", "b_device", "a_code", "b_code",
+  "a_verified", "b_verified", "status", "created_at", "completed_at",
+  "mission_index", "a_completed", "b_completed"
+];
+
+/* 保留 V2.3 前 5 栏顺序，避免旧数据错位 */
+const TABLE_HEADERS = [
+  "table_id", "round", "question_index", "ready_devices", "updated_at",
+  "status", "lead_device", "lead_nick", "round_started_at", "next_event_at",
+  "event_index", "session_started_at", "session_id", "question_pool"
+];
+
+
+/* =====================================================
+   SETUP / DB
+===================================================== */
+
+function setup() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error("请从绑定的 Google Sheet → 扩展程序 → Apps Script 打开脚本。");
+
+  PropertiesService.getScriptProperties().setProperty(PROP_SHEET_ID, ss.getId());
+  ensureSheet_(ss, "PLAYERS", PLAYER_HEADERS);
+  ensureSheet_(ss, "MATCHES", MATCH_HEADERS);
+  ensureSheet_(ss, "TABLES", TABLE_HEADERS);
   SpreadsheetApp.flush();
-  const fresh=rows_(SHEETS.USERS).find(x=>String(x.user_id)===String(userId));
-  if(!fresh||String(fresh.password_hash)!==newHash)throw new Error('Password update verification failed');
-  return true;
-}
-function resetUserPassword_(u,p){
-  requireRole_(u,['admin']);
-  const target=rows_(SHEETS.USERS).find(x=>String(x.user_id)===String(p.user_id));
-  if(!target)throw new Error('User not found');
-  const np=String(p.new_password||'');
-  if(np.length<8)throw new Error('新密码至少 8 个字符');
-  writePasswordAndVerify_(target.user_id,np);
-  deleteSessionsForUser_(target.user_id);
-  audit_(u,'RESET_PASSWORD','user',target.user_id,`${target.role}/${target.username}`);
-  return{success:true,username:target.username};
-}
-function changeOwnPassword_(u,p){
-  const current=String(p.current_password||''),np=String(p.new_password||'');
-  const fresh=rows_(SHEETS.USERS).find(x=>String(x.user_id)===String(u.user_id));
-  if(!fresh)throw new Error('User not found');
-  if(String(fresh.password_hash)!==hash_(current))throw new Error('Current password incorrect');
-  if(np.length<8)throw new Error('新密码至少 8 个字符');
-  if(hash_(np)===String(fresh.password_hash))throw new Error('新密码不能和当前密码相同');
-  writePasswordAndVerify_(u.user_id,np);
-  audit_(u,'CHANGE_OWN_PASSWORD','user',u.user_id,u.username);
-  deleteSessionsForUser_(u.user_id);
-  return{success:true,force_logout:true};
-}
-function createPayout_(u,p){
-  requireRole_(u,['admin']);
-  const amb=rows_(SHEETS.USERS).find(x=>String(x.user_id)===String(p.ambassador_id)&&String(x.role)==='ambassador');
-  if(!amb)throw new Error('Ambassador not found');
-  const amount=Math.round(num_(p.amount)*100)/100;
-  if(!(amount>0))throw new Error('请输入实际付款金额');
-  const walletRows=rows_(SHEETS.WALLET).filter(x=>String(x.ambassador_id)===String(amb.user_id));
-  const available=Math.round(walletRows.reduce((s,w)=>s+num_(w.amount),0)*100)/100;
-  if(amount>available+0.001)throw new Error('付款金额不能超过可用佣金 '+available.toFixed(2));
-  const ref='YT-PAY-'+Utilities.formatDate(now_(),TZ,'yyMMdd')+'-'+Utilities.getUuid().replace(/-/g,'').slice(0,5).toUpperCase();
-  append_(SHEETS.PAYOUTS,{payout_ref:ref,ambassador_id:amb.user_id,amount,method:p.method||'',note:p.note||'',paid_by:u.user_id,created_at:now_()});
-  append_(SHEETS.WALLET,{wallet_txn_id:uuid_('WLT'),ambassador_id:amb.user_id,redeem_ref:ref,type:'PAYOUT',amount:-amount,created_at:now_()});
-  audit_(u,'AMBASSADOR_PAYOUT','ambassador',amb.user_id,`${amount}; ${p.method||''}; ${p.note||''}`);
-  return{payout_ref:ref,amount,balance:Math.round((available-amount)*100)/100};
-}
-function payoutHistory_(u,p){
-  requireRole_(u,['admin']);
-  let list=rows_(SHEETS.PAYOUTS);
-  if(p&&p.ambassador_id)list=list.filter(x=>String(x.ambassador_id)===String(p.ambassador_id));
-  const users=rows_(SHEETS.USERS);
-  return list.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,100).map(x=>({...x,ambassador_name:users.find(y=>String(y.user_id)===String(x.ambassador_id))?.name||x.ambassador_id}));
+
+  Logger.log("YETIPSY V2.4.3 SETUP SUCCESS: " + ss.getName());
+  return { ok: true, version: "2.4.3", spreadsheet: ss.getName() };
 }
 
-function savePricingDefaults_(u,p){requireRole_(u,['admin']);const vals={normal_male_price:num_(p.normal_male_price),normal_female_price:num_(p.normal_female_price),weekend_male_price:num_(p.weekend_male_price),weekend_female_price:num_(p.weekend_female_price)};Object.entries(vals).forEach(([k,v])=>{if(v<0)throw new Error('Invalid price');setSetting_(k,String(v),u.user_id)});audit_(u,'SAVE_DEFAULT_PRICING','settings','pricing',JSON.stringify(vals));return true}
-function getPricingDefaults_(u){requireRole_(u,['admin']);return{normal_male_price:num_(getSetting_('normal_male_price','0')),normal_female_price:num_(getSetting_('normal_female_price','0')),weekend_male_price:num_(getSetting_('weekend_male_price','0')),weekend_female_price:num_(getSetting_('weekend_female_price','0'))}}
-function saveDateOverride_(u,p){requireRole_(u,['admin']);const d=dateKey_(p.price_date),male=num_(p.male_price),female=num_(p.female_price);if(!/^\d{4}-\d{2}-\d{2}$/.test(d))throw new Error('请选择日期');if(male<0||female<0)throw new Error('Invalid price');const existing=rows_(SHEETS.PRICING).find(x=>dateKey_(x.price_date)===d&&String(x.status||'ACTIVE')==='ACTIVE');if(existing)updateById_(SHEETS.PRICING,'price_id',existing.price_id,{price_date:d,male_price:male,female_price:female,note:p.note||'',status:'ACTIVE',updated_by:u.user_id,updated_at:now_()});else append_(SHEETS.PRICING,{price_id:uuid_('PRICE'),price_date:d,male_price:male,female_price:female,note:p.note||'',status:'ACTIVE',updated_by:u.user_id,updated_at:now_()});audit_(u,'SAVE_DATE_OVERRIDE','pricing',d,`${male}/${female}`);return true}
-function listDateOverrides_(u){requireRole_(u,['admin']);return rows_(SHEETS.PRICING).filter(x=>String(x.status||'ACTIVE')==='ACTIVE').map(x=>({...x,price_date:dateKey_(x.price_date),male_price:num_(x.male_price),female_price:num_(x.female_price)})).sort((a,b)=>String(b.price_date).localeCompare(String(a.price_date))).slice(0,180)}
-function deleteDateOverride_(u,p){requireRole_(u,['admin']);const row=rows_(SHEETS.PRICING).find(x=>String(x.price_id)===String(p.price_id));if(!row)throw new Error('Override not found');updateById_(SHEETS.PRICING,'price_id',row.price_id,{status:'DELETED',updated_by:u.user_id,updated_at:now_()});audit_(u,'DELETE_DATE_OVERRIDE','pricing',row.price_id,row.price_date);return true}
-function getPriceForDate_(d){const ds=dateKey_(d);const override=rows_(SHEETS.PRICING).find(x=>dateKey_(x.price_date)===ds&&String(x.status||'ACTIVE')==='ACTIVE');if(override)return{male_price:num_(override.male_price),female_price:num_(override.female_price),note:override.note||'',source:'DATE OVERRIDE'};const type=dayType_(ds);if(type==='WEEKEND')return{male_price:num_(getSetting_('weekend_male_price','0')),female_price:num_(getSetting_('weekend_female_price','0')),note:'Friday / Saturday',source:'WEEKEND DEFAULT'};return{male_price:num_(getSetting_('normal_male_price','0')),female_price:num_(getSetting_('normal_female_price','0')),note:'Sunday – Thursday',source:'NORMAL DAY DEFAULT'}}
+function getDB_() {
+  const id = PropertiesService.getScriptProperties().getProperty(PROP_SHEET_ID);
+  if (!id) throw new Error("尚未初始化，请先运行 setup()。");
+  return SpreadsheetApp.openById(id);
+}
 
-function passView_(p){const amb=rows_(SHEETS.USERS).find(x=>String(x.user_id)===String(p.ambassador_id));const price=getPriceForDate_(dateKey_(p.reservation_date));return{...p,reservation_date:dateKey_(p.reservation_date),ambassador_name:amb?.name||p.ambassador_id,male_price:num_(price.male_price),female_price:num_(price.female_price),price_note:price.note||'',price_source:price.source||'',can_edit:String(p.status)==='ISSUED'&&num_(p.actual_pax)===0}}
-function createPass_(u,p){requireRole_(u,['ambassador','admin']);const type=String(p.type||'GROUP').toUpperCase();if(!['INDIVIDUAL','GROUP'].includes(type))throw new Error('Invalid type');const pax=Math.floor(num_(p.planned_pax));if(!(pax>0))throw new Error('人数必须大于 0');const reservationDate=dateKey_(p.reservation_date);if(!/^\d{4}-\d{2}-\d{2}$/.test(reservationDate))throw new Error('请选择预定日期');const pass_id=uuid_('PASS'),pass_ref='YT-'+(type==='GROUP'?'G':'I')+'-'+Utilities.getUuid().replace(/-/g,'').slice(0,6).toUpperCase(),qr_token=Utilities.getUuid().replace(/-/g,'');append_(SHEETS.PASSES,{pass_id,pass_ref,qr_token,ambassador_id:u.user_id,type,label:p.label||'',reservation_date:reservationDate,planned_pax:pax,remark:p.remark||'',status:'ISSUED',actual_pax:0,actual_male:0,actual_female:0,sales:0,created_at:now_(),updated_at:now_()});audit_(u,'CREATE_PASS','pass',pass_id,`${reservationDate} / ${pax} pax`);return{pass_id,pass_ref,qr_token,reservation_date:reservationDate}}
-function updatePass_(u,p){requireRole_(u,['ambassador','admin']);const pass=rows_(SHEETS.PASSES).find(x=>String(x.pass_id)===String(p.pass_id)&&String(x.ambassador_id)===String(u.user_id));if(!pass)throw new Error('Pass not found');if(String(pass.status)!=='ISSUED'||num_(pass.actual_pax)>0)throw new Error('Staff 已开始 Check-in，预定内容已锁定');const pax=Math.floor(num_(p.planned_pax));if(!(pax>0))throw new Error('人数必须大于 0');const reservationDate=dateKey_(p.reservation_date);if(!/^\d{4}-\d{2}-\d{2}$/.test(reservationDate))throw new Error('请选择预定日期');const type=String(p.type||pass.type).toUpperCase();if(!['INDIVIDUAL','GROUP'].includes(type))throw new Error('Invalid type');updateById_(SHEETS.PASSES,'pass_id',pass.pass_id,{type,label:p.label||'',reservation_date:reservationDate,planned_pax:pax,remark:p.remark||'',updated_at:now_()});audit_(u,'UPDATE_PASS','pass',pass.pass_id,`${reservationDate} / ${pax} pax`);return passView_(rows_(SHEETS.PASSES).find(x=>String(x.pass_id)===String(pass.pass_id)))}
-function lookupPass_(u,p){requireRole_(u,['staff','admin']);const q=String(p.token_or_ref||'').trim();const pass=rows_(SHEETS.PASSES).find(x=>String(x.qr_token)===q||String(x.pass_ref).toUpperCase()===q.toUpperCase());if(!pass)throw new Error('Pass not found');if(String(pass.status)==='VOID')throw new Error('Pass is void');return passView_(pass)}
+function ensureSheet_(ss, name, headers) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
 
-function partialRedeem_(u,p){requireRole_(u,['staff','admin']);const lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw new Error('System busy, retry');try{return partialLocked_(u,p)}finally{lock.releaseLock()}}
-function partialLocked_(u,p){
-  const pass=rows_(SHEETS.PASSES).find(x=>String(x.pass_id)===String(p.pass_id));
-  if(!pass)throw new Error('Pass not found');
-  if(['CLOSED','PAID','VOID'].includes(String(pass.status)))throw new Error('Pass closed');
-  const m=Math.floor(num_(p.male)),f=Math.floor(num_(p.female)),pax=m+f;
-  if(!(pax>0)||m<0||f<0)throw new Error('请输入男女人数');
-  const price=getPriceForDate_(dateKey_(pass.reservation_date));
-  let mp=num_(price.male_price),fp=num_(price.female_price);
-  if(String(u.role)==='admin'){
-    if(String(p.custom_male_price||'').trim()!=='') mp=num_(p.custom_male_price);
-    if(String(p.custom_female_price||'').trim()!=='') fp=num_(p.custom_female_price);
-    if(mp<0||fp<0) throw new Error('Custom price cannot be negative');
+  if (sh.getMaxColumns() < headers.length) {
+    sh.insertColumnsAfter(sh.getMaxColumns(), headers.length - sh.getMaxColumns());
   }
-  const sales=Math.round((m*mp+f*fp)*100)/100;
-  const amb=rows_(SHEETS.USERS).find(x=>String(x.user_id)===String(pass.ambassador_id));
-  if(!amb)throw new Error('Ambassador not found');
-  const rate=num_(amb.commission_rate),commission=Math.round(sales*rate)/100;
-  const nr={pax:num_(pass.actual_pax)+pax,m:num_(pass.actual_male)+m,f:num_(pass.actual_female)+f};
-  const closed=nr.pax>=num_(pass.planned_pax);
-  const checkin_ref=uuid_('CI');
-  const redeem_ref='YT-RD-'+Utilities.formatDate(now_(),TZ,'yyMMdd')+'-'+Utilities.getUuid().replace(/-/g,'').slice(0,5).toUpperCase();
-  append_(SHEETS.CHECKINS,{checkin_ref,pass_id:pass.pass_id,ambassador_id:pass.ambassador_id,staff_id:u.user_id,pax,male:m,female:f,table_no:p.table_no||'',remark:p.remark||'',created_at:now_()});
-  append_(SHEETS.REDEEMS,{redeem_ref,pass_id:pass.pass_id,pass_ref:pass.pass_ref,ambassador_id:pass.ambassador_id,staff_id:u.user_id,reservation_date:dateKey_(pass.reservation_date),table_no:p.table_no||'',male_charged:m,female_charged:f,male_price:mp,female_price:fp,sales_amount:sales,commission_rate:rate,commission_amount:commission,final_payment:closed?'YES':'NO',created_at:now_(),status:'CONFIRMED'});
-  append_(SHEETS.WALLET,{wallet_txn_id:uuid_('WLT'),ambassador_id:pass.ambassador_id,redeem_ref,type:'COMMISSION',amount:commission,created_at:now_()});
-  const newSales=Math.round((num_(pass.sales)+sales)*100)/100;
-  updateById_(SHEETS.PASSES,'pass_id',pass.pass_id,{actual_pax:nr.pax,actual_male:nr.m,actual_female:nr.f,sales:newSales,status:closed?'CLOSED':'PARTIAL',updated_at:now_(),closed_at:closed?now_():''});
-  audit_(u,'CHECKIN_PAYMENT','pass',pass.pass_id,`${m}M@${mp}+${f}F@${fp}=${sales}; commission=${commission}; closed=${closed}; pricing=${String(u.role)==='admin'?'OWNER_OVERRIDE_ALLOWED':'SYSTEM'}`);
-  return{checkin_ref,redeem_ref,sales_amount:sales,commission_amount:commission,closed,pass:passView_(rows_(SHEETS.PASSES).find(x=>String(x.pass_id)===String(pass.pass_id)))};
+
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.setFrozenRows(1);
+  return sh;
 }
 
-function checkout_(u,p){requireRole_(u,['staff','admin']);const lock=LockService.getScriptLock();if(!lock.tryLock(10000))throw new Error('System busy, retry');try{const pass=rows_(SHEETS.PASSES).find(x=>String(x.pass_id)===String(p.pass_id));if(!pass)throw new Error('Pass not found');if(['PAID','VOID'].includes(String(pass.status)))throw new Error('Pass closed');if(num_(pass.actual_pax)<=0)throw new Error('请先登记实际到场人数');const price=getPriceForDate_(dateKey_(pass.reservation_date)),mp=num_(price.male_price),fp=num_(price.female_price);const existing=rows_(SHEETS.REDEEMS).filter(x=>String(x.pass_id)===String(pass.pass_id)&&String(x.status)==='CONFIRMED');const chargedM=existing.reduce((s,r)=>s+num_(r.male_charged),0),chargedF=existing.reduce((s,r)=>s+num_(r.female_charged),0);const dueM=Math.max(0,num_(pass.actual_male)-chargedM),dueF=Math.max(0,num_(pass.actual_female)-chargedF);const sales=Math.round((dueM*mp+dueF*fp)*100)/100;if(!(sales>0))throw new Error('目前没有新的应收金额');const amb=rows_(SHEETS.USERS).find(x=>String(x.user_id)===String(pass.ambassador_id));if(!amb)throw new Error('Ambassador not found');const rate=num_(amb.commission_rate),commission=Math.round(sales*rate)/100;const redeem_ref='YT-RD-'+Utilities.formatDate(now_(),TZ,'yyMMdd')+'-'+Utilities.getUuid().replace(/-/g,'').slice(0,5).toUpperCase();append_(SHEETS.REDEEMS,{redeem_ref,pass_id:pass.pass_id,pass_ref:pass.pass_ref,ambassador_id:pass.ambassador_id,staff_id:u.user_id,reservation_date:dateKey_(pass.reservation_date),table_no:p.table_no||'',male_charged:dueM,female_charged:dueF,male_price:mp,female_price:fp,sales_amount:sales,commission_rate:rate,commission_amount:commission,final_payment:String(p.final_payment)==='1'?'YES':'NO',created_at:now_(),status:'CONFIRMED'});append_(SHEETS.WALLET,{wallet_txn_id:uuid_('WLT'),ambassador_id:pass.ambassador_id,redeem_ref,type:'COMMISSION',amount:commission,created_at:now_()});const newSales=Math.round((num_(pass.sales)+sales)*100)/100,newStatus=String(p.final_payment)==='1'?'PAID':'PARTIALLY_PAID';updateById_(SHEETS.PASSES,'pass_id',pass.pass_id,{sales:newSales,status:newStatus,updated_at:now_(),closed_at:newStatus==='PAID'?now_():''});audit_(u,'CHECKOUT','pass',pass.pass_id,`${dueM}M@${mp}+${dueF}F@${fp}=${sales}`);return{redeem_ref,commission,sales_amount:sales,male_charged:dueM,female_charged:dueF,male_price:mp,female_price:fp,pass:passView_(rows_(SHEETS.PASSES).find(x=>String(x.pass_id)===String(pass.pass_id)))}}finally{lock.releaseLock()}}
 
-function ambassadorPriceCalendar_(){
-  const today=dateKey_(now_()),base=new Date(today+'T00:00:00');
-  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const out=[];
-  for(let i=0;i<7;i++){
-    const d=new Date(base);d.setDate(base.getDate()+i);
-    const key=Utilities.formatDate(d,TZ,'yyyy-MM-dd'),p=getPriceForDate_(key);
-    out.push({date:key,day_label:(i===0?'Today · ':'')+days[d.getDay()]+' '+Utilities.formatDate(d,TZ,'dd/MM'),male_price:num_(p.male_price),female_price:num_(p.female_price),source:p.source||'',is_today:i===0});
+/* =====================================================
+   WEB APP
+===================================================== */
+
+function doGet() {
+  try {
+    const ss = getDB_();
+    return json_({
+      ok: true,
+      service: "YETIPSY Tonight",
+      version: "2.4.3",
+      database: ss.getName(),
+      connected: true
+    });
+  } catch (err) {
+    return json_({
+      ok: false,
+      service: "YETIPSY Tonight",
+      version: "2.4.3",
+      connected: false,
+      error: String(err.message || err)
+    });
   }
+}
+
+function doPost(e) {
+  try {
+    const ss = getDB_();
+    let data = {};
+
+    if (e && e.postData && e.postData.contents) {
+      data = JSON.parse(e.postData.contents);
+    }
+
+    switch (String(data.action || "")) {
+      case "join": return json_(join_(ss, data));
+      case "heartbeat": return json_(heartbeat_(ss, data));
+      case "ping": return json_({ ok: true, serverTime: new Date().toISOString() });
+      case "leaveTable": return json_(leaveTable_(ss, data));
+      case "tableState": return json_(tableState_(ss, data));
+      case "startTable": return json_(startTable_(ss, data));
+      case "claimLead": return json_(claimLead_(ss, data));
+      case "rerollQuestion": return json_(rerollQuestion_(ss, data));
+      case "finishCountdown": return json_(finishCountdown_(ss, data));
+      case "nextTableRound": return json_(nextTableRound_(ss, data));
+      case "startEvent": return json_(startEvent_(ss, data));
+      case "completeEvent": return json_(completeEvent_(ss, data));
+      case "queue": return json_(queue_(ss, data));
+      case "matchStatus": return json_(matchStatus_(ss, data));
+      case "verify": return json_(verify_(ss, data));
+      case "cancelMatch": return json_(cancelMatch_(ss, data));
+      case "completeMatch": return json_(completeMatch_(ss, data));
+
+      // YÉ TIPSY 月满杯盈
+      case "moon": return json_(moonApi_(ss, data));
+
+      default:
+        return json_({
+          ok: false,
+          error: "unknown_action",
+          action: data.action || ""
+        });
+    }
+  } catch (err) {
+    console.error(err);
+    return json_({
+      ok: false,
+      error: String(err.message || err)
+    });
+  }
+}
+
+/* =====================================================
+   PLAYERS
+===================================================== */
+
+function join_(ss, d) {
+  const sh = ss.getSheetByName("PLAYERS");
+  const deviceId = clean_(d.deviceId, 100);
+  const nick = clean_(d.nick, 30);
+  const table = clean_(d.table, 20).toUpperCase();
+  const mode = clean_(d.mode, 20);
+
+  if (!deviceId || !nick || !table || !mode) {
+    return { ok: false, error: "missing_player_data" };
+  }
+
+  const now = new Date();
+  const player = playerRow_(sh, deviceId);
+
+  if (player) {
+    const safeStatus = player.data[7] ? (player.data[4] || "matched") : "active";
+    sh.getRange(player.row, 2, 1, 6).setValues([[
+      nick, table, mode, safeStatus,
+      player.data[5] || now, now
+    ]]);
+  } else {
+    sh.appendRow([deviceId, nick, table, mode, "active", now, now, "", ""]);
+  }
+
+  ensureTable_(ss, table);
+  SpreadsheetApp.flush();
+  return { ok: true, deviceId: deviceId, nick: nick, table: table, mode: mode };
+}
+
+function heartbeat_(ss, d) {
+  const sh = ss.getSheetByName("PLAYERS");
+  const p = playerRow_(sh, d.deviceId);
+  if (p) sh.getRange(p.row, 7).setValue(new Date());
+  return { ok: true };
+}
+
+function leaveTable_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(6000);
+
+  try {
+    const players = ss.getSheetByName("PLAYERS");
+    const me = playerRow_(players, d.deviceId);
+    if (!me) return { ok: true, left: true };
+
+    const deviceId = String(d.deviceId || "");
+    const oldTable = String(me.data[2] || "").toUpperCase();
+    const matchId = String(me.data[7] || "");
+
+    /*
+      离桌时，如果还在未完成 Match，先取消，避免另一个人永远被占用。
+      已经双方验证完成的 Match 不允许直接离开，先完成当前互动。
+    */
+    if (matchId) {
+      const matches = ss.getSheetByName("MATCHES");
+      const m = matchRow_(matches, matchId);
+      if (m) {
+        const bothVerified = toBool_(m.data[5]) && toBool_(m.data[6]);
+        if (bothVerified && String(m.data[7] || "") !== "complete") {
+          return { ok: false, error: "finish_match_first" };
+        }
+
+        if (!bothVerified && !["canceled", "complete"].includes(String(m.data[7] || ""))) {
+          matches.getRange(m.row, 8).setValue("canceled");
+          [String(m.data[1] || ""), String(m.data[2] || "")].forEach(id => {
+            const p = playerRow_(players, id);
+            if (p && String(p.data[7] || "") === matchId) {
+              players.getRange(p.row, 5).setValue("active");
+              players.getRange(p.row, 8).setValue("");
+            }
+          });
+        }
+      }
+    }
+
+    const refreshed = playerRow_(players, deviceId);
+    if (refreshed) {
+      players.getRange(refreshed.row, 3).setValue("");
+      players.getRange(refreshed.row, 5).setValue("left");
+      players.getRange(refreshed.row, 7).setValue(new Date());
+      players.getRange(refreshed.row, 8).setValue("");
+    }
+
+    /* 立即从旧桌 READY / Lead 移除，不用等 90 秒超时 */
+    if (oldTable) {
+      const tables = ss.getSheetByName("TABLES");
+      const t = tableRow_(tables, oldTable);
+      if (t) {
+        const data = tables.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+        const ready = parseReadyDevices_(data[3]).filter(id => id !== deviceId);
+        tables.getRange(t.row, 4).setValue(JSON.stringify(ready));
+        if (String(data[6] || "") === deviceId) {
+          tables.getRange(t.row, 7).setValue("");
+          tables.getRange(t.row, 8).setValue("");
+          if (String(data[5] || "") === "playing") {
+            tables.getRange(t.row, 6).setValue("discuss");
+          }
+        }
+        tables.getRange(t.row, 5).setValue(new Date());
+      }
+    }
+
+    SpreadsheetApp.flush();
+    return { ok: true, left: true, oldTable: oldTable };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function onlinePlayers_(ss, tableId, windowMs) {
+  const sh = ss.getSheetByName("PLAYERS");
+  if (sh.getLastRow() < 2) return [];
+
+  const values = sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues();
+  const cutoff = Date.now() - (Number(windowMs) || ONLINE_MS);
+  const table = String(tableId || "").toUpperCase();
+  const out = [];
+
+  values.forEach(r => {
+    if (String(r[2] || "").toUpperCase() !== table) return;
+    const seen = new Date(r[6]).getTime();
+    if (!seen || seen < cutoff) return;
+    out.push({
+      deviceId: String(r[0] || ""),
+      nick: String(r[1] || "PLAYER"),
+      mode: String(r[3] || "chill")
+    });
+  });
+
   return out;
 }
-function ambassadorDashboard_(u){requireRole_(u,['ambassador','admin']);const passes=rows_(SHEETS.PASSES).filter(x=>String(x.ambassador_id)===String(u.user_id)).map(passView_).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));const wallet=rows_(SHEETS.WALLET).filter(x=>String(x.ambassador_id)===String(u.user_id));const cal=ambassadorPriceCalendar_();const earned=wallet.filter(x=>String(x.type)==='COMMISSION').reduce((a,x)=>a+num_(x.amount),0),paid=Math.abs(wallet.filter(x=>String(x.type)==='PAYOUT').reduce((a,x)=>a+num_(x.amount),0));return{sales:passes.reduce((a,x)=>a+num_(x.sales),0),wallet:wallet.reduce((a,x)=>a+num_(x.amount),0),commission_earned:earned,commission_paid:paid,issued_count:passes.length,redeemed_count:passes.filter(x=>num_(x.sales)>0).length,today_price:cal[0]||null,price_calendar:cal,passes,wallet_history:wallet.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,100)}}
-function staffRecent_(u){requireRole_(u,['staff','admin']);return rows_(SHEETS.REDEEMS).filter(x=>String(u.role)==='admin'||String(x.staff_id)===String(u.user_id)).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,50)}
-function adminDashboard_(u){requireRole_(u,['admin']);const users=rows_(SHEETS.USERS),wallet=rows_(SHEETS.WALLET),redeems=rows_(SHEETS.REDEEMS),checkins=rows_(SHEETS.CHECKINS);const ambassadors=users.filter(x=>String(x.role)==='ambassador').map(a=>{const w=wallet.filter(x=>String(x.ambassador_id)===String(a.user_id));const earned=w.filter(x=>String(x.type)==='COMMISSION').reduce((s,x)=>s+num_(x.amount),0),paid=Math.abs(w.filter(x=>String(x.type)==='PAYOUT').reduce((s,x)=>s+num_(x.amount),0));return{...a,wallet:w.reduce((s,x)=>s+num_(x.amount),0),commission_earned:earned,commission_paid:paid}});return{total_sales:redeems.reduce((s,r)=>s+num_(r.sales_amount),0),total_commission:redeems.reduce((s,r)=>s+num_(r.commission_amount),0),total_pax:checkins.reduce((s,c)=>s+num_(c.pax),0),ambassadors,redeems:redeems.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,100).map(r=>({...r,ambassador_name:users.find(x=>String(x.user_id)===String(r.ambassador_id))?.name||r.ambassador_id}))}}
+
+
+/* =====================================================
+   TABLE SESSION
+===================================================== */
+
+function ensureTable_(ss, tableId) {
+  const sh = ss.getSheetByName("TABLES");
+  const table = clean_(tableId, 20).toUpperCase();
+  let row = tableRow_(sh, table);
+  const now = new Date();
+
+  if (!row) {
+    sh.appendRow([
+      table, 1, randomIndex_(WARM_COUNT), "", now,
+      "lobby", "", "", "", "", 0, "", Utilities.getUuid(), "warm"
+    ]);
+    SpreadsheetApp.flush();
+    return tableRow_(sh, table);
+  }
+
+  const updatedAt = new Date(row.data[4]).getTime();
+  const sessionId = String(row.data[12] || "");
+
+  if (!sessionId || (updatedAt && updatedAt < Date.now() - STALE_SESSION_MS)) {
+    resetTableRow_(sh, row.row, table);
+    SpreadsheetApp.flush();
+    row = tableRow_(sh, table);
+  }
+
+  return row;
+}
+
+function resetTableRow_(sh, rowNum, table) {
+  const now = new Date();
+  sh.getRange(rowNum, 1, 1, TABLE_HEADERS.length).setValues([[
+    table, 1, randomIndex_(WARM_COUNT), "", now,
+    "lobby", "", "", "", "", 0, "", Utilities.getUuid(), "warm"
+  ]]);
+}
+
+function tableState_(ss, d) {
+  const table = clean_(d.table, 20).toUpperCase();
+  if (!table) return { ok: false, error: "missing_table" };
+
+  const sh = ss.getSheetByName("TABLES");
+  let t = ensureTable_(ss, table);
+  let data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+  /*
+    QUESTION 状态：READY 是报到，不是立刻开倒数。
+    只有目前仍在线的同桌玩家全部 READY 后，才进入 playing。
+    ready_devices 按点击顺序保存，所以第一个有效 READY 就是 Lead。
+  */
+  if (String(data[5] || "") === "question") {
+    const eligible = onlinePlayers_(ss, table, READY_ONLINE_MS);
+    const eligibleMap = {};
+    eligible.forEach(p => eligibleMap[p.deviceId] = p);
+
+    let ready = parseReadyDevices_(data[3]).filter(id => !!eligibleMap[id]);
+    let leadDevice = String(data[6] || "");
+
+    if (!leadDevice || !eligibleMap[leadDevice] || ready.indexOf(leadDevice) < 0) {
+      leadDevice = ready.length ? ready[0] : "";
+    }
+
+    const leadNick = leadDevice && eligibleMap[leadDevice]
+      ? eligibleMap[leadDevice].nick
+      : "";
+
+    const allReady = eligible.length >= 2 && eligible.every(p => ready.indexOf(p.deviceId) >= 0);
+    const storedReady = JSON.stringify(parseReadyDevices_(data[3]));
+    const nextReady = JSON.stringify(ready);
+    const needsSync = storedReady !== nextReady || String(data[6] || "") !== leadDevice || String(data[7] || "") !== leadNick;
+
+    if (needsSync) {
+      sh.getRange(t.row, 4).setValue(nextReady);
+      sh.getRange(t.row, 7).setValue(leadDevice);
+      sh.getRange(t.row, 8).setValue(leadNick);
+      sh.getRange(t.row, 5).setValue(new Date());
+      SpreadsheetApp.flush();
+      data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+    }
+
+    if (allReady && leadDevice) {
+      const now = new Date();
+      sh.getRange(t.row, 6).setValue("playing");
+      sh.getRange(t.row, 9).setValue(now);
+      sh.getRange(t.row, 5).setValue(now);
+      SpreadsheetApp.flush();
+      data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+    }
+  }
+
+  /* Lead 倒数手机消失也不会把整桌永远卡住 */
+  if (String(data[5] || "") === "playing") {
+    const started = new Date(data[8]).getTime();
+    if (started && Date.now() - started > LEAD_STALE_MS) {
+      sh.getRange(t.row, 6).setValue("discuss");
+      sh.getRange(t.row, 5).setValue(new Date());
+      SpreadsheetApp.flush();
+      data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+    }
+  }
+
+  return tablePayload_(ss, data);
+}
+
+function tablePayload_(ss, data) {
+  const players = onlinePlayers_(ss, data[0]);
+  const readyEligible = onlinePlayers_(ss, data[0], READY_ONLINE_MS);
+  const eligibleMap = {};
+  readyEligible.forEach(p => eligibleMap[p.deviceId] = p);
+
+  const readyDevices = parseReadyDevices_(data[3]).filter(id => !!eligibleMap[id]);
+  const readyPlayers = readyDevices.map(id => eligibleMap[id] ? eligibleMap[id].nick : "PLAYER");
+  const started = new Date(data[8]).getTime();
+  const status = String(data[5] || "lobby");
+
+  return {
+    ok: true,
+    table: String(data[0] || ""),
+    round: Number(data[1]) || 1,
+    questionIndex: Number(data[2]) || 0,
+    status: status,
+    leadDevice: String(data[6] || ""),
+    leadNick: String(data[7] || ""),
+    roundStartedAt: data[8] || null,
+    nextEventAt: data[9] || null,
+    eventIndex: Number(data[10]) || 0,
+    sessionStartedAt: data[11] || null,
+    sessionId: String(data[12] || ""),
+    questionPool: String(data[13] || "warm"),
+    onlineCount: players.length,
+    players: players.map(p => p.nick),
+    readyCount: readyDevices.length,
+    readyTotal: readyEligible.length,
+    readyPlayers: readyPlayers,
+    readyDevices: readyDevices,
+    allReady: readyEligible.length >= 2 && readyDevices.length >= readyEligible.length,
+    canTakeOver: status === "discuss" && !!started && Date.now() - started >= LEAD_TAKEOVER_MS
+  };
+}
+
+function startTable_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(6000);
+
+  try {
+    const table = clean_(d.table, 20).toUpperCase();
+    const players = onlinePlayers_(ss, table);
+    if (players.length < 2) return { ok: false, error: "need_two_players", onlineCount: players.length };
+
+    const sh = ss.getSheetByName("TABLES");
+    const t = ensureTable_(ss, table);
+    const current = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+    if (String(current[5] || "") !== "lobby") {
+      return tablePayload_(ss, current);
+    }
+
+    const now = new Date();
+    sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).setValues([[
+      table, 1, randomIndex_(WARM_COUNT), "", now,
+      "question", "", "", "", "", 0, now, Utilities.getUuid(), "warm"
+    ]]);
+    SpreadsheetApp.flush();
+    return tableState_(ss, { table: table });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function claimLead_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(6000);
+
+  try {
+    const table = clean_(d.table, 20).toUpperCase();
+    const deviceId = clean_(d.deviceId, 100);
+    const sh = ss.getSheetByName("TABLES");
+    const t = ensureTable_(ss, table);
+    let data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+    if (Number(d.currentRound || 0) !== (Number(data[1]) || 1)) {
+      return Object.assign(tablePayload_(ss, data), { isLead: String(data[6] || "") === deviceId });
+    }
+
+    const status = String(data[5] || "");
+    if (status === "playing") {
+      return Object.assign(tablePayload_(ss, data), { isLead: String(data[6] || "") === deviceId });
+    }
+
+    if (status !== "question") {
+      return Object.assign(tablePayload_(ss, data), { isLead: false });
+    }
+
+    /* READY 点击本身也代表这个手机仍在线 */
+    const playersSheet = ss.getSheetByName("PLAYERS");
+    const p = playerRow_(playersSheet, deviceId);
+    if (!p) return { ok: false, error: "not_joined" };
+    playersSheet.getRange(p.row, 7).setValue(new Date());
+
+    const nick = String(p.data[1] || clean_(d.nick, 30) || "PLAYER");
+    let ready = parseReadyDevices_(data[3]);
+
+    if (ready.indexOf(deviceId) < 0) ready.push(deviceId);
+
+    let leadDevice = String(data[6] || "");
+    let leadNick = String(data[7] || "");
+
+    /* 第一个 READY 只取得 Lead 权，不会立刻开始 */
+    if (!leadDevice) {
+      leadDevice = deviceId;
+      leadNick = nick;
+    }
+
+    const now = new Date();
+    sh.getRange(t.row, 4).setValue(JSON.stringify(ready));
+    sh.getRange(t.row, 7).setValue(leadDevice);
+    sh.getRange(t.row, 8).setValue(leadNick);
+    sh.getRange(t.row, 5).setValue(now);
+    SpreadsheetApp.flush();
+
+    /* 用 90 秒内仍活跃的玩家判断“全员 READY” */
+    const eligible = onlinePlayers_(ss, table, READY_ONLINE_MS);
+    const eligibleIds = eligible.map(x => x.deviceId);
+    const eligibleMap = {};
+    eligible.forEach(x => eligibleMap[x.deviceId] = x);
+    ready = ready.filter(id => eligibleIds.indexOf(id) >= 0);
+
+    if (ready.length !== parseReadyDevices_(sh.getRange(t.row, 4).getValue()).length) {
+      sh.getRange(t.row, 4).setValue(JSON.stringify(ready));
+    }
+
+    /* 如果最早 READY 的人已经离线，Lead 自动交给仍在线的最早 READY 玩家 */
+    if (!eligibleMap[leadDevice] || ready.indexOf(leadDevice) < 0) {
+      leadDevice = ready.length ? ready[0] : "";
+      leadNick = leadDevice && eligibleMap[leadDevice] ? eligibleMap[leadDevice].nick : "";
+      sh.getRange(t.row, 7).setValue(leadDevice);
+      sh.getRange(t.row, 8).setValue(leadNick);
+    }
+
+    const allReady = eligible.length >= 2 && eligible.every(x => ready.indexOf(x.deviceId) >= 0);
+
+    if (allReady && leadDevice) {
+      sh.getRange(t.row, 6).setValue("playing");
+      sh.getRange(t.row, 9).setValue(new Date());
+      sh.getRange(t.row, 5).setValue(new Date());
+      SpreadsheetApp.flush();
+    }
+
+    data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+    return Object.assign(tablePayload_(ss, data), { isLead: String(data[6] || "") === deviceId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function rerollQuestion_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+
+  try {
+    const table = clean_(d.table, 20).toUpperCase();
+    const sh = ss.getSheetByName("TABLES");
+    const t = ensureTable_(ss, table);
+    const data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+    if (String(data[5] || "") !== "question") {
+      return { ok: false, error: "not_question_state" };
+    }
+
+    if (parseReadyDevices_(data[3]).length > 0) {
+      return { ok: false, error: "already_ready" };
+    }
+
+    const pool = String(data[13] || "warm");
+    const count = pool === "late" ? LATE_COUNT : WARM_COUNT;
+    const oldQuestion = Number(data[2]) || 0;
+    const nextQuestion = differentIndex_(count, oldQuestion);
+
+    sh.getRange(t.row, 3).setValue(nextQuestion);
+    sh.getRange(t.row, 5).setValue(new Date());
+    SpreadsheetApp.flush();
+
+    return tableState_(ss, { table: table });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function finishCountdown_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+
+  try {
+    const table = clean_(d.table, 20).toUpperCase();
+    const deviceId = clean_(d.deviceId, 100);
+    const sh = ss.getSheetByName("TABLES");
+    const t = ensureTable_(ss, table);
+    const data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+    if (String(data[5] || "") === "playing" && String(data[6] || "") === deviceId) {
+      sh.getRange(t.row, 6).setValue("discuss");
+      sh.getRange(t.row, 5).setValue(new Date());
+      SpreadsheetApp.flush();
+    }
+
+    return tableState_(ss, { table: table });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function nextTableRound_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(6000);
+
+  try {
+    const table = clean_(d.table, 20).toUpperCase();
+    const deviceId = clean_(d.deviceId, 100);
+    const sh = ss.getSheetByName("TABLES");
+    const t = ensureTable_(ss, table);
+    const data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+    const serverRound = Number(data[1]) || 1;
+    if (Number(d.currentRound || serverRound) !== serverRound) {
+      return tablePayload_(ss, data);
+    }
+
+    if (String(data[5] || "") !== "discuss") {
+      return { ok: false, error: "round_not_finished" };
+    }
+
+    const started = new Date(data[8]).getTime();
+    const isLead = String(data[6] || "") === deviceId;
+    const takeoverAllowed = !!started && Date.now() - started >= LEAD_TAKEOVER_MS;
+
+    if (!isLead && !takeoverAllowed) {
+      return { ok: false, error: "not_round_lead", leadNick: String(data[7] || "") };
+    }
+
+    const pool = String(data[13] || "warm");
+    const roundLimit = pool === "late" ? 2 : 3;
+
+    if (serverRound < roundLimit) {
+      const count = pool === "late" ? LATE_COUNT : WARM_COUNT;
+      const oldQuestion = Number(data[2]) || 0;
+      const nextQuestion = differentIndex_(count, oldQuestion);
+      const now = new Date();
+
+      sh.getRange(t.row, 2, 1, 8).setValues([[
+        serverRound + 1, nextQuestion, "", now,
+        "question", "", "", ""
+      ]]);
+      SpreadsheetApp.flush();
+      return tableState_(ss, { table: table });
+    }
+
+    /* 这一组桌内题结束，回 Tonight Lobby */
+    const now = new Date();
+    let eventIndex = Number(data[10]) || 0;
+    if (pool === "warm" && eventIndex === 0) eventIndex = 1;
+    if (pool === "late") eventIndex += 1;
+
+    const delay = pool === "warm" ? FIRST_BREAK_MS : NORMAL_BREAK_MS;
+    const nextAt = new Date(Date.now() + delay);
+
+    sh.getRange(t.row, 5, 1, 10).setValues([[
+      now, "break", "", "", "", nextAt,
+      eventIndex, data[11] || now, data[12] || Utilities.getUuid(), ""
+    ]]);
+    SpreadsheetApp.flush();
+    return tableState_(ss, { table: table });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function startEvent_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(6000);
+
+  try {
+    const table = clean_(d.table, 20).toUpperCase();
+    const sh = ss.getSheetByName("TABLES");
+    const t = ensureTable_(ss, table);
+    const data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+    if (String(data[5] || "") !== "break") return tablePayload_(ss, data);
+
+    const nextAt = new Date(data[9]).getTime();
+    const due = !nextAt || Date.now() >= nextAt;
+    if (!due && !d.force) {
+      return Object.assign(tablePayload_(ss, data), { locked: true });
+    }
+
+    const eventIndex = Math.max(1, Number(data[10]) || 1);
+    const now = new Date();
+
+    /* 偶数事件 = 全桌同步 After Dark；奇数 = 个人/跨桌 Social Event */
+    if (eventIndex % 2 === 0) {
+      sh.getRange(t.row, 2, 1, 9).setValues([[
+        1, randomIndex_(LATE_COUNT), "", now,
+        "question", "", "", "", ""
+      ]]);
+      sh.getRange(t.row, 14).setValue("late");
+    } else {
+      sh.getRange(t.row, 5).setValue(now);
+      sh.getRange(t.row, 6).setValue("event");
+      sh.getRange(t.row, 10).setValue("");
+      sh.getRange(t.row, 14).setValue("");
+    }
+
+    SpreadsheetApp.flush();
+    return tableState_(ss, { table: table });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function completeEvent_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+
+  try {
+    const table = clean_(d.table, 20).toUpperCase();
+    const sh = ss.getSheetByName("TABLES");
+    const t = ensureTable_(ss, table);
+    const data = sh.getRange(t.row, 1, 1, TABLE_HEADERS.length).getValues()[0];
+
+    /* 第一位完成的人安排下一次；后完成的人不会把时间往后推 */
+    if (String(data[5] || "") === "event") {
+      const now = new Date();
+      const nextAt = new Date(Date.now() + NORMAL_BREAK_MS);
+      const eventIndex = Math.max(1, Number(data[10]) || 1) + 1;
+
+      sh.getRange(t.row, 5).setValue(now);
+      sh.getRange(t.row, 6).setValue("break");
+      sh.getRange(t.row, 7, 1, 3).clearContent();
+      sh.getRange(t.row, 10).setValue(nextAt);
+      sh.getRange(t.row, 11).setValue(eventIndex);
+      sh.getRange(t.row, 14).setValue("");
+      SpreadsheetApp.flush();
+    }
+
+    return tableState_(ss, { table: table });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+/* =====================================================
+   MATCHING
+===================================================== */
+
+function queue_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(8000);
+
+  try {
+    const players = ss.getSheetByName("PLAYERS");
+    let me = playerRow_(players, d.deviceId);
+    if (!me) return { ok: false, error: "not_joined" };
+
+    if (me.data[7]) return matchStatus_(ss, d);
+
+    players.getRange(me.row, 5).setValue("queued");
+    players.getRange(me.row, 7).setValue(new Date());
+    SpreadsheetApp.flush();
+    me = playerRow_(players, d.deviceId);
+
+    const values = players.getDataRange().getValues();
+    const myTable = String(me.data[2] || "").toUpperCase();
+    const myHistory = parseHistory_(me.data[8]);
+    const cutoff = Date.now() - 15 * 60 * 1000;
+    const candidates = [];
+
+    for (let i = 1; i < values.length; i++) {
+      const r = values[i];
+      const candidateId = String(r[0] || "");
+      if (!candidateId || candidateId === String(d.deviceId)) continue;
+      if (String(r[2] || "").toUpperCase() === myTable) continue;
+      if (String(r[4] || "") !== "queued") continue;
+      if (r[7]) continue;
+      if (myHistory.includes(candidateId)) continue;
+      const lastSeen = new Date(r[6]).getTime();
+      if (!lastSeen || lastSeen < cutoff) continue;
+      candidates.push({ row: i + 1, data: r });
+    }
+
+    if (!candidates.length) return { ok: true, waiting: true, match: null };
+
+    const other = candidates[Math.floor(Math.random() * candidates.length)];
+    const matchId = Utilities.getUuid();
+    const aCode = randomCode_();
+    let bCode = randomCode_();
+    while (bCode === aCode) bCode = randomCode_();
+    const eventIndex = Number(d.eventIndex || 0);
+    const socialCycle = eventIndex > 0 ? Math.floor((eventIndex - 1) / 2) % 3 : -1;
+    const tableVsTableMissions = [12, 13, 14, 15, 16, 17];
+    const missionIndex = socialCycle === 2
+      ? tableVsTableMissions[randomIndex_(tableVsTableMissions.length)]
+      : randomIndex_(MISSION_COUNT);
+
+    const matches = ss.getSheetByName("MATCHES");
+    matches.appendRow([
+      matchId, String(d.deviceId), String(other.data[0]), aCode, bCode,
+      false, false, "active", new Date(), "", missionIndex, false, false
+    ]);
+
+    players.getRange(me.row, 5).setValue("matched");
+    players.getRange(me.row, 8).setValue(matchId);
+    players.getRange(other.row, 5).setValue("matched");
+    players.getRange(other.row, 8).setValue(matchId);
+    SpreadsheetApp.flush();
+
+    return matchStatus_(ss, d);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function matchStatus_(ss, d) {
+  const players = ss.getSheetByName("PLAYERS");
+  const me = playerRow_(players, d.deviceId);
+  if (!me) return { ok: false, error: "not_joined" };
+
+  const matchId = String(me.data[7] || "");
+  if (!matchId) {
+    return { ok: true, waiting: String(me.data[4] || "") === "queued", match: null };
+  }
+
+  const matches = ss.getSheetByName("MATCHES");
+  const m = matchRow_(matches, matchId);
+  if (!m) return { ok: false, error: "match_not_found" };
+
+  const r = m.data;
+  const isA = String(r[1]) === String(d.deviceId);
+  const isB = String(r[2]) === String(d.deviceId);
+  if (!isA && !isB) return { ok: false, error: "not_member" };
+
+  const partnerId = String(isA ? r[2] : r[1]);
+  const partner = playerRow_(players, partnerId);
+  const myVerified = isA ? toBool_(r[5]) : toBool_(r[6]);
+  const partnerVerified = isA ? toBool_(r[6]) : toBool_(r[5]);
+
+  return {
+    ok: true,
+    waiting: false,
+    match: {
+      matchId: matchId,
+      partnerNick: partner ? String(partner.data[1] || "PLAYER") : "PLAYER",
+      partnerTable: partner ? String(partner.data[2] || "?") : "?",
+      partnerId: partnerId,
+      myCode: String(isA ? r[3] : r[4]),
+      missionIndex: Number(r[10]) || 0,
+      verified: myVerified,
+      partnerVerified: partnerVerified,
+      bothVerified: myVerified && partnerVerified,
+      status: String(r[7] || "active")
+    }
+  };
+}
+
+function verify_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+
+  try {
+    const matches = ss.getSheetByName("MATCHES");
+    const m = matchRow_(matches, d.matchId);
+    if (!m) return { ok: false, error: "match_not_found" };
+
+    const r = m.data;
+    const isA = String(r[1]) === String(d.deviceId);
+    const isB = String(r[2]) === String(d.deviceId);
+    if (!isA && !isB) return { ok: false, error: "not_member" };
+    if (["canceled", "complete"].includes(String(r[7] || ""))) {
+      return { ok: false, error: "match_closed" };
+    }
+
+    const expected = String(isA ? r[4] : r[3]);
+    const input = String(d.partnerCode || "").trim();
+    if (input !== expected) return { ok: false, verified: false, error: "wrong_code" };
+
+    matches.getRange(m.row, isA ? 6 : 7).setValue(true);
+    SpreadsheetApp.flush();
+
+    const updated = matches.getRange(m.row, 1, 1, MATCH_HEADERS.length).getValues()[0];
+    const both = toBool_(updated[5]) && toBool_(updated[6]);
+
+    if (both) {
+      matches.getRange(m.row, 8).setValue("verified");
+      if (!updated[9]) matches.getRange(m.row, 10).setValue(new Date());
+      SpreadsheetApp.flush();
+    }
+
+    return { ok: true, verified: true, bothVerified: both };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function cancelMatch_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+
+  try {
+    const players = ss.getSheetByName("PLAYERS");
+    const me = playerRow_(players, d.deviceId);
+    if (!me) return { ok: false, error: "not_joined" };
+
+    const matchId = String(me.data[7] || "");
+    if (!matchId) {
+      players.getRange(me.row, 5).setValue("active");
+      return { ok: true };
+    }
+
+    const matches = ss.getSheetByName("MATCHES");
+    const m = matchRow_(matches, matchId);
+    if (!m) {
+      players.getRange(me.row, 5).setValue("active");
+      players.getRange(me.row, 8).setValue("");
+      return { ok: true };
+    }
+
+    if (toBool_(m.data[5]) && toBool_(m.data[6])) {
+      return { ok: false, error: "already_verified" };
+    }
+
+    matches.getRange(m.row, 8).setValue("canceled");
+    [String(m.data[1]), String(m.data[2])].forEach(id => {
+      const p = playerRow_(players, id);
+      if (p && String(p.data[7] || "") === matchId) {
+        players.getRange(p.row, 5).setValue("active");
+        players.getRange(p.row, 8).setValue("");
+      }
+    });
+    SpreadsheetApp.flush();
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function completeMatch_(ss, d) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+
+  try {
+    const players = ss.getSheetByName("PLAYERS");
+    const matches = ss.getSheetByName("MATCHES");
+    const m = matchRow_(matches, d.matchId);
+    if (!m) return { ok: false, error: "match_not_found" };
+
+    const r = m.data;
+    const isA = String(r[1]) === String(d.deviceId);
+    const isB = String(r[2]) === String(d.deviceId);
+    if (!isA && !isB) return { ok: false, error: "not_member" };
+    if (!(toBool_(r[5]) && toBool_(r[6]))) return { ok: false, error: "not_verified" };
+
+    const partnerId = String(isA ? r[2] : r[1]);
+    const me = playerRow_(players, d.deviceId);
+    if (me) {
+      const history = parseHistory_(me.data[8]);
+      if (!history.includes(partnerId)) history.push(partnerId);
+      players.getRange(me.row, 5).setValue("active");
+      players.getRange(me.row, 8).setValue("");
+      players.getRange(me.row, 9).setValue(history.slice(-30).join(","));
+    }
+
+    matches.getRange(m.row, isA ? 12 : 13).setValue(true);
+    SpreadsheetApp.flush();
+
+    const updated = matches.getRange(m.row, 1, 1, MATCH_HEADERS.length).getValues()[0];
+    if (toBool_(updated[11]) && toBool_(updated[12])) {
+      matches.getRange(m.row, 8).setValue("complete");
+    }
+
+    SpreadsheetApp.flush();
+    return { ok: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+/* =====================================================
+   HELPERS
+===================================================== */
+
+function playerRow_(sh, deviceId) {
+  if (sh.getLastRow() < 2) return null;
+  const values = sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues();
+  const target = String(deviceId || "");
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]) === target) return { row: i + 2, data: values[i] };
+  }
+  return null;
+}
+
+function tableRow_(sh, tableId) {
+  if (sh.getLastRow() < 2) return null;
+  const values = sh.getRange(2, 1, sh.getLastRow() - 1, TABLE_HEADERS.length).getValues();
+  const target = String(tableId || "").toUpperCase();
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0] || "").toUpperCase() === target) {
+      return { row: i + 2, data: values[i] };
+    }
+  }
+  return null;
+}
+
+function matchRow_(sh, matchId) {
+  if (sh.getLastRow() < 2) return null;
+  const values = sh.getRange(2, 1, sh.getLastRow() - 1, MATCH_HEADERS.length).getValues();
+  const target = String(matchId || "");
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]) === target) return { row: i + 2, data: values[i] };
+  }
+  return null;
+}
+
+function parseReadyDevices_(value) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map(x => String(x || "")).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+}
+
+function parseHistory_(value) {
+  return String(value || "").split(",").map(x => x.trim()).filter(Boolean);
+}
+
+function randomCode_() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function randomIndex_(count) {
+  return Math.floor(Math.random() * Math.max(1, count));
+}
+
+function differentIndex_(count, oldIndex) {
+  let x = randomIndex_(count);
+  let tries = 0;
+  while (x === Number(oldIndex) && tries < 12) {
+    x = randomIndex_(count);
+    tries++;
+  }
+  return x;
+}
+
+function toBool_(value) {
+  return value === true || String(value).toLowerCase() === "true";
+}
+
+function clean_(value, maxLength) {
+  return String(value || "").replace(/[<>]/g, "").trim().slice(0, maxLength || 100);
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
