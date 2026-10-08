@@ -1,54 +1,66 @@
 <!doctype html>
 <html lang="zh-Hans"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0a09"><meta name="description" content="Yetipsy Play · Rewards & Games">
-<title>Yetipsy Play · V1</title>
-<link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./styles.css">
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="theme-color" content="#101315"/><meta name="description" content="Yetipsy Play · 游戏体验与奖励钱包"/>
+<title>Yetipsy Play · MEMBER CLUB V1.2</title>
+<link rel="manifest" href="./manifest.webmanifest"/><link rel="apple-touch-icon" href="./icon-192.png"/><link rel="stylesheet" href="./styles.css"/>
 </head><body>
-<div class="shell">
-  <header class="header"><div><div class="brand">YE<span>·</span>TIPSY</div><div class="eyebrow">PLAY / REWARD HUB</div></div><div class="header-right"><span id="connection" class="connection">未连接</span><button id="logout" class="text-button hide">登出</button></div></header>
-  <main>
-    <section id="setup" class="panel hide"><div class="eyebrow">SETUP REQUIRED</div><h1>连接 Supabase</h1><p>已经预填你的 Project URL。将公开的 Publishable Key 填入 <code>config.js</code> 后，就可以开始内部测试。不要把 Secret 或 service_role Key 放入网页。</p><div class="notice">本页面只在配置完成后连接真实数据库。不会模拟已经发奖或核销成功。</div></section>
-    <section id="auth" class="panel hide"><div class="eyebrow">WELCOME BACK</div><h1>每一份幸运，都为你保留。</h1><p class="muted">Yetipsy Play · 内部测试版</p>
-      <form id="loginForm"><label for="email">邮箱登录（V1 测试方式）</label><input id="email" type="email" autocomplete="email" placeholder="you@example.com" required><button class="primary" type="submit">发送登录链接</button></form>
-      <p class="muted small">正式对顾客开放前，将改用已验证的手机号码。手机号 OTP 需设置短信服务，不能只靠输入手机号认证。</p><div id="authMessage" class="message" aria-live="polite"></div></section>
-    <section id="dashboard" class="hide">
-      <div class="welcome"><div><div class="eyebrow" id="roleTitle">MEMBER ACCESS</div><h1>Tonight, something good.</h1><p id="accountText" class="muted"></p></div><div class="welcome-star">✦</div></div>
-      <nav id="tabs" class="tabs" aria-label="Yetipsy Play 功能"><button data-tab="wallet" class="active">🎁 奖励</button><button data-tab="passes">🎮 游戏</button><button data-tab="staff" class="hide">员工端</button><button data-tab="owner" class="hide">Owner</button></nav>
-      <div id="wallet" class="tab-page"><div class="section-heading"><h2>MY REWARDS</h2><button id="refreshWallet" class="mini">刷新</button></div><div id="walletList" class="stack"></div><div id="redeemCustomerResult" class="result-box hide"><h3>给员工扫码兑奖</h3><canvas id="redeemQr" width="220" height="220"></canvas><p id="redeemUrl" class="break small"></p><p class="muted small" id="redeemCountdown"></p><button id="copyRedeem" class="secondary">复制兑奖链接</button></div></div>
-      <div id="passes" class="tab-page hide"><div class="section-heading"><h2>GAME PASSES</h2><button id="refreshPasses" class="mini">刷新</button></div><div class="panel"><p class="muted small">Staff 发的二维码可以在这里领取。领取后可自由选择五款游戏。Reaction 和 Stop The Bar 的成绩只用于娱乐；所有奖品均由服务器独立抽取，与成绩无关。</p><form id="claimForm"><label for="claimToken">Game Pass 领取码</label><input id="claimToken" placeholder="粘贴员工发的链接或 Token" required><button class="primary" type="submit">领取游戏机会</button></form></div><div id="passList" class="stack"></div><div id="gameArea" class="panel hide"></div><div id="gameStage" class="panel hide"><h3 id="gameTitle">GAME</h3><div id="gameVisual" class="game-visual"></div><p id="gameStatus" class="muted"></p><button id="gameRetry" class="secondary hide">恢复并提交奖励</button></div></div>
-      <div id="staff" class="tab-page hide"><div class="section-heading"><h2>STAFF WORKSPACE</h2></div>
-       <div class="panel"><h3>🎮 Generate Game Pass</h3><form id="passForm"><label for="campaign">活动 Campaign</label><select id="campaign" required></select><label for="passExpiry">扫码有效分钟（1–60）</label><input id="passExpiry" type="number" min="1" max="60" value="10" required><button class="primary" type="submit">生成顾客二维码</button></form><div id="passResult" class="result-box hide"><canvas id="passQr" width="220" height="220"></canvas><p id="passLink" class="break small"></p><button id="copyPass" class="secondary">复制领取链接</button></div></div>
-       <div class="panel"><h3>🎁 Redeem Reward</h3><p class="muted small">顾客打开钱包产生 60 秒动态 QR，员工扫码或粘贴 Token。</p><form id="lookupForm"><label for="redeemToken">兑奖 Token / URL</label><input id="redeemToken" required placeholder="粘贴兑奖链接或 Token"><button type="submit" class="secondary">检查奖励</button></form><div id="lookupResult" class="result-box hide"><p id="lookupDetails"></p><button id="confirmRedeem" class="primary" disabled>确认核销</button></div></div>
-      </div>
-      <div id="owner" class="tab-page hide"><div class="section-heading"><h2>OWNER CONTROL</h2><button id="refreshOwner" class="mini" type="button">刷新数据</button></div>
-        <div class="owner-metrics" aria-label="Owner 概览">
-          <div class="owner-metric"><span>顾客账户</span><b id="ownerCustomers">—</b></div>
-          <div class="owner-metric"><span>Game Pass</span><b id="ownerPasses">—</b></div>
-          <div class="owner-metric"><span>发放奖励</span><b id="ownerRewards">—</b></div>
-          <div class="owner-metric"><span>已核销</span><b id="ownerRedemptions">—</b></div>
-        </div>
-        <p class="muted small">累计数据；统计仅提供 Owner 查看，不在顾客端公开。</p>
-        <div class="panel"><h3>Campaign · 活动管理</h3>
-          <label for="ownerCampaign">选择活动</label><select id="ownerCampaign"></select>
-          <label class="inline-check"><input id="ownerActive" type="checkbox"> 活动开放（关闭后不再允许开始新游戏）</label>
-          <button type="button" id="ownerSaveCampaign" class="secondary">保存活动状态</button>
-          <h3 style="margin-top:23px">开放游戏</h3><div id="ownerGameSettings" class="owner-game-settings"></div>
-          <h3 style="margin-top:23px">奖励池</h3><label for="ownerPoolGame">选择游戏</label><select id="ownerPoolGame"></select>
-          <div id="ownerPoolRows" class="owner-pool-rows"></div>
-          <p class="muted small">权重为相对概率（例如 1 / 2 / 12 / 85），由服务器计算最终奖品。修改不会改变已经发出的奖励。</p>
-          <h3 style="margin-top:23px">复制活动</h3>
-          <form id="ownerCloneForm"><label for="ownerCloneName">新活动名称</label><input id="ownerCloneName" maxlength="100" minlength="2" required placeholder="例如 November Game Night"><button type="submit" class="secondary">复制当前活动并设为关闭</button></form>
-        </div>
-        <div class="panel"><h3>新建奖励</h3><form id="rewardForm"><label for="rewardName">奖励名称</label><input id="rewardName" required maxlength="120" placeholder="微醺特调系列任一杯"><label for="rewardDays">有效天数</label><input id="rewardDays" type="number" min="1" max="365" value="30" required><label class="inline-check"><input id="nextDay" type="checkbox" checked> 领取次日起才可兑换</label><button type="submit" class="primary">创建奖励</button></form></div>
-        <div class="panel"><h3>发放奖励</h3><form id="issueForm"><label for="issueCustomer">顾客（已登录账户）</label><select id="issueCustomer" required></select><label for="issueReward">奖励</label><select id="issueReward" required></select><button type="submit" class="primary">发送给顾客</button></form></div>
-        <div class="panel"><h3>当前阶段</h3><p class="muted small">当前是内部测试：五款游戏使用统一服务器中奖池（两款技巧游戏的分数不决定奖励）。高级活动排期、已验证手机号 OTP 及旧 Moon 历史数据迁移仍未完成，暂不对外开放。</p></div>
-      </div>
-    </section>
-  </main>
-  <footer>YE TIPSY · PLAY V1 PILOT <span>INTERNAL TEST</span></footer>
-  <div id="toast" role="status" aria-live="polite"></div>
+<div class="app-shell" id="appShell">
+ <header class="topbar"><div class="brandgroup"><div class="brand">YE<span class="brand-dot">·</span>TIPSY<span class="brand-star">✳</span></div><div class="brand-sub">PLAY CLUB <span class="sep-dot">·</span> KLUANG</div></div><div class="header-controls"><span class="live-dot"></span><span class="edition">MEMBERS' SPACE</span></div></header>
+ <section id="authView" class="view auth-view hide">
+  <div class="auth-ornament" aria-hidden="true"><span>✳</span><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div></div>
+  <div class="overline">WELCOME TO YETIPSY PLAY</div><h1>有趣的夜晚，<em>从这里开始。</em></h1><p class="auth-copy">一次登录，收藏属于你的游戏机会与好礼。</p>
+  <div class="auth-card">
+    <div class="auth-step" id="phoneStage">
+      <div class="overline">YOUR NUMBER · YOUR MEMBERSHIP</div>
+      <h2>加入 Yetipsy，只需一个号码。</h2>
+      <form id="phoneCheckForm">
+       <label for="phone">WhatsApp / 手机号码</label>
+       <div class="phone-row"><select id="country" aria-label="国际区号"><option value="+60">🇲🇾 +60</option><option value="+65">🇸🇬 +65</option></select><input id="phone" inputmode="tel" autocomplete="tel-national" placeholder="12 345 6789" required maxlength="16"/></div>
+       <button type="submit" id="checkPhone" class="button button-primary wide">继续 <span>↗</span></button>
+      </form>
+      <p class="tiny-help">我们会先检查你是否已有会员账户。不发送短信验证码。</p>
+    </div>
+    <form id="authForm" class="hide">
+      <div class="auth-topline"><span id="authStepTitle">WELCOME BACK</span><button id="authBack" type="button" class="linkbutton">修改号码 ↗</button></div>
+      <p class="known-phone" id="authKnownPhone"></p>
+      <div id="nicknameGroup" class="hide"><label for="nickname">你的称呼 / Nickname *</label><input id="nickname" minlength="2" maxlength="40" autocomplete="nickname" placeholder="让我们知道怎么称呼你"/></div>
+      <div id="birthdayGroup" class="hide"><label for="birthday">完整出生日期 / Date of Birth *</label><input id="birthday" type="date" autocomplete="bday" min="1900-01-01"/><p class="field-help">仅用于年龄核验、会员福利与员工协助重设 PIN，不会公开生日。</p></div>
+      <label for="pin" id="pinLabel">6 位安全 PIN *</label><div class="pin-row"><input id="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="off" placeholder="● ● ● ● ● ●" required/><button id="togglePin" type="button" class="input-action">显示</button></div>
+      <div id="confirmPinGroup" class="hide"><label for="pinConfirm">确认 6 位 PIN *</label><input id="pinConfirm" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="再输入一次 PIN"/></div>
+      <div id="consentGroup" class="hide"><label class="check-row"><input id="accepted" type="checkbox"/> 我确认已满 21 岁，并同意会员条款及隐私说明</label><label class="check-row"><input id="marketing" type="checkbox"/> 同意接收 Yetipsy 活动和福利消息（自愿）</label><button class="linkbutton" id="privacyNotice" type="button">查看会员资料使用说明 ↗</button></div>
+      <p id="pinHint" class="field-help">请输入注册时设置的 PIN。</p>
+      <button id="authSubmit" class="button button-primary wide" type="submit">登录账户 <span>↗</span></button>
+    </form><p id="authError" class="field-error" role="status" aria-live="polite"></p>
+  </div><div class="auth-footnote"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 2 4 6v5c0 5 3 9 8 11 5-2 8-6 8-11V6l-8-4Z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>没有短信验证：号码仅用于账户识别，不代表已验证号码归属。请确认手机号码并妥善保存 PIN；忘记 PIN 需到店联系员工。</span></div>
+  <button id="publicBoardFromAuth" class="linkbutton">查看本期奖品公示 →</button>
+ </section>
+ <section id="mainView" class="view main-view hide">
+  <div id="homePage" class="page">
+   <div class="home-greeting"><div><div class="overline">YOUR SPACE, YOUR MOMENT</div><h1>今晚，<br/><span>好事发生。</span></h1><p id="homeGreetingSub">YETIPSY PLAY · 轻松享受此刻</p></div><div class="greeting-symbol" aria-hidden="true">✳</div></div>
+   <div class="play-hero"><div class="play-hero-glow"></div><div class="play-herobadge">THE PLAY PASS <span>✦</span></div><h2>用一次机会<br/>解锁一份惊喜</h2><p>扫描员工提供的游戏二维码，开启今晚的挑战。</p><button id="heroScan" class="hero-cta" type="button"><span class="hero-cta-icon"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4M4 12h16"/></svg></span><span>扫码开始游戏</span><span class="hero-arrow">↗</span></button><div class="hero-bottom"><span id="homePassCount">0 次待使用机会</span><button id="openExistingPass" type="button" class="hero-inline hide">选择游戏 →</button></div></div>
+   <div class="home-shortcuts"><button id="homePrizes" type="button"><span class="shortcut-icon medal-icon">✦</span><span><strong>奖品公示</strong><small>THIS WEEK'S PRIZES</small></span><span class="shortcut-arrow">↗</span></button><button id="homeWallet" type="button"><span class="shortcut-icon ticket-icon">◈</span><span><strong>我的奖励</strong><small>YOUR COLLECTION</small></span><span class="shortcut-arrow">↗</span></button></div>
+   <div class="home-quote"><span>“</span>GOOD NIGHTS. GOOD SURPRISES.<span>”</span></div>
+  </div>
+  <div id="walletPage" class="page hide"><div class="section-top"><div class="overline">YOUR COLLECTION</div><h1>我的奖励</h1><p>每一份幸运，都帮你妥善收好。</p></div><div class="wallet-summary"><div><span>可使用奖励</span><b id="availableRewards">—</b></div><span class="wallet-summary-icon">✳</span></div><div class="section-row"><h2>REWARDS</h2><button id="walletRefresh" class="text-cta">刷新 <span>↻</span></button></div><div id="walletItems" class="item-stack"></div></div>
+  <div id="accountPage" class="page hide"><div class="section-top"><div class="overline">MEMBER PROFILE</div><h1>我的账户</h1><p>属于你自己的 Yetipsy 小天地。</p></div><div class="profile-card"><div class="avatar">Y<span>✦</span></div><div><strong id="profileName">Yetipsy Member</strong><p id="profilePhone">•••• ••••</p><div id="profileLevel" class="member-label">PLAY CLUB MEMBER</div></div></div><div class="account-actions"><button id="accountPrizes" type="button"><span>✧</span> 奖品公示 <i>↗</i></button><button id="accountChangePin" type="button"><span>⌁</span> 修改登录 PIN <i>↗</i></button><button id="accountScan" type="button"><span>▣</span> 领取游戏 / 奖励 <i>↗</i></button><button id="accountStaff" type="button" class="hide"><span>✦</span> 员工工作台 <i>↗</i></button><button id="accountOwner" type="button" class="hide"><span>⚙</span> Owner 管理后台 <i>↗</i></button><button id="signOut" type="button" class="danger-item"><span>⏻</span> 安全退出 <i>↗</i></button></div><div class="account-foot">Yetipsy Play · v1.1<br/>PIN 忘记后不能凭手机号自行重设，请联系店主。</div></div>
+  <nav class="bottom-nav" aria-label="主导航"><button data-page="home" class="active"><span class="navicon">⌂</span><span>首页</span></button><button data-page="wallet"><span class="navicon">▤</span><span>奖励</span></button><button data-page="account"><span class="navicon">◉</span><span>我的</span></button></nav>
+ </section>
+ <section id="workspaceView" class="view workspace-view hide"><div class="workspace-header"><button id="workspaceBack" type="button" class="back-button">←</button><div><div id="workspaceOverline" class="overline">OPERATIONS</div><h1 id="workspaceHeading">管理工作台</h1></div><span class="work-chip" id="workChip">STAFF</span></div>
+  <div id="staffTools" class="work-section"><div class="work-stat"><strong>FAST ACTIONS</strong><span>扫码优先，减少手动操作</span></div><div class="work-grid"><button id="staffResetOpen" class="work-card"><span class="work-card-icon">⌁</span><b>协助重设 PIN</b><small>IDENTITY CHECK</small></button><button id="staffGenerateOpen" class="work-card"><span class="work-card-icon">▣</span><b>发游戏码</b><small>CREATE GAME PASS</small></button><button id="staffRedeemOpen" class="work-card"><span class="work-card-icon">◇</span><b>扫一扫核销</b><small>SCAN TO REDEEM</small></button></div><div class="work-panel hide" id="staffResetPanel"><h3>员工协助重设 PIN</h3><p class="soft-text">仅限顾客本人到店，核对完整生日并完成额外的现场身份检查。员工无法看到旧 PIN。</p><form id="staffResetForm"><label for="staffResetCountry">区号</label><select id="staffResetCountry"><option value="+60">🇲🇾 +60</option><option value="+65">🇸🇬 +65</option></select><label for="staffResetPhone">顾客手机号</label><input id="staffResetPhone" inputmode="tel" autocomplete="off" required placeholder="顾客提供的手机号"/><label for="staffResetBirthday">顾客完整生日</label><input id="staffResetBirthday" type="date" min="1900-01-01" required/><label class="check-row"><input id="onsiteConfirmed" type="checkbox" required/> 我已现场核对顾客本人及额外身份证明资料</label><button class="button button-primary wide" type="submit">生成 5 分钟有效重设 QR <span>↗</span></button></form></div><div class="work-panel hide" id="staffGeneratePanel"><h3>发放 Game Pass</h3><label for="staffCampaign">活动</label><select id="staffCampaign"></select><label for="staffExpiry">扫码有效分钟</label><input id="staffExpiry" type="number" value="10" min="1" max="60"/><button id="staffGenerate" class="button button-primary wide">生成游戏 QR <span>↗</span></button></div><div class="work-panel hide" id="staffRedeemPanel"><h3>核销奖励</h3><button id="staffScanRedemption" class="button button-outline wide">▣ 打开相机扫描</button><div class="divider-or">或粘贴二维码 / 条形码内容</div><input id="staffRedeemInput" placeholder="扫描或粘贴兑奖凭证"/><button id="staffRedeemCheck" class="button button-primary wide">检查兑奖资格</button><div id="staffLookupBox" class="lookup-box hide"></div></div></div>
+  <div id="ownerTools" class="work-section hide"><div class="workspace-tabs"><button data-worktab="issue" class="active">发奖中心</button><button data-worktab="campaigns">活动概率</button><button data-worktab="team">员工权限</button><button data-worktab="insights">数据概览</button></div>
+   <div id="ownerIssueTab" class="owner-tab"><div class="work-panel"><div class="panel-title"><span class="panel-icon">✳</span><div><h3>创建任意奖品</h3><p>不是只能选择固定奖励，写什么都可以。</p></div></div><form id="newRewardForm"><label>奖品名称</label><input id="rewardTitle" maxlength="120" placeholder="例如：今晚任意 Shot ×1" required/><label>奖品说明 / 使用条款</label><textarea id="rewardDesc" maxlength="1000" rows="3" placeholder="例如：仅供到店使用，不可折现"></textarea><div class="form-row"><div><label>奖品类型</label><select id="rewardCategory"><option value="drink">饮品 / DRINK</option><option value="voucher">代金券 / VOUCHER</option><option value="event">活动 / EVENT</option><option value="gift">礼品 / GIFT</option><option value="custom">其他 / CUSTOM</option></select></div><div><label>有效天数</label><input id="rewardValidity" type="number" min="1" max="365" value="30" required/></div></div><label class="check-row"><input id="rewardNextDay" type="checkbox" checked/> 仅限领取次日起可用</label><div class="form-row"><div><label>指定可用开始日时</label><input id="rewardStart" type="datetime-local"/></div><div><label>指定可用截止日时</label><input id="rewardEnd" type="datetime-local"/></div></div><div class="form-row"><div><label>每日开始时间（选填）</label><input id="rewardDailyFrom" type="time"/></div><div><label>每日结束时间（选填）</label><input id="rewardDailyUntil" type="time"/></div></div><button class="button button-primary wide" type="submit">创建奖品 <span>＋</span></button></form></div>
+    <div class="work-panel"><div class="panel-title"><span class="panel-icon">◈</span><div><h3>ISSUE REWARD</h3><p>选定奖品后，可直接发给顾客，或生成公开领取 QR。</p></div></div><label>选择奖品</label><select id="issueReward"></select><div class="segmented" id="issueMethod"><button data-issue="qr" class="active">扫码领取</button><button data-issue="direct">直接发放</button></div><div id="offerFields"><div class="form-row"><div><label>领取开始</label><input id="offerFrom" type="datetime-local"/></div><div><label>领取截止</label><input id="offerUntil" type="datetime-local"/></div></div><div class="form-row"><div><label>总可领取次数</label><input id="offerTotal" type="number" value="10" min="1" max="10000"/></div><div><label>每账户领取次数</label><input id="offerPerUser" type="number" value="1" min="1" max="10"/></div></div><button id="createOffer" class="button button-primary wide">生成奖励领取 QR <span>↗</span></button></div><div id="directIssueFields" class="hide"><label>指定顾客</label><select id="directCustomer"></select><button id="directIssue" class="button button-primary wide">确认发给该顾客 <span>↗</span></button></div></div>
+    <div class="work-panel"><h3>奖品公示</h3><p class="soft-text">顾客会看到当前奖品、兑换说明及真实可获得概率。</p><button id="ownerOpenPrizes" class="button button-outline wide">查看公示页面 →</button></div>
+   </div>
+   <div id="ownerCampaignTab" class="owner-tab hide"><div class="work-panel"><h3>活动配置</h3><label>选择 Campaign</label><select id="ownerCampaign"></select><label class="check-row"><input id="ownerCampaignActive" type="checkbox"/> 活动开放</label><button id="saveCampaign" class="button button-outline wide">保存活动状态</button><h4>开放哪些游戏？</h4><div id="gameToggles" class="toggle-list"></div><h4>选择游戏奖池</h4><select id="poolGame"></select><p class="soft-text">概率 = 当前权重 ÷ 本游戏全部可用权重。若达到奖品库存上限，服务器会自动从奖池排除。</p><div id="poolEditor" class="pool-editor"></div></div><div class="work-panel"><h3>复制活动</h3><p class="soft-text">复制目前五款游戏及奖励池，新的活动默认关闭。</p><input id="cloneName" placeholder="例如：Friday Night Special"/><button id="cloneCampaign" class="button button-outline wide">复制为新活动</button></div></div>
+   <div id="ownerTeamTab" class="owner-tab hide"><div class="work-panel"><div class="panel-title"><span class="panel-icon">⌁</span><div><h3>员工权限管理</h3><p>先让员工自行注册手机号 + PIN，再将其账号设为 Staff。</p></div></div><label for="staffMember">选择已注册会员</label><select id="staffMember"></select><button id="staffAccessGrant" class="button button-primary wide" type="button">设为 Staff / 恢复权限</button><h4>当前员工</h4><div id="staffRoleList" class="staff-role-list"></div><p class="tiny-help">可以停用 Staff，但不能通过此页面提升为 Owner。</p></div></div>
+   <div id="ownerInsightsTab" class="owner-tab hide"><div class="work-panel"><h3>运营概览</h3><div class="insight-grid"><div><b id="statCustomers">—</b><span>顾客账户</span></div><div><b id="statPasses">—</b><span>游戏机会</span></div><div><b id="statRewards">—</b><span>奖励发出</span></div><div><b id="statRedeems">—</b><span>核销数量</span></div></div><button id="reloadInsights" class="button button-outline wide">刷新报表</button></div></div>
+  </div>
+ </section>
+ <footer id="siteFooter" class="site-footer">© YETIPSY · ALL GOOD THINGS ARE SHARED.</footer>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" defer></script>
+<div id="sheetBackdrop" class="sheet-backdrop hide"><section class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="sheet-handle"></div><div class="sheet-head"><div><div class="overline" id="sheetEyebrow">YETIPSY PLAY</div><h2 id="sheetTitle">操作</h2></div><button class="sheet-close" id="sheetClose" aria-label="关闭">×</button></div><div id="sheetBody"></div></section></div>
+<div id="toast" role="status" aria-live="polite"></div>
 <script src="./config.js"></script><script type="module" src="./app.js"></script>
 </body></html>
