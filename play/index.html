@@ -25,10 +25,10 @@
       <div class="auth-topline"><span id="authStepTitle">WELCOME BACK</span><button id="authBack" type="button" class="linkbutton">修改号码 ↗</button></div>
       <p class="known-phone" id="authKnownPhone"></p>
       <div id="nicknameGroup" class="hide"><label for="nickname">你的称呼 / Nickname *</label><input id="nickname" minlength="2" maxlength="40" autocomplete="nickname" placeholder="让我们知道怎么称呼你"/></div>
-      <div id="birthdayGroup" class="hide"><label for="birthday">完整出生日期 / Date of Birth *</label><input id="birthday" type="date" autocomplete="bday" min="1900-01-01"/><p class="field-help">仅用于年龄核验、会员福利与员工协助重设 PIN，不会公开生日。</p></div>
+      <div id="birthdayGroup" class="hide"><label for="birthday">完整出生日期 / Date of Birth *</label><input id="birthday" type="date" autocomplete="bday"/><p class="field-help">仅用于会员资料、生日福利与员工协助重设 PIN，不会公开生日。</p></div>
       <label for="pin" id="pinLabel">6 位安全 PIN *</label><div class="pin-row"><input id="pin" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="off" placeholder="● ● ● ● ● ●" required/><button id="togglePin" type="button" class="input-action">显示</button></div>
       <div id="confirmPinGroup" class="hide"><label for="pinConfirm">确认 6 位 PIN *</label><input id="pinConfirm" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="再输入一次 PIN"/></div>
-      <div id="consentGroup" class="hide"><label class="check-row"><input id="accepted" type="checkbox"/> 我确认已满 21 岁，并同意会员条款及隐私说明</label><label class="check-row"><input id="marketing" type="checkbox"/> 同意接收 Yetipsy 活动和福利消息（自愿）</label><button class="linkbutton" id="privacyNotice" type="button">查看会员资料使用说明 ↗</button></div>
+      <div id="consentGroup" class="hide"><button class="linkbutton" id="privacyNotice" type="button">查看会员资料使用说明 ↗</button></div>
       <p id="pinHint" class="field-help">请输入注册时设置的 PIN。</p>
       <button id="authSubmit" class="button button-primary wide" type="submit">登录账户 <span>↗</span></button>
     </form><p id="authError" class="field-error" role="status" aria-live="polite"></p>
@@ -62,5 +62,5 @@
 </div>
 <div id="sheetBackdrop" class="sheet-backdrop hide"><section class="bottom-sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"><div class="sheet-handle"></div><div class="sheet-head"><div><div class="overline" id="sheetEyebrow">YETIPSY PLAY</div><h2 id="sheetTitle">操作</h2></div><button class="sheet-close" id="sheetClose" aria-label="关闭">×</button></div><div id="sheetBody"></div></section></div>
 <div id="toast" role="status" aria-live="polite"></div>
-<script src="./config.js"></script><script type="module" src="./app.js"></script>
+<script src="./config.js"></script><script type="module" src="./app.js?v=20261008-noage1"></script>
 </body></html>

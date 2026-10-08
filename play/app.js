@@ -53,7 +53,7 @@ function changeAuthMode(mode='phone'){
  $('birthdayGroup').classList.toggle('hide',!signup);
  $('confirmPinGroup').classList.toggle('hide',!signup);
  $('consentGroup').classList.toggle('hide',!signup);
- $('nickname').required=signup;$('birthday').required=signup;$('pinConfirm').required=signup;$('accepted').required=signup;
+ $('nickname').required=signup;$('birthday').required=signup;$('pinConfirm').required=signup;
  if(mode!=='phone'){$('authKnownPhone').textContent=state.checkedPhone;$('authStepTitle').textContent=signup?'JOIN YETIPSY · ONE LAST STEP':'WELCOME BACK · MEMBER SIGN-IN';}
  $('authSubmit').innerHTML=signup?'完成注册并加入 <span>↗</span>':'安全登录 <span>↗</span>';
  $('pinLabel').textContent=signup?'设置 6 位安全 PIN *':'你的 6 位 PIN *';
@@ -81,8 +81,7 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
    if($('pinConfirm').value!==pin)throw Error('两次 PIN 不一致');
    if($('nickname').value.trim().length<2)throw Error('请填写你的称呼');
    if(!$('birthday').value)throw Error('请选择完整出生日期');
-   if(!$('accepted').checked)throw Error('请阅读并同意会员条款和隐私说明');
-   extras={birthday:$('birthday').value,accepted:true,marketing:$('marketing').checked};
+   extras={birthday:$('birthday').value};
   }
   const data=await pinRequest(state.loginMode,phone,pin,$('nickname').value.trim(),extras);
   const {error}=await db.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
@@ -325,7 +324,7 @@ function bindEvents(){
  $('phoneCheckForm').addEventListener('submit',submitPhone);$('authForm').addEventListener('submit',submitAuth);$('authBack').onclick=()=>changeAuthMode('phone');
  $('togglePin').onclick=()=>{const field=$('pin');field.type=field.type==='password'?'text':'password';$('togglePin').textContent=field.type==='password'?'显示':'隐藏';};
  for(const b of document.querySelectorAll('[data-page]'))b.onclick=()=>navigate(b.dataset.page);
- $('heroScan').onclick=()=>openScanner('claim');$('accountChangePin').onclick=()=>changeMyPin().catch(e=>toast(errorText(e),true));$('privacyNotice').onclick=()=>{showSheet('会员隐私与资料用途','YETIPSY PLAY');sheetHtml('<div class="sheet-content"><p>我们收集手机号码、昵称、完整出生日期和会员活动记录，用于账户登录、年龄检查、会员福利、奖品发放及现场身份核验。手机号目前不通过短信验证。</p><p>PIN 由服务器保护，员工无法查看。生日不会在公开奖品榜或其他顾客页面展示。奖励及核销操作会保留必要记录。</p><p>营销消息为自愿选项，可向店主申请修改。需要更正资料或查询删除安排，请到 Yetipsy 联系店主。</p><p>继续注册表示你已阅读本说明。</p></div>');};$('openExistingPass').onclick=()=>existingGamePass().catch(e=>toast(errorText(e),true));
+ $('heroScan').onclick=()=>openScanner('claim');$('accountChangePin').onclick=()=>changeMyPin().catch(e=>toast(errorText(e),true));$('privacyNotice').onclick=()=>{showSheet('会员隐私与资料用途','YETIPSY PLAY');sheetHtml('<div class="sheet-content"><p>我们收集手机号码、昵称、完整出生日期和会员活动记录，用于账户登录、会员资料、会员福利、奖品发放及员工协助重设 PIN。手机号目前不通过短信验证。</p><p>PIN 由服务器保护，员工无法查看。生日不会在公开奖品榜或其他顾客页面展示。奖励及核销操作会保留必要记录。</p><p>注册不要求额外勾选同意，也不会自动订阅营销消息。需要更正资料、查询处理方式或删除安排，请到 Yetipsy 联系店主。</p></div>');};$('openExistingPass').onclick=()=>existingGamePass().catch(e=>toast(errorText(e),true));
  $('homePrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));$('accountPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));$('publicBoardFromAuth').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('homeWallet').onclick=()=>navigate('wallet');$('walletRefresh').onclick=()=>wallet().catch(e=>toast(errorText(e),true));$('accountScan').onclick=()=>openScanner('claim');
  $('accountStaff').onclick=()=>openWorkspace('staff');$('accountOwner').onclick=()=>openWorkspace('owner');
