@@ -1,1 +1,39 @@
-
+<!doctype html>
+<html lang="zh-Hans">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · POS V1</title><link rel="stylesheet" href="./pos.css"></head>
+<body>
+<header class="site-head"><div class="logo">YE<span>·</span>TIPSY<small>POINT OF SALE · KLUANG</small></div><div class="site-head-actions"><span id="accountName" class="account-tag">WORK ACCOUNT</span><button type="button" id="logout" class="quiet hidden">退出</button></div></header>
+<main class="root">
+<section id="signin" class="signin card"><p class="kicker">STAFF & CASHIER ACCOUNT</p><h1>把每一单，接得漂亮。</h1><p class="muted">使用 Yetipsy Play 已有的独立工作账号登录，无须新建账号。</p><form id="signinForm" class="stack"><label>Username / 用户名<input id="username" autocomplete="username" spellcheck="false" required placeholder="owner / 员工账号"></label><label>Password / 密码<input type="password" id="password" required autocomplete="current-password" placeholder="输入工作密码"></label><button class="main-button" type="submit" id="signinBtn">登录 POS 工作台 ↗</button></form><p class="muted smaller">首次登录请先在原来的 Owner／Staff 后台更换临时密码。Cashier 权限由 Owner 指派。</p></section>
+<section id="dashboard" class="hidden">
+ <div class="intro"><div><p class="kicker">LIVE SERVICE WORKSPACE</p><h1>Yetipsy POS <span>V1</span></h1><p class="muted">先开单 · Cashier 审核 · 出品 · 最后结账</p></div><div id="permissionPill" class="pill">STAFF</div></div>
+ <div class="alert-card hidden" id="pendingBanner" role="status"><div><strong id="pendingBannerTitle">有新的订单需要接受</strong><p id="pendingBannerText">Cashier 请检查顾客订单。</p></div><button id="jumpPending" class="gold-button" type="button">立即查看 →</button></div>
+ <nav class="tabs" id="nav" aria-label="POS 操作页面"></nav>
+ <section id="tab-create" class="tab-view">
+   <div class="two-column">
+    <article class="card"><div class="block-head"><div><p class="kicker">CREATE NEW ORDER</p><h2>选择产品</h2></div><span class="mini-chip">按产品计价</span></div>
+     <div class="filters"><input id="searchProduct" type="search" placeholder="搜索饮品 / 产品系列" aria-label="搜索产品"><select id="categoryProduct" aria-label="产品类别"><option value="">全部类别</option></select></div>
+     <div id="catalog" class="catalog"><div class="empty">正在加载产品…</div></div>
+    </article>
+    <article class="card checkout-card"><div class="block-head"><div><p class="kicker">CURRENT BILL</p><h2>本次开单</h2></div><span id="cartCount" class="mini-chip">0 件</span></div>
+     <label>桌号 / Table<input id="tableInput" placeholder="如 A03 / Walk-in" maxlength="32"></label><label>备注 / Note<textarea id="orderNote" rows="2" maxlength="600" placeholder="如：少冰、减少甜度"></textarea></label>
+     <div id="cartRows" class="cart-rows"><div class="empty">请先选择产品。</div></div>
+     <div class="summary"><span>订单总额</span><strong id="cartTotal">RM0.00</strong></div>
+     <label id="cashierCreateChoice" class="checkline hidden"><input id="cashierDirect" type="checkbox"> <span>由 Cashier 直接开单：自动接受，无需订单审核，也不生成额外 Order Chit</span></label>
+     <p id="createHint" class="field-note">Staff 提交后将进入 Cashier 的待接受队列。未接受前不能进行出品结算。</p>
+     <button type="button" id="createOrderBtn" class="main-button">提交订单 →</button>
+     <p class="field-note">当前是内部 POS 测试版：只记录账单，不会在此页面实际扣款，也不会自动发游戏奖励。</p>
+    </article>
+   </div>
+ </section>
+ <section id="tab-pending" class="tab-view hidden"><article class="card"><div class="block-head"><div><p class="kicker">CASHIER APPROVAL QUEUE</p><h2>待接受的新订单 <span id="pendingCount" class="count">0</span></h2></div><button type="button" class="quiet" id="refreshPending">刷新</button></div><p class="muted">Staff 提交的订单会在这里出现。点击接受后才进入出品；Cashier 自己开的单不会出现在这里。</p><div id="pendingList" class="orders-list"></div></article></section>
+ <section id="tab-orders" class="tab-view hidden"><article class="card"><div class="block-head"><div><p class="kicker">SERVICE & PAYMENT</p><h2>现场订单</h2></div><button type="button" class="quiet" id="refreshOrders">刷新</button></div><div id="activeList" class="orders-list"></div></article></section>
+ <section id="tab-history" class="tab-view hidden"><article class="card"><div class="block-head"><div><p class="kicker">PAID RECEIPTS</p><h2>已结账记录</h2></div><button type="button" class="quiet" id="refreshHistory">刷新</button></div><div id="paidList" class="orders-list"></div></article></section>
+ <section id="tab-admin" class="tab-view hidden">
+  <div class="two-column"><article class="card"><p class="kicker">OWNER / PRODUCT CATALOG</p><h2>产品与价格</h2><form id="productForm" class="stack"><input type="hidden" id="productId"><label>产品名称<input id="productName" maxlength="100" required placeholder="例如 冰岛 Tower"></label><label>系列／类别<input id="productCategory" maxlength="40" required placeholder="例如 TOWER / COCKTAIL"></label><div class="pair"><label>价格 RM<input type="number" step="0.01" min="0" max="5000" id="productPrice" required></label><label>排序<input type="number" min="0" max="100000" id="productSort" value="100" required></label></div><label class="checkline"><input id="productActive" type="checkbox" checked> <span>允许下单</span></label><button class="main-button" type="submit">保存产品</button><button id="clearProduct" type="button" class="quiet">清空编辑</button></form><div id="productAdminList" class="product-admin-list"></div></article><article class="card"><p class="kicker">OWNER / CASHIER RIGHTS</p><h2>Cashier 权限</h2><p class="muted">Owner 拥有 Cashier 权限；可以把 Cashier 权限授予指定 Staff。普通 Staff 仍可点单，但不能接受订单或收款。</p><div id="staffRights" class="staff-rights"></div><hr><p class="kicker">FUTURE ENTITLEMENTS</p><h3>按产品系列发权益</h3><p class="muted">数据库已预留每杯／每份产品的独立领取单位。游戏次数、Tower 分享规则及积分返还要由 Owner 后续设定；此版本不会擅自发放权益。</p></article></div>
+ </section>
+</section>
+</main>
+<div id="notice" class="toast hidden" role="status" aria-live="polite"></div>
+<script src="../config.js"></script><script type="module" src="./pos.js?v=20261008-pos-v1"></script>
+</body></html>
