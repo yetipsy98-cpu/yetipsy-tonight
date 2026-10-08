@@ -178,36 +178,229 @@ async function showSimpleSuccess(title,reward,sub){showSheet(title,'REWARD SAVED
 
 const symbols={'moon-dice':'⚄','mystery-card':'✦','mystery-box':'◈','reaction-test':'⚡','stop-the-bar':'◎'};
 const titles={'moon-dice':['幸运骰子','SHAKE YOUR LUCK'],'mystery-card':['神秘翻牌','CHOOSE YOUR DESTINY'],'mystery-box':['神秘礼盒','UNBOX A SURPRISE'],'reaction-test':['反应挑战','BEAT YOUR REFLEX'],'stop-the-bar':['精准挑战','FIND THE PERFECT SPOT']};
-async function chooseGame(pass){await loadGames();const ids=unpack(await db.from('campaign_games').select('game_id').eq('campaign_id',pass.campaign_id)).map(x=>x.game_id);const available=state.games.filter(g=>ids.includes(g.id));if(!available.length)throw Error('该活动暂时没有开放的游戏');showSheet('选择你的游戏','ONE PASS · ONE GAME');const body=$('sheetBody');const root=document.createElement('div');root.className='sheet-content';root.innerHTML='<p>你已拥有一次游戏机会。选定游戏后才会正式开始；每个 Game Pass 只能使用一次。</p><div class="choice-grid" id="gameChoices"></div>';
- for(const g of available){const b=document.createElement('button');b.className='choice-card';b.innerHTML=`<span class="symbol">${symbols[g.slug]||'✦'}</span><strong>${esc(titles[g.slug]?.[0]||g.title)}</strong><small>${esc(titles[g.slug]?.[1]||'YETIPSY PLAY')}</small>`;b.onclick=()=>pending(b,()=>startGame(pass,g));root.querySelector('#gameChoices').append(b);}body.append(root);}
-function diceElement(n){const patterns={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};return `<div class="dice-cube">${(patterns[n]||[]).map(i=>`<i class="pip p${i}"></i>`).join('')}</div>`;}
-function diceResult(tier){const n=tier==='R5'?5:tier==='R4'?4:tier==='R3'?3:Math.floor(Math.random()*3);const a=Array(n).fill(1);while(a.length<5)a.push(2+Math.floor(Math.random()*5));for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function arena(label,visual,foot=''){const body=$('sheetBody');body.innerHTML=`<div class="sheet-content"><div class="game-arena"><div class="arena-label">${esc(label)}</div><div id="gameVisual">${visual}</div><div class="game-foot" id="gameFoot">${esc(foot)}</div></div><p class="tiny-help" id="gameProgress">游戏动画在设备本地运行，结果由服务器安全保存。</p></div>`;return $('gameVisual');}
-const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-async function playDice(tier){const faces=diceResult(tier);const v=arena('MOON DICE · 五颗幸运骰子',`<div class="dice-collection">${[1,2,3,4,5].map(diceElement).join('')}</div>`,'杯中一摇，好事发生');v.querySelectorAll('.dice-cube').forEach(el=>el.classList.add('spin'));
- await sleep(2500);v.innerHTML=`<div class="dice-collection">${faces.map(diceElement).join('')}</div>`;$('gameFoot').textContent=`出现 ${faces.filter(n=>n===1).length} 颗「1」 · 完成`;}
-async function playPick(isCard){const msg=isCard?'PICK ONE CARD':'CHOOSE YOUR BOX';let elements='';for(let i=0;i<3;i++)elements+=isCard?`<button class="foil-card" data-pick="${i}"><span>✳</span><small>YETIPSY</small></button>`:`<button class="gift-box" data-pick="${i}"><span>✦</span></button>`;
- const v=arena(msg,`<div class="game-picks">${elements}</div>`,'挑一张，打开你的惊喜');await new Promise(resolve=>{let done=false;const timer=setTimeout(()=>finish(-1),30000);function finish(n){if(done)return;done=true;clearTimeout(timer);v.querySelectorAll('[data-pick]').forEach((b,i)=>{b.disabled=true;if(i===n)b.classList.add(isCard?'reveal':'selected');});$('gameFoot').textContent=n<0?'自动揭晓你的礼物':'解锁成功 · 幸运已开启';setTimeout(resolve,800);}v.querySelectorAll('[data-pick]').forEach((b,i)=>b.onclick=()=>finish(i));});}
-async function playReaction(){const v=arena('REACTION TEST',`<button id="reactionTap" class="reaction-button" type="button">WAIT…</button>`,'看到绿色时立即点击，不要抢跑');const b=v.querySelector('button');const measurement=await new Promise(resolve=>{let done=false,greenAt=0;const timer=setTimeout(()=>{if(done)return;greenAt=performance.now();b.classList.add('go');b.textContent='TAP NOW!';},1300+Math.random()*1700);const max=setTimeout(()=>end('TIME OUT'),9500);function end(text){if(done)return;done=true;clearTimeout(timer);clearTimeout(max);b.disabled=true;resolve(text);}b.onclick=()=>greenAt?end(Math.round(performance.now()-greenAt)+' ms'):end('FALSE START');});$('gameFoot').textContent=measurement+' · 仅供娱乐';}
-async function playStopBar(){const v=arena('STOP THE BAR',`<div class="bar-track"><div class="bar-target"></div><div class="bar-marker" id="marker"></div></div><button class="button button-outline" id="stopBtn" type="button" style="margin-top:22px;min-width:180px">STOP!</button>`,'把金色光标停在最中间');const marker=v.querySelector('#marker'),btn=v.querySelector('#stopBtn');const start=performance.now();let raf=0,position=0;const score=await new Promise(resolve=>{let done=false;function tick(now){if(done)return;let phase=((now-start)/1700)%2;position=phase<=1?phase:2-phase;marker.style.left=(position*100)+'%';raf=requestAnimationFrame(tick);}function end(){if(done)return;done=true;cancelAnimationFrame(raf);clearTimeout(timeout);btn.disabled=true;resolve(Math.max(0,Math.round((1-Math.abs(.5-position)*2)*100)));}raf=requestAnimationFrame(tick);btn.onclick=end;const timeout=setTimeout(end,9500);});$('gameFoot').textContent=`ACCURACY ${score}% · 奖励独立抽取`;}
-function fireworks(){const wrap=document.createElement('div');wrap.className='game-confetti';for(let i=0;i<26;i++){const dot=document.createElement('i');dot.style.left=(Math.random()*100)+'%';dot.style.animationDelay=(Math.random()*.55)+'s';dot.style.background=i%3?'#e3c190':'#f8efe2';wrap.append(dot);}return wrap;}
-async function showGameWon(name){showSheet('好事已经发生','REWARD UNLOCKED');sheetHtml(`<div class="sheet-content"><div class="game-arena" id="wonArena"><span class="game-result-star">✳</span><div class="game-result-name">${esc(name)}</div><div class="game-result-sub">奖励已存进你的钱包</div></div><button class="button button-primary wide" id="goWalletFromGame">查看我的奖励 ↗</button><p class="tiny-help">以奖励钱包里的开始、截止时间为准，到店出示动态 QR 核销。</p></div>`);$('wonArena').append(fireworks());$('goWalletFromGame').onclick=()=>{closeSheet();navigate('wallet');};}
-async function startGame(pass,g){if(state.gamePlaying)throw Error('游戏进行中，请勿重复点击');state.gamePlaying=true;let session=null;
+const gameTips={
+ 'moon-dice':'亲手摇动五颗骰子，等待骰盅停下来，数数你摇出了多少颗「1」。',
+ 'mystery-card':'四张命运卡，只有一次选择机会。翻开属于你的今日签语。',
+ 'mystery-box':'从三份神秘礼盒中选一个，再亲手打开，看看藏着什么惊喜讯息。',
+ 'reaction-test':'挑战三回合反应力。等按钮变绿再点击，记录你的最佳反应时间。',
+ 'stop-the-bar':'三次机会，把移动的光标停在金色目标区，挑战最高精准度。'
+};
+let gameAudioOn=false, gameAudioCtx=null;
+try{gameAudioOn=localStorage.getItem('yt-play-game-sound')==='on';}catch{}
+function gameHaptic(ms=24){try{navigator.vibrate?.(ms);}catch{}}
+function gameSound(kind='tap'){
+ if(!gameAudioOn)return;
  try{
-  const rows=unpack(await db.rpc('yt_start_game',{p_pass:pass.id,p_game:g.id}));if(!rows?.length)throw Error('无法开启游戏');session=rows[0];state.activeSession=session;
-  showSheet(titles[g.slug]?.[0]||g.title,'LET THE GAME BEGIN');
-  if(g.slug==='moon-dice')await playDice(session.result_key);
-  else if(g.slug==='mystery-card')await playPick(true);
-  else if(g.slug==='mystery-box')await playPick(false);
-  else if(g.slug==='reaction-test')await playReaction();
-  else if(g.slug==='stop-the-bar')await playStopBar();
-  else throw Error('游戏暂时不可用');
-  $('gameProgress').innerHTML='<span class="spinner" style="display:inline-block;vertical-align:middle"></span> 正在确认并保存你的奖励…';
-  const rowsDone=unpack(await db.rpc('yt_finish_game',{p_session:session.session_id}));if(!rowsDone?.length)throw Error('奖励暂未存档，请点击恢复');
-  state.activeSession=null;await Promise.all([wallet(true),refreshPasses()]);await showGameWon(rowsDone[0].reward_name);
- }catch(e){if(session){showSheet('网络连接不稳定','RESUME PLAY');sheetHtml('<div class="sheet-content"><p>游戏记录保存在服务器。你可以继续提交，不会重复扣除游戏机会或重复发奖。</p><button id="resumeGame" class="button button-primary wide">恢复并领取奖励</button></div>');$('resumeGame').onclick=()=>pending($('resumeGame'),async()=>{const done=unpack(await db.rpc('yt_finish_game',{p_session:session.session_id}));if(!done?.length)throw Error('还无法结算，请稍后重试');state.activeSession=null;await Promise.all([wallet(true),refreshPasses()]);await showGameWon(done[0].reward_name);});}throw e;}
- finally{state.gamePlaying=false;}
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  gameAudioCtx??=new AC();if(gameAudioCtx.state==='suspended')gameAudioCtx.resume().catch(()=>{});
+  const notes=kind==='win'?[660,880,990]:kind==='tick'?[425]:kind==='stop'?[540,690]:[480,610];
+  notes.forEach((freq,i)=>{const t=gameAudioCtx.currentTime+i*.105,osc=gameAudioCtx.createOscillator(),gain=gameAudioCtx.createGain();osc.type='sine';osc.frequency.setValueAtTime(freq,t);gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.055,t+.018);gain.gain.exponentialRampToValueAtTime(.0001,t+.18);osc.connect(gain).connect(gameAudioCtx.destination);osc.start(t);osc.stop(t+.19);});
+ }catch{}
 }
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function stageMeta(step='01',label='PLAY'){return `<div class="yt-play-top"><span class="yt-play-step">${esc(step)} / 03</span><span class="yt-play-kicker">${esc(label)}</span><button type="button" id="ytSoundToggle" class="yt-sound-toggle" aria-label="切换游戏音效">${gameAudioOn?'♪ 声音开':'♪ 静音'}</button></div>`;}
+function attachSound(){const button=$('ytSoundToggle');if(!button)return;button.onclick=()=>{gameAudioOn=!gameAudioOn;try{localStorage.setItem('yt-play-game-sound',gameAudioOn?'on':'off');}catch{}button.textContent=gameAudioOn?'♪ 声音开':'♪ 静音';gameSound();};}
+function arena(label,visual,foot=''){
+ $('sheetBody').innerHTML=`<div class="sheet-content yt-play-content">${stageMeta('02','NOW PLAYING')}<div class="game-arena yt-premium-arena"><div class="yt-orbit yt-orbit-one"></div><div class="yt-orbit yt-orbit-two"></div><div class="arena-label">${esc(label)}</div><div id="gameVisual" class="yt-game-visual">${visual}</div><div class="game-foot" id="gameFoot" aria-live="polite">${esc(foot)}</div></div><p class="tiny-help yt-game-hint" id="gameProgress">互动结束后会先展示本局结果，奖品将在你点击揭晓后出现。</p></div>`;
+ attachSound();return $('gameVisual');
+}
+function foot(text){const el=$('gameFoot');if(el)el.textContent=text;}
+async function chooseGame(pass){
+ await loadGames();const ids=unpack(await db.from('campaign_games').select('game_id').eq('campaign_id',pass.campaign_id)).map(x=>x.game_id);
+ const available=state.games.filter(g=>ids.includes(g.id));if(!available.length)throw Error('该活动暂时没有开放的游戏');
+ showSheet('选一场今晚的小游戏','ONE PASS · YOUR CHOICE');
+ const root=document.createElement('div');root.className='sheet-content yt-game-selection';root.innerHTML='<div class="yt-selection-header"><div class="yt-mini-symbol">✳</div><h2>挑一个，玩出今晚的故事。</h2><p>每张 Game Pass 只有一次机会。预览玩法不会消耗机会，点击「正式开始」才使用。</p></div><div class="choice-grid yt-choice-grid" id="gameChoices"></div>';
+ for(const g of available){const b=document.createElement('button');b.className='choice-card yt-choice-card';b.innerHTML=`<span class="yt-choice-number">${String(available.indexOf(g)+1).padStart(2,'0')}</span><span class="symbol">${symbols[g.slug]||'✦'}</span><strong>${esc(titles[g.slug]?.[0]||g.title)}</strong><small>${esc(titles[g.slug]?.[1]||'YETIPSY PLAY')}</small><p>${esc(gameTips[g.slug]||'开启一份属于你的惊喜。')}</p>`;b.onclick=()=>showGameIntro(pass,g);root.querySelector('#gameChoices').append(b);}
+ $('sheetBody').append(root);
+}
+function showGameIntro(pass,g){
+ showSheet(titles[g.slug]?.[0]||g.title,'READY TO PLAY');
+ sheetHtml(`<div class="sheet-content yt-game-intro">${stageMeta('01','GET READY')}<div class="yt-intro-orb"><span>${symbols[g.slug]||'✦'}</span></div><div class="yt-eyebrow">${esc(titles[g.slug]?.[1]||'YETIPSY PLAY')}</div><h2>${esc(titles[g.slug]?.[0]||g.title)}</h2><p>${esc(gameTips[g.slug]||'开启你的小游戏体验。')}</p><div class="yt-rule-note">${esc(g.slug==='moon-dice'?'五颗骰子的「1」数量对应奖励档位；每种结果的出现概率由本游戏独立设置。': '本游戏奖品从自己的独立奖池随机抽取。技巧型游戏的成绩只用于排行榜，不改变中奖概率。')} 完成后先展示本局结果，再亲手揭晓奖励。</div><div id="ytDynamicRules" class="yt-game-prize-map"><span>正在加载本游戏可获得的奖励…</span></div><button id="ytStartActualGame" type="button" class="button button-primary wide yt-primary-action">正式开始 <span>↗</span></button><button id="ytGameBoard" type="button" class="button button-outline wide">查看这款游戏的排行榜 ↗</button><button id="ytBackToGames" type="button" class="button button-outline wide">换一个游戏</button></div>`);
+ attachSound();loadGameRules(pass,g).catch(e=>{const el=$('ytDynamicRules');if(el)el.textContent='规则正在更新，请从「奖品与玩法」查看。';});$('ytStartActualGame').onclick=e=>pending(e.currentTarget,()=>startGame(pass,g)).catch(()=>{});$('ytBackToGames').onclick=()=>chooseGame(pass).catch(e=>toast(errorText(e),true));$('ytGameBoard').onclick=()=>showLeaderboard(g.slug).catch(e=>toast(errorText(e),true));
+}
+function diceElement(n){const patterns={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};return `<div class="dice-cube">${(patterns[n]||[]).map(i=>`<i class="pip p${i}"></i>`).join('')}</div>`;}
+function diceResult(tier,seed=''){
+ // Repeating the same server session gives the same five faces; prize tier remains server-authoritative.
+ let value=2166136261;for(const c of String(seed)+':'+tier){value=Math.imul(value^c.charCodeAt(0),16777619)>>>0;}
+ const rand=()=>{value=(Math.imul(value,1664525)+1013904223)>>>0;return value/4294967296;};
+ const n=tier==='R5'?5:tier==='R4'?4:tier==='R3'?3:Math.floor(rand()*3);
+ const a=Array(n).fill(1);while(a.length<5)a.push(2+Math.floor(rand()*5));for(let i=a.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;
+}
+function actionOnce(node,callback,timeout=50000){return new Promise(resolve=>{
+ let settled=false;const timer=setTimeout(()=>end(true),timeout);
+ function end(automatic=false){if(settled)return;settled=true;clearTimeout(timer);node.disabled=true;resolve(callback(automatic));}
+ node.onclick=()=>{gameHaptic();gameSound('tap');end(false);};
+});}
+async function playDice(tier,sessionId){
+ const faces=diceResult(tier,sessionId);
+ const v=arena('MOON DICE · 五颗幸运骰子',`<div class="yt-dice-shaker"><div class="yt-shaker-shine"></div><span>YE·TIPSY</span><small>GOOD LUCK</small></div><div class="yt-dice-surface" id="ytDiceSurface"><div class="dice-collection">${[1,2,3,4,5].map(diceElement).join('')}</div></div><button type="button" id="ytShake" class="button button-primary wide yt-play-main-button">摇动骰盅 <span>⚄</span></button>`,'轻点骰盅，摇出属于你的数字');
+ const shaker=v.querySelector('.yt-dice-shaker'),button=v.querySelector('#ytShake');
+ await actionOnce(button,()=>null);button.textContent='正在摇骰…';shaker.classList.add('is-shaking');v.querySelectorAll('.dice-cube').forEach((d,i)=>{d.classList.add('spin');d.style.animationDelay=(i*75)+'ms';});
+ foot('骰子正在滚动…');await sleep(1800);shaker.classList.add('is-lifted');await sleep(650);
+ const row=v.querySelector('.dice-collection');row.innerHTML=faces.map(diceElement).join('');row.classList.add('yt-dice-landed');
+ const count=faces.filter(n=>n===1).length;foot(`摇出 ${count} 颗「1」 · 已记录本局点数`);gameHaptic(50);gameSound('stop');await sleep(950);
+ return {headline:`${count} 颗「1」`,kicker:'LUCKY DICE RESULT',detail:`五颗骰子已停稳 · ${count} / 5 颗「1」`,visual:`<div class="yt-result-dice">${faces.map(diceElement).join('')}</div>`,rule:'每颗骰子的结果对应公开的奖励档位，中奖概率只由本游戏的独立奖池决定。',score:count};
+}
+const cardFortunes=['好运，是你敢选的那一刻。','今晚，惊喜留给勇敢的你。','一张好牌，送给此刻的你。','缘分已经为你翻开一页。'];
+async function playPick(isCard){
+ const count=isCard?4:3;
+ const markup=Array.from({length:count},(_,i)=>isCard?`<button class="foil-card yt-pick-card" data-pick="${i}" aria-label="选择第${i+1}张牌"><span>✳</span><small>YETIPSY</small><em>0${i+1}</em></button>`:`<button class="gift-box yt-pick-box" data-pick="${i}" aria-label="选择第${i+1}个礼盒"><span>✦</span><em>0${i+1}</em></button>`).join('');
+ const v=arena(isCard?'MYSTERY CARD · 命运翻牌':'MYSTERY BOX · 惊喜盲盒',`<div class="yt-pick-intro">${isCard?'你会选中哪一张命运牌？':'挑选今晚属于你的神秘礼盒。'}</div><div class="game-picks yt-game-picks">${markup}</div><div id="ytPickSignature" class="yt-pick-signature"></div>`,'只有一次选择 · 点击其中一个');
+ const buttons=[...v.querySelectorAll('[data-pick]')];
+ const selected=await new Promise(resolve=>{
+  let done=false;const timeout=setTimeout(()=>onPick(Math.floor(Math.random()*count),true),50000);
+  function onPick(n,auto=false){if(done)return;done=true;clearTimeout(timeout);buttons.forEach((b,i)=>{b.disabled=true;if(i===n)b.classList.add('selected');else b.classList.add('dimmed');});foot(auto?'已为你自动打开一个选择':'你的选择已经锁定');gameHaptic(40);gameSound('tick');resolve(n);}
+  buttons.forEach((b,i)=>b.onclick=()=>onPick(i));
+ });
+ await sleep(600);
+ const selectedButton=buttons[selected];
+ if(isCard){selectedButton.classList.add('yt-flipped');v.querySelector('#ytPickSignature').innerHTML=`<span>✳</span><b>${esc(cardFortunes[selected])}</b>`;foot('命运卡片已翻开 · 解读今日签语');}
+ else {selectedButton.classList.add('yt-open-box');v.querySelector('#ytPickSignature').innerHTML='<span>✧</span><b>一份惊喜，已经被你唤醒。</b>';foot('礼盒开启 · 星光已经点亮');}
+ await sleep(1500);
+ const signature=isCard?cardFortunes[selected]:'礼盒已开启，惊喜等待你拆封。';
+ return {headline:isCard?`第 ${selected+1} 张 · 命运卡`:`第 ${selected+1} 号 · 神秘礼盒`,kicker:isCard?'YOUR FORTUNE CARD':'YOUR MYSTERY BOX',detail:signature,visual:`<div class="yt-result-symbol">${isCard?'✳':'✧'}</div><span class="yt-result-serial">0${selected+1} / 0${count}</span>`,rule:'选号和签语是游戏互动，奖励在本游戏独立奖池中随机抽出。幸运等级作为个人纪录。',score:null};
+}
+async function reactionRound(v,round){
+ const button=v.querySelector('#reactionTap');const roundEl=v.querySelector('#ytReactionRound');roundEl.textContent=`ROUND ${round} / 3`;button.classList.remove('go','too-soon','yt-result-tapped');button.disabled=false;button.textContent='WAIT…';foot(`第 ${round} 回合 · 变绿才点击`);
+ return await new Promise(resolve=>{
+  let done=false,greenAt=0;
+  const timer=setTimeout(()=>{if(done)return;greenAt=performance.now();button.classList.add('go');button.textContent='TAP NOW!';gameSound('tick');},1050+Math.random()*1550);
+  const expire=setTimeout(()=>finish(null,'TIME OUT'),7800);
+  function finish(value,label){if(done)return;done=true;clearTimeout(timer);clearTimeout(expire);button.disabled=true;button.classList.add('yt-result-tapped');button.textContent=label;foot(label==='FALSE START'?'抢跑！下一回合再试':label==='TIME OUT'?'超时！下一回合再试':`本回合反应 ${value} ms`);gameHaptic(30);gameSound('stop');resolve(value);}
+  button.onclick=()=>greenAt?finish(Math.max(1,Math.round(performance.now()-greenAt)),`${Math.round(performance.now()-greenAt)} ms`):finish(null,'FALSE START');
+ });
+}
+async function playReaction(){
+ const v=arena('REACTION LAB · 三回合',`<div id="ytReactionRound" class="yt-round-count">READY / 3</div><div class="yt-reaction-ring"><button id="reactionTap" class="reaction-button" type="button" disabled>READY?</button></div><div class="yt-round-history" id="ytReactionScores"><span>01 —</span><span>02 —</span><span>03 —</span></div><button id="ytBeginReaction" class="button button-primary wide yt-play-main-button">开始挑战</button>`,'三回合中取最佳成绩 · 按钮变绿才点击');
+ await actionOnce(v.querySelector('#ytBeginReaction'),()=>null);v.querySelector('#ytBeginReaction').remove();const results=[];
+ for(let i=1;i<=3;i++){const score=await reactionRound(v,i);results.push(score);v.querySelector('#ytReactionScores').children[i-1].textContent=`0${i} ${score==null?'—':score+'ms'}`;if(i<3)await sleep(1100);}
+ const valid=results.filter(x=>x!==null),best=valid.length?Math.min(...valid):null;
+ return {headline:best===null?'挑战完成':`${best} ms`,kicker:'YOUR BEST REACTION',detail:best===null?'三回合完成 · 继续练习会更准':best<=220?'极限反应，漂亮！':best<=380?'出手很快，继续保持！':'稳稳发挥，完成三回合。',visual:`<div class="yt-result-ranks">${results.map((s,i)=>`<div><span>ROUND 0${i+1}</span><strong>${s==null?'—':s+' ms'}</strong></div>`).join('')}</div>`,rule:'反应时间仅用于个人最佳纪录与娱乐排行榜；实际奖励由服务器随机抽取，与速度无关。',score:best};
+}
+async function stopRound(v,round){
+ const track=v.querySelector('.bar-track'),marker=v.querySelector('.bar-marker'),btn=v.querySelector('#stopBtn');
+ v.querySelector('#ytBarRound').textContent=`ROUND ${round} / 3`;foot(`第 ${round} 回合 · 在中央金色区按 STOP`);
+ btn.disabled=false;btn.textContent=`STOP · 第 ${round} 次`;marker.style.left='0%';
+ const start=performance.now();let raf=0,position=0,done=false;return await new Promise(resolve=>{
+  function tick(now){if(done)return;const phase=((now-start)/(1550-(round-1)*230))%2;position=phase<=1?phase:2-phase;marker.style.left=`${position*100}%`;raf=requestAnimationFrame(tick);}
+  function finish(){if(done)return;done=true;cancelAnimationFrame(raf);clearTimeout(timeout);btn.disabled=true;const score=Math.max(0,Math.round((1-Math.abs(.5-position)*2)*100));btn.textContent=`${score}% ACCURACY`;foot(`第 ${round} 回合 · 精准度 ${score}%`);track.classList.toggle('yt-perfect',score>=90);gameHaptic(35);gameSound('stop');resolve(score);}
+  raf=requestAnimationFrame(tick);btn.onclick=finish;const timeout=setTimeout(finish,6500);
+ });
+}
+async function playStopBar(){
+ const v=arena('STOP THE BAR · 三回合',`<div class="yt-round-count" id="ytBarRound">READY / 3</div><div class="yt-bar-container"><div class="bar-track"><div class="bar-target"></div><div class="bar-marker" id="marker"></div></div><div class="yt-bar-ticks"><span>0</span><span>PERFECT</span><span>100</span></div></div><button class="button button-primary wide yt-play-main-button" id="stopBtn" type="button" disabled>READY</button><button class="button button-outline wide" id="ytBeginBar">开始三次挑战</button><div class="yt-round-history" id="ytBarScores"><span>01 —</span><span>02 —</span><span>03 —</span></div>`,'按 STOP 停在中央金色目标区');
+ await actionOnce(v.querySelector('#ytBeginBar'),()=>null);v.querySelector('#ytBeginBar').remove();const scores=[];
+ for(let i=1;i<=3;i++){const s=await stopRound(v,i);scores.push(s);v.querySelector('#ytBarScores').children[i-1].textContent=`0${i} ${s}%`;if(i<3){await sleep(1050);v.querySelector('.bar-track').classList.remove('yt-perfect');}}
+ const best=Math.max(...scores);
+ return {headline:`${best}%`,kicker:'BEST ACCURACY',detail:best>=95?'PERFECT STOP！稳得漂亮。':best>=75?'离中心非常接近！':'三次挑战完成，下次再来刷新记录。',visual:`<div class="yt-result-ranks">${scores.map((s,i)=>`<div><span>ROUND 0${i+1}</span><strong>${s}%</strong></div>`).join('')}</div>`,rule:'精准度仅用于个人最佳纪录与娱乐排行榜；实际奖励由服务器随机抽取，与精准度无关。',score:best};
+}
+
+const rankSlugs=['moon-dice','mystery-card','mystery-box','reaction-test','stop-the-bar'];
+const gameNames={'moon-dice':'幸运骰子','mystery-card':'神秘翻牌','mystery-box':'神秘礼盒','reaction-test':'反应挑战','stop-the-bar':'精准挑战'};
+const diceLabels={R5:'5 颗「1」',R4:'4 颗「1」',R3:'3 颗「1」',R0:'0–2 颗「1」'};
+const fortuneLabels={R5:'幸运等级 ★★★★★',R4:'幸运等级 ★★★★',R3:'幸运等级 ★★★',R0:'幸运等级 ★'};
+const rankNumber=(slug,score)=>score==null?'—':slug==='reaction-test'?`${Number(score)} ms`:slug==='stop-the-bar'?`${Number(score)}%`:slug==='moon-dice'?`${Number(score)} 颗「1」`:`${Number(score)} ★`;
+function personalResultLine(slug,row){const best=rankNumber(slug,row.personal_best);const rank=row.personal_rank?' · 当前第 '+row.personal_rank+' 名':'';return '你的历史最佳：'+best+' · 已玩 '+Number(row.played_count||0)+' 次'+rank;}
+function updateGameRecordMessage(slug,row){
+ const el=$('ytResultRecord');if(!el)return;
+ if(['mystery-card','mystery-box'].includes(slug))return; // Don't reveal reward tier early.
+ el.classList.remove('hide');el.textContent=personalResultLine(slug,row);
+}
+async function loadGameRules(pass,game){
+ const data=await pinRequest('rules','','','',{campaign_id:pass.campaign_id,slug:game.slug});
+ const el=$('ytDynamicRules');if(!el||!el.isConnected)return;
+ const rows=data.rules||[];el.replaceChildren();
+ const title=document.createElement('strong');title.textContent=game.slug==='moon-dice'?'骰子结果与奖励':'本游戏可能获得的奖励';el.append(title);
+ if(!rows.length){const p=document.createElement('p');p.textContent='目前没有可领取的奖励，请联系员工。';el.append(p);return;}
+ const groups=new Map();for(const r of rows){const key=game.slug==='moon-dice'?r.result_key:r.reward_name;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);}
+ for(const [key,list] of groups){const row=document.createElement('div');row.className='yt-game-rule-row';const label=document.createElement('span');label.textContent=game.slug==='moon-dice'?(diceLabels[key]||'本期奖励'):'✧';const reward=document.createElement('b');reward.textContent=list.map(x=>x.reward_name).join(' / ');row.append(label,reward);el.append(row);}
+ const foot=document.createElement('p');foot.className='tiny-help';foot.textContent=game.slug==='moon-dice'?'每个结果档位的出现权重由 Owner 为幸运骰子单独设置；此处不公开概率。':'本游戏独立随机抽奖，成绩只用于最佳纪录与娱乐排行榜，不保证对应奖品。';el.append(foot);
+}
+async function showMyRecords(){
+ if(!state.user)return toast('请登录会员后查看历史纪录',true);
+ showSheet('我的最佳纪录','PERSONAL BESTS');sheetHtml('<div class="sheet-content yt-rank-shell"><div id="ytMyRecordRows" class="yt-rank-rows">正在加载你的纪录…</div><button type="button" id="ytOpenBoardFromRecords" class="button button-primary wide">打开排行榜 ↗</button><div id="ytRankConsent"></div><p class="tiny-help">技巧成绩为娱乐纪录，不能作为奖品兑换条件。排行榜昵称默认隐藏。</p></div>');
+ $('ytOpenBoardFromRecords').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));
+ const records=await db.rpc('yt_my_game_records');
+ const items=unpack(records)||[];const box=$('ytMyRecordRows');if(!box)return;box.replaceChildren();
+ for(const slug of rankSlugs){const r=items.find(x=>x.game_slug===slug);const row=document.createElement('div');row.className='yt-rank-item';row.innerHTML=`<div><strong>${esc(gameNames[slug])}</strong><small>${r?.played_count?'已玩 '+Number(r.played_count)+' 次'+(r.personal_rank?' · 第 '+r.personal_rank+' 名':''):'暂无纪录'}</small></div><b>${esc(rankNumber(slug,r?.best_score))}</b>`;box.append(row);}
+ await renderRankPreference(items);
+}
+async function renderRankPreference(items=null){
+ const wrapper=$('ytRankConsent');if(!wrapper)return;
+ const r=items??(unpack(await db.rpc('yt_my_game_records'))||[]);
+ const visible=!!r.some(x=>x.nickname_visible===true);
+ wrapper.innerHTML=`<label class="yt-rank-consent"><input id="ytRankShowName" type="checkbox" ${visible?'checked':''}/> 在排行榜显示我的会员昵称</label><p class="tiny-help">不勾选时，排行榜显示「神秘玩家」；不会显示手机号或生日。</p>`;
+ const cb=$('ytRankShowName');cb.onchange=async()=>{cb.disabled=true;try{unpack(await db.rpc('yt_set_leaderboard_nickname',{p_visible:cb.checked}));toast(cb.checked?'已允许展示昵称':'已切换成匿名上榜');}catch(e){cb.checked=!cb.checked;toast(errorText(e),true);}finally{cb.disabled=false;}};
+}
+async function showLeaderboard(selected='moon-dice'){
+ if(!state.user)return toast('请登录会员后查看排行榜',true);
+ showSheet('游戏排行榜','YETIPSY · HALL OF FAME');
+ sheetHtml('<div class="sheet-content yt-rank-shell"><p class="yt-rank-headline">每款游戏独立排行 · 记录历史最佳成绩</p><div id="ytRankTabs" class="yt-rank-tabs"></div><div id="ytBoardIntro" class="yt-rank-subtitle"></div><div id="ytBoardRows" class="yt-rank-rows"></div><button id="ytBoardMyRecords" type="button" class="button button-outline wide">查看我的最佳纪录 ↗</button><p class="tiny-help">幸运游戏按最好的一次结果排名；反应挑战越快越好，精准挑战越高越好。技巧分数是手机端娱乐成绩，不决定奖品，且尚未具备防作弊认证。</p></div>');
+ $('ytBoardMyRecords').onclick=()=>showMyRecords().catch(e=>toast(errorText(e),true));
+ const tabs=$('ytRankTabs');for(const slug of rankSlugs){const btn=document.createElement('button');btn.type='button';btn.className='yt-rank-tab';btn.dataset.slug=slug;btn.textContent=gameNames[slug];btn.onclick=()=>loadLeaderboard(slug);tabs.append(btn);}
+ await loadLeaderboard(rankSlugs.includes(selected)?selected:'moon-dice');
+}
+async function loadLeaderboard(slug){
+ for(const btn of document.querySelectorAll('#ytRankTabs button'))btn.classList.toggle('active',btn.dataset.slug===slug);
+ const box=$('ytBoardRows'),intro=$('ytBoardIntro');if(!box||!intro)return;
+ box.textContent='正在加载排行榜…';intro.textContent='TOP 20 · '+gameNames[slug];
+ try{
+ const items=unpack(await db.rpc('yt_game_leaderboard',{p_slug:slug,p_limit:20}))||[];
+ if(!box.isConnected)return;box.replaceChildren();
+ if(!items.length){box.innerHTML='<div class="yt-rank-empty">还没有玩家留下纪录。第一名，等你来！</div>';return;}
+ for(const row of items){const item=document.createElement('div');item.className='yt-rank-item'+(row.is_me?' self':'');item.innerHTML=`<span class="yt-rank-position">${row.rank_no<=3?['🥇','🥈','🥉'][row.rank_no-1]:String(row.rank_no).padStart(2,'0')}</span><div><strong>${esc(row.display_name)}</strong><small>已玩 ${Number(row.played_count)} 次${row.is_me?' · 这是你':''}</small></div><b>${esc(rankNumber(slug,row.best_score))}</b>`;box.append(item);}
+ }catch(e){if(box?.isConnected)box.textContent='排行榜暂时加载失败：'+errorText(e);}
+}
+function fireworks(){const wrap=document.createElement('div');wrap.className='game-confetti yt-silk-confetti';for(let i=0;i<34;i++){const dot=document.createElement('i');dot.style.left=(Math.random()*100)+'%';dot.style.animationDelay=(Math.random()*.55)+'s';dot.style.background=i%4===0?'#fff4d5':i%3?'#e3c190':'#a88650';wrap.append(dot);}return wrap;}
+function showGameResult(game,result){
+ showSheet('你的本局成绩','YOUR GAME RESULT');
+ const name=titles[game.slug]?.[0]||game.title;
+ sheetHtml(`<div class="sheet-content yt-result-page">${stageMeta('03','RESULT RECORDED')}<div class="yt-result-top"><span>${esc(symbols[game.slug]||'✦')} ${esc(name)}</span><span>COMPLETE ✓</span></div><div class="yt-result-stage"><div class="yt-result-halo"></div><div class="yt-eyebrow">${esc(result.kicker)}</div><div class="yt-result-big" id="ytResultBig">${esc(result.headline)}</div><div class="yt-result-caption">${esc(result.detail)}</div><div class="yt-result-visual">${result.visual}</div></div><div class="yt-result-rule">${esc(result.rule||'游戏结果已记录，奖励由服务器安全结算。')}</div><div id="ytResultRecord" class="yt-record-badge hide"></div><div class="yt-sealed-prize"><span class="yt-seal-icon">✧</span><div><strong>还有一份奖励，等你亲手打开。</strong><small>YOUR SECRET REWARD IS READY</small></div></div><button id="ytOpenResultReward" class="button button-primary wide yt-reveal-button" type="button" disabled>正在保存本局结果…</button><p id="ytResultSaveState" class="tiny-help yt-result-save" role="status" aria-live="polite">奖品名称暂时保密，保存成功后可点击揭晓。</p></div>`);
+ attachSound();const big=$('ytResultBig');if(big){big.classList.add('yt-number-appear');}return $('ytOpenResultReward');
+}
+async function showGameWon(name,record=null,slug=null){
+ showSheet('奖品已解锁','YETIPSY · SURPRISE REVEAL');
+ sheetHtml(`<div class="sheet-content yt-reward-open"><div class="yt-reward-crown">✳</div><div class="yt-eyebrow">YOU GOT A REWARD</div><div class="yt-reward-gift" id="ytRevealGift"><span class="yt-reward-ray"></span><span class="yt-reward-burst">✧</span><b class="yt-reward-heading">恭喜你，今晚有好事发生。</b><div class="yt-reward-name">${esc(name)}</div><p>已自动存入你的会员奖励钱包</p></div><div id="ytRewardRecord" class="yt-record-badge hide"></div><button id="goWalletFromGame" class="button button-primary wide">打开我的奖励钱包 ↗</button><button id="ytRewardBoard" class="button button-outline wide hide">查看游戏排行榜 ↗</button><p class="tiny-help">请以钱包显示的开始与截止日期为准；到店出示动态 QR 即可核销。</p></div>`);
+ const gift=$('ytRevealGift');requestAnimationFrame(()=>{gift.classList.add('yt-reward-revealed');gift.append(fireworks());});gameSound('win');gameHaptic([40,70,70]);
+ $('goWalletFromGame').onclick=()=>{closeSheet();navigate('wallet');};if(record&&slug){const label=$('ytRewardRecord');label.classList.remove('hide');label.textContent=personalResultLine(slug,record);const board=$('ytRewardBoard');board.classList.remove('hide');board.onclick=()=>showLeaderboard(slug).catch(e=>toast(errorText(e),true));}
+}
+async function startGame(pass,g){
+ if(state.gamePlaying)throw Error('游戏进行中，请勿重复点击');
+ state.gamePlaying=true;let session=null,localResult=null,startedAt=0,unlocked=false;
+ try{
+  const rows=unpack(await db.rpc('yt_start_game',{p_pass:pass.id,p_game:g.id}));if(!rows?.length)throw Error('无法开启游戏');
+  session=rows[0];state.activeSession=session;startedAt=performance.now();
+  showSheet(titles[g.slug]?.[0]||g.title,'LET THE GAME BEGIN');
+  if(g.slug==='moon-dice')localResult=await playDice(session.result_key,session.session_id);
+  else if(g.slug==='mystery-card')localResult=await playPick(true);
+  else if(g.slug==='mystery-box')localResult=await playPick(false);
+  else if(g.slug==='reaction-test')localResult=await playReaction();
+  else if(g.slug==='stop-the-bar')localResult=await playStopBar();
+  else throw Error('游戏暂时不可用');
+  const revealButton=showGameResult(g,localResult);
+  // A game pass is consumed only once, after the server confirms settlement.
+  // A visible result always precedes the prize reveal; no automatic winner popup.
+  const settle=async()=>{
+   if(unlocked)return;
+   const wait=2050-(performance.now()-startedAt);if(wait>0)await sleep(wait);
+   const rowsDone=unpack(await db.rpc('yt_finish_game_ranked',{p_session:session.session_id,p_score:localResult.score}));if(!rowsDone?.length)throw Error('奖品与成绩尚未成功存档');
+   const record=rowsDone[0],awarded=record.reward_name||'Yetipsy Reward';unlocked=true;state.activeSession=null;
+   const currentToast=$('toast');if(currentToast){currentToast.classList.remove('show');clearTimeout(toast.timer);}
+   try{await Promise.all([wallet(true),refreshPasses()]);}catch(e){console.warn('Wallet refresh delayed',e);}
+   const btn=$('ytOpenResultReward');if(btn){btn.disabled=false;btn.innerHTML='亲手拆开奖励 <span>↗</span>';btn.onclick=()=>showGameWon(awarded,record,g.slug).catch(e=>toast(errorText(e),true));}updateGameRecordMessage(g.slug,record);
+   const status=$('ytResultSaveState');if(status)status.textContent='✓ 本局已结算并存入你的奖励钱包。点击按钮，揭晓今晚的惊喜。';
+  };
+  try{await settle();}catch(e){
+   const btn=$('ytOpenResultReward');if(btn){btn.disabled=false;btn.textContent='重新保存并继续揭晓 ↻';btn.onclick=()=>pending(btn,settle).catch(e=>toast(errorText(e),true));}
+   const status=$('ytResultSaveState');if(status)status.textContent='连接中断，本局结果已记录。点击重新保存，系统不会重复发奖。';
+   toast(errorText(e),true);
+  }
+ }catch(e){
+  if(session){showSheet('网络连接不稳定','RESUME PLAY');sheetHtml('<div class="sheet-content"><p>这张 Game Pass 的游戏会话已经保存在服务器。请稍等片刻，再确认领奖；重复请求不会重复发奖。</p><button id="resumeGame" class="button button-primary wide">恢复并确认奖励</button></div>');$('resumeGame').onclick=()=>pending($('resumeGame'),async()=>{const done=unpack(await db.rpc('yt_finish_game',{p_session:session.session_id}));if(!done?.length)throw Error('还无法结算，请稍后重试');state.activeSession=null;try{await Promise.all([wallet(true),refreshPasses()]);}catch{}await showGameWon(done[0].reward_name);}).catch(()=>{});}
+  throw e;
+ }finally{state.gamePlaying=false;}
+}
+
 async function existingGamePass(){await refreshPasses();const p=state.passes.find(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());if(!p)throw Error('还没有游戏机会，请先扫描员工二维码');await chooseGame(p);}
 async function prizeBoard(){
   // This public endpoint returns only titles,玩法 and award terms; not prize weights or odds.
@@ -358,7 +551,7 @@ function bindEvents(){
  for(const b of document.querySelectorAll('[data-page]'))b.onclick=()=>navigate(b.dataset.page);
  $('heroScan').onclick=()=>openScanner('claim');$('accountChangePin').onclick=()=>changeMyPin().catch(e=>toast(errorText(e),true));$('privacyNotice').onclick=()=>{showSheet('会员隐私与资料用途','YETIPSY PLAY');sheetHtml('<div class="sheet-content"><p>我们收集手机号码、昵称、完整出生日期和会员活动记录，用于账户登录、会员资料、会员福利、奖品发放及员工协助重设 PIN。手机号目前不通过短信验证。</p><p>PIN 由服务器保护，员工无法查看。生日不会在公开奖品榜或其他顾客页面展示。奖励及核销操作会保留必要记录。</p><p>注册不要求额外勾选同意，也不会自动订阅营销消息。需要更正资料、查询处理方式或删除安排，请到 Yetipsy 联系店主。</p></div>');};$('openExistingPass').onclick=()=>existingGamePass().catch(e=>toast(errorText(e),true));
  $('homePrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));$('accountPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));$('publicBoardFromAuth').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
- $('homeWallet').onclick=()=>navigate('wallet');$('walletRefresh').onclick=()=>wallet().catch(e=>toast(errorText(e),true));$('accountScan').onclick=()=>openScanner('claim');
+ $('homeLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountRecords').onclick=()=>showMyRecords().catch(e=>toast(errorText(e),true));$('homeWallet').onclick=()=>navigate('wallet');$('walletRefresh').onclick=()=>wallet().catch(e=>toast(errorText(e),true));$('accountScan').onclick=()=>openScanner('claim');
  $('accountStaff').onclick=()=>openWorkspace('staff');$('accountOwner').onclick=()=>openWorkspace('owner');
  $('workspaceBack').onclick=()=>navigate('account');
  $('signOut').onclick=async()=>{if(!confirm('确认退出 Yetipsy Play？'))return;await closeSheet();const {error}=await db.auth.signOut();if(error)return toast(error.message,true);state.user=null;state.profile=null;state.role=null;shell(false);changeAuthMode('login');toast('已安全退出');};
