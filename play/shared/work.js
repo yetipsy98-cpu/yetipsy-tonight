@@ -29,9 +29,9 @@ async function activate(e){e.preventDefault();const btn=e.submitter,newpw=$('set
 async function changePassword(e){e.preventDefault();const btn=e.submitter;const newPw=$('changeNew').value;if(newPw!==$('changeAgain').value)throw Error('两次新密码不一致');if(!passwordStrong(newPw,state.identity?.username||''))throw Error('weak_password');await busy(btn,async()=>{await work('password_change',{old_password:$('changeOld').value,new_password:newPw},true);await db.auth.signOut();state.identity=null;$('changeForm').reset();signinView();$('gateMessage').textContent='新密码已保存。请重新登录工作账户。';status('新密码生效，请重新登录');});}
 async function signout(){stopCamera();await db.auth.signOut();state.identity=null;signinView();$('password').value='';}
 function roleIsOwner(){return state.identity?.role==='owner';}
-function openPanel(p){stopCamera();state.activePanel=p;for(const s of ['issue','redeem','reset','team','rewards','campaign','insights'])$('panel-'+s).classList.toggle('hide',s!==p);document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===p));if(p==='issue')loadCampaigns().catch(report);if(p==='team')loadStaff().catch(report);if(p==='rewards')loadRewards().catch(report);if(p==='campaign')loadCampaignAdmin().catch(report);if(p==='insights')loadInsights().catch(report);}
+function openPanel(p){stopCamera();state.activePanel=p;for(const s of ['issue','redeem','reset','team','rewards','campaign','loyalty','insights'])$('panel-'+s).classList.toggle('hide',s!==p);document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===p));if(p==='issue')loadCampaigns().catch(report);if(p==='team')loadStaff().catch(report);if(p==='rewards')loadRewards().catch(report);if(p==='campaign')loadCampaignAdmin().catch(report);if(p==='loyalty')loadLoyaltyOwner().catch(report);if(p==='insights')loadInsights().catch(report);}
 function report(e){status(err(e),true);}
-async function displayConsole(){const a=await work('me',{},true);if(mode==='owner'&&a.role!=='owner'){await signout();throw Error('owner_only');}state.identity={username:a.username,role:a.role,must_change_password:a.must_change_password};if(a.must_change_password){renderGate('change');return;}$('gate').classList.add('hide');$('console').classList.remove('hide');$('welcomeKicker').textContent=a.role==='owner'?'OWNER WORKSPACE':'STAFF WORKSPACE';$('welcomeTitle').textContent=a.role==='owner'?'Yetipsy · Owner Console':'Yetipsy · Staff Console';$('welcomeInfo').textContent='当前工作账号：'+a.username+' · 顾客会员账户保持独立';const tabs=[['issue','发 Game Pass'],['redeem','扫码核销'],['reset','重设 PIN'],...a.role==='owner'?[['team','员工管理'],['rewards','奖品发放'],['campaign','活动概率'],['insights','数据概览']]:[]];const nav=$('menu');nav.replaceChildren();for(const [key,label] of tabs){const b=document.createElement('button');b.dataset.tool=key;b.textContent=label;b.type='button';b.onclick=()=>openPanel(key);nav.append(b);}openPanel('issue');}
+async function displayConsole(){const a=await work('me',{},true);if(mode==='owner'&&a.role!=='owner'){await signout();throw Error('owner_only');}state.identity={username:a.username,role:a.role,must_change_password:a.must_change_password};if(a.must_change_password){renderGate('change');return;}$('gate').classList.add('hide');$('console').classList.remove('hide');$('welcomeKicker').textContent=a.role==='owner'?'OWNER WORKSPACE':'STAFF WORKSPACE';$('welcomeTitle').textContent=a.role==='owner'?'Yetipsy · Owner Console':'Yetipsy · Staff Console';$('welcomeInfo').textContent='当前工作账号：'+a.username+' · 顾客会员账户保持独立';const tabs=[['issue','发 Game Pass'],['redeem','扫码核销'],['reset','重设 PIN'],...a.role==='owner'?[['team','员工管理'],['rewards','奖品发放'],['campaign','活动概率'],['loyalty','会员活动与积分'],['insights','数据概览']]:[]];const nav=$('menu');nav.replaceChildren();for(const [key,label] of tabs){const b=document.createElement('button');b.dataset.tool=key;b.textContent=label;b.type='button';b.onclick=()=>openPanel(key);nav.append(b);}openPanel('issue');}
 async function boot(){bind();if(!configured){renderGate();$('gateMessage').textContent='缺少 Supabase 配置，确认路径 /play/config.js 已存在。';return;}const {data}=await db.auth.getSession();if(data?.session){try{await displayConsole();return;}catch(e){await db.auth.signOut();report(e);}}signinView();}
 
 // QR rendering uses a public script only for visual encoding. Codes are signed/checked server-side.
@@ -91,11 +91,15 @@ async function loadCampaigns(){const rows=unpack(await db.from('campaigns').sele
 async function issuePass(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{
  const campaign=$('passCampaign').value;if(!campaign)throw Error('请选择有效的活动');
  const mins=Number($('passMins').value);if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('有效分钟须为1–60');
- const raw=uuid(),req=uuid();
- const result=unpack(await db.rpc('yt_issue_pass',{p_campaign:campaign,p_request:req,p_token:raw,p_minutes:mins}));
+  const amount=Number($('passSpend').value),receipt=$('passReceipt').value.trim().toUpperCase();
+  if(!Number.isFinite(amount)||amount<0.01||Math.round(amount*100)/100!==amount)throw Error('请输入正确的消费金额，例如 60.00');
+  if(!/^[A-Z0-9_-]{3,60}$/.test(receipt))throw Error('请输入有效消费单号（3–60位字母、数字、横线或下划线）');
+  const raw=uuid(),req=uuid();
+  const result=unpack(await db.rpc('yt_issue_spend_pass',{p_campaign:campaign,p_request:req,p_token:raw,p_minutes:mins,p_amount:amount,p_receipt:receipt}));
  if(!result?.length)throw Error('生成 Game Pass 失败');
  const card=await showQR('passQR','Game Pass · 顾客扫码领取',codeLink('claim',raw),result[0].expires_at);
  await verifyIssuedCode('claim',raw,card);
+  $('passReceipt').value=nextInternalReceipt();
 });}
 function parseQR(raw){const text=String(raw||'').trim();let value=text,kind='redeem';const match=text.match(/^(claim|gift|redeem|reset):([0-9a-f-]{36})$/i);if(match){kind=match[1].toLowerCase();value=match[2];}else{try{const u=new URL(text);for(const key of ['redeem','claim','gift','reset'])if(u.searchParams.has(key)){kind=key;value=u.searchParams.get(key);break;}}catch{}}
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))throw Error('无效二维码，请扫描完整的兑奖凭证');return{kind,token:value};}
@@ -107,6 +111,7 @@ async function startCamera(){if(state.scanStream)return;const frame=$('scanArea'
 function stopCamera(){state.scanBusy=false;clearTimeout(state.scanAnimation);if(state.scanStream){for(const t of state.scanStream.getTracks())t.stop();state.scanStream=null;}$('scanArea').classList.add('hide');$('scanVideo').srcObject=null;}
 function normalizePhone(country,national){let d=String(national||'').replace(/\D/g,'');if(country==='+60'){if(d.startsWith('60'))d=d.slice(2);if(d.startsWith('0'))d=d.slice(1);if(!/^1\d{8,9}$/.test(d))throw Error('请填写正确的马来西亚手机号');}else{if(d.startsWith('65'))d=d.slice(2);if(!/^[89]\d{7}$/.test(d))throw Error('请填写正确的新加坡手机号');}return country+d;}
 async function makeReset(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{if(!$('resetVerified').checked)throw Error('请先确认已完成现场身份核验');const phone=normalizePhone($('resetCountry').value,$('resetPhone').value);const r=await pin('reset_prepare',{phone,birthday:$('resetBirthday').value,onsite_confirmed:true});await showQR('resetQR','仅限顾客本人 · 5分钟内设置新 PIN',codeLink('reset',r.token),new Date(Date.now()+300000).toISOString());$('resetForm').reset();status('PIN 重设二维码已生成');});}
+function nextInternalReceipt(){const local=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replaceAll('-','');return 'YT-'+local+'-'+crypto.randomUUID().replaceAll('-','').slice(0,7).toUpperCase();}
 function randomPassword(){const chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';const vals=new Uint32Array(18);crypto.getRandomValues(vals);return Array.from(vals,x=>chars[x%chars.length]).join('');}
 function showModal(title,body){const root=$('modal');root.replaceChildren();const h=document.createElement('h2');h.textContent=title;root.append(h);const p=document.createElement('p');p.textContent=body;root.append(p);const copyBtn=document.createElement('button');copyBtn.className='btn full';copyBtn.textContent='复制以上内容';copyBtn.onclick=()=>copy(body);const close=document.createElement('button');close.className='btn outline full';close.style.marginTop='8px';close.textContent='关闭';close.onclick=()=>closeModal();root.append(copyBtn,close);$('modalBackdrop').classList.remove('hide');}
 function closeModal(){$('modalBackdrop').classList.add('hide');$('modal').replaceChildren();}
@@ -146,5 +151,50 @@ function renderPool(){const game=$('poolGame').value,root=$('poolEditor');root.r
 async function updateCampaign(e){const btn=e.currentTarget;await busy(btn,async()=>{const id=$('ownerCampaign').value;if(!id)throw Error('请先选择活动');unpack(await db.rpc('yt_owner_set_campaign',{p_campaign:id,p_active:$('campaignActive').checked}));status('活动状态已保存');await loadCampaignAdmin();await loadCampaigns();});}
 async function cloneCampaign(e){const btn=e.currentTarget;await busy(btn,async()=>{const id=$('ownerCampaign').value,name=$('cloneCampaignName').value.trim();if(!id||!name)throw Error('请填写新活动名称');const created=unpack(await db.rpc('yt_owner_clone_campaign',{p_source:id,p_name:name}));$('cloneCampaignName').value='';await loadCampaignAdmin();$('ownerCampaign').value=created;await loadCampaignSettings();status('新活动已复制，默认关闭');});}
 async function loadInsights(){const targets=[['profiles','countMembers',true],['game_passes','countPass',false],['user_rewards','countWallet',false],['redemptions','countRedeem',false]];for(const [table,id] of targets){const result=table==='profiles'?await db.from(table).select('id',{count:'exact',head:true}).not('phone','is',null):await db.from(table).select('id',{count:'exact',head:true});if(result.error){$(id).textContent='—';continue;}$(id).textContent=Number(result.count||0).toLocaleString('en-MY');}}
-function bind(){ $('loginForm').onsubmit=e=>login(e).catch(report);$('setupForm').onsubmit=e=>activate(e).catch(report);$('changeForm').onsubmit=e=>changePassword(e).catch(report);$('openSetup').onclick=()=>renderGate('setup');$('setupBack').onclick=signinView;$('logoutBtn').onclick=()=>signout().catch(report);$('passForm').onsubmit=e=>issuePass(e).catch(()=>{});$('lookupForm').onsubmit=e=>lookupRedeem(e).catch(()=>{});$('scanBtn').onclick=e=>busy(e.currentTarget,startCamera).catch(()=>{});$('scanStop').onclick=stopCamera;$('resetForm').onsubmit=e=>makeReset(e).catch(()=>{});$('staffForm').onsubmit=e=>createStaff(e).catch(()=>{});$('staffTempGenerate').onclick=()=>{$('staffTemp').value=randomPassword();};$('refreshStaff').onclick=e=>busy(e.currentTarget,loadStaff).catch(()=>{});$('rewardForm').onsubmit=e=>createReward(e).catch(()=>{});$('issueOfferBtn').onclick=e=>createOffer(e).catch(()=>{});$('directSendBtn').onclick=e=>directReward(e).catch(()=>{});$('ownerCampaign').onchange=()=>loadCampaignSettings().catch(report);$('poolGame').onchange=renderPool;$('saveCampaignBtn').onclick=e=>updateCampaign(e).catch(()=>{});$('cloneBtn').onclick=e=>cloneCampaign(e).catch(()=>{});$('refreshInsights').onclick=e=>busy(e.currentTarget,loadInsights).catch(()=>{});$('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();stopCamera();}});}
+
+let loyaltyOwnerData=null;
+function loyaltySelect(id,selected,emptyLabel='不提供'){const node=$(id);if(!node)return;node.replaceChildren();node.add(new Option(emptyLabel,''));for(const reward of state.rewards)node.add(new Option(reward.name,reward.id));node.value=selected||'';}
+async function loadLoyaltyOwner(){
+ if(!roleIsOwner())throw Error('owner_only');
+ const [rs,s]=await Promise.all([db.from('rewards').select('id,name,active').eq('active',true).order('name'),db.rpc('yt_loyalty_owner_settings')]);
+ state.rewards=unpack(rs)||[];const cfg=unpack(s);loyaltyOwnerData=cfg;
+ $('loyaltyWelcomeEnabled').checked=!!cfg.welcome_enabled;
+ $('loyaltyReferralEnabled').checked=!!cfg.referral_enabled;
+ $('loyaltyStack').checked=!!cfg.rewards_stack;
+ $('loyaltyPointsEnabled').checked=!!cfg.points_enabled;
+ $('loyaltyPointsRate').value=cfg.points_per_rm;
+ $('loyaltyCap').value=cfg.max_points_percent;
+ $('loyaltyMinSpend').value=cfg.min_spend_rm;
+ $('loyaltyMaxSpend').value=cfg.max_spend_rm;
+ loyaltySelect('loyaltyWelcomeReward',cfg.welcome_reward_id,'请选择注册奖励');
+ loyaltySelect('loyaltyFriendReward',cfg.friend_reward_id,'请选择好友注册奖励');
+ loyaltySelect('loyaltyInviterReward',cfg.inviter_reward_id,'不奖励邀请人（默认）');
+ const sbox=$('loyaltyStats');sbox.textContent=`已记录邀请 ${cfg.stats?.referred_members||0} 位 · 新人礼 ${cfg.stats?.welcome_grants||0} 份 · 推荐礼 ${cfg.stats?.referral_grants||0} 份 · 累计送出积分 ${Number(cfg.stats?.points_awarded||0).toLocaleString('en-MY')} P`;
+ const root=$('loyaltyTierEditor');root.replaceChildren();
+ for(const t of cfg.tiers||[]){const section=document.createElement('div');section.className='user-card';section.innerHTML=`<strong>随机积分档位</strong><div class="split"><div><label>积分数</label><input class="tier-points" type="number" min="1" max="1000000" value="${Number(t.points)}"></div><div><label>权重（仅 Owner 可见）</label><input class="tier-weight" type="number" min="0" max="10000" value="${Number(t.weight)}"></div></div><label class="checkline"><input class="tier-enabled" type="checkbox" ${t.enabled?'checked':''}> 启用此档位</label><button type="button" class="btn outline small tier-save">保存档位</button>`;
+  section.querySelector('.tier-save').onclick=e=>busy(e.currentTarget,async()=>{
+   unpack(await db.rpc('yt_loyalty_owner_tier',{p_id:t.id,p_points:Number(section.querySelector('.tier-points').value),p_weight:Number(section.querySelector('.tier-weight').value),p_enabled:section.querySelector('.tier-enabled').checked}));
+   status('积分档位已保存');await loadLoyaltyOwner();
+  }).catch(()=>{});
+  root.append(section);
+ }
+}
+async function saveLoyaltyOwner(e){const btn=e.currentTarget;await busy(btn,async()=>{
+ const p={
+  p_welcome_enabled:$('loyaltyWelcomeEnabled').checked,p_welcome_reward:$('loyaltyWelcomeReward').value||null,
+  p_referral_enabled:$('loyaltyReferralEnabled').checked,p_friend_reward:$('loyaltyFriendReward').value||null,
+  p_inviter_reward:$('loyaltyInviterReward').value||null,p_stack:$('loyaltyStack').checked,
+  p_points_enabled:$('loyaltyPointsEnabled').checked,p_points_per_rm:Number($('loyaltyPointsRate').value),
+  p_cap_percent:Number($('loyaltyCap').value),p_min_spend:Number($('loyaltyMinSpend').value),p_max_spend:Number($('loyaltyMaxSpend').value)
+ };
+ if((p.p_welcome_enabled||p.p_referral_enabled)&&!confirm('注意：手机号目前未完成短信验证，免费礼物可能被重复开新账号领取。确认要开放这些活动？'))return;
+ unpack(await db.rpc('yt_loyalty_owner_save',p));status('活动与积分设置已保存');await loadLoyaltyOwner();
+}).catch(()=>{});}
+async function addLoyaltyTier(e){const btn=e.currentTarget;await busy(btn,async()=>{
+ const pts=Number($('loyaltyNewTierPoints').value),weight=Number($('loyaltyNewTierWeight').value);
+ unpack(await db.rpc('yt_loyalty_owner_tier',{p_id:null,p_points:pts,p_weight:weight,p_enabled:true}));
+ $('loyaltyNewTierPoints').value='';$('loyaltyNewTierWeight').value='';await loadLoyaltyOwner();status('已新增积分抽取档位');
+}).catch(()=>{});}
+
+function bind(){ $('loginForm').onsubmit=e=>login(e).catch(report);$('setupForm').onsubmit=e=>activate(e).catch(report);$('changeForm').onsubmit=e=>changePassword(e).catch(report);$('openSetup').onclick=()=>renderGate('setup');$('setupBack').onclick=signinView;$('logoutBtn').onclick=()=>signout().catch(report);$('passReceiptAuto').onclick=()=>{$('passReceipt').value=nextInternalReceipt();};if(!$('passReceipt').value)$('passReceipt').value=nextInternalReceipt();$('passForm').onsubmit=e=>issuePass(e).catch(()=>{});$('lookupForm').onsubmit=e=>lookupRedeem(e).catch(()=>{});$('scanBtn').onclick=e=>busy(e.currentTarget,startCamera).catch(()=>{});$('scanStop').onclick=stopCamera;$('resetForm').onsubmit=e=>makeReset(e).catch(()=>{});$('staffForm').onsubmit=e=>createStaff(e).catch(()=>{});$('staffTempGenerate').onclick=()=>{$('staffTemp').value=randomPassword();};$('refreshStaff').onclick=e=>busy(e.currentTarget,loadStaff).catch(()=>{});$('rewardForm').onsubmit=e=>createReward(e).catch(()=>{});$('issueOfferBtn').onclick=e=>createOffer(e).catch(()=>{});$('directSendBtn').onclick=e=>directReward(e).catch(()=>{});$('ownerCampaign').onchange=()=>loadCampaignSettings().catch(report);$('poolGame').onchange=renderPool;$('saveCampaignBtn').onclick=e=>updateCampaign(e).catch(()=>{});$('cloneBtn').onclick=e=>cloneCampaign(e).catch(()=>{});$('refreshInsights').onclick=e=>busy(e.currentTarget,loadInsights).catch(()=>{});$('saveLoyaltyOwner').onclick=saveLoyaltyOwner;$('addLoyaltyTier').onclick=addLoyaltyTier;$('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();stopCamera();}});}
 boot().catch(report);
