@@ -6,7 +6,7 @@ const configured=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(urlConfig.url||'')&
 const db=configured?createClient(urlConfig.url,urlConfig.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
 const EDGE_URL=(urlConfig.url||'')+'/functions/v1/yt-pin-auth';
 const MY_TZ='Asia/Kuala_Lumpur';
-const state={user:null,role:null,profile:null,view:'home',games:[],passes:[],wallet:[],rewards:[],campaigns:[],ownerGames:[],pool:[],assigned:[],busy:false,refreshing:false,activeSession:null,currentRedemption:null,currentOffer:null,board:[],staffRoles:[],handleToken:null,loginMode:'phone',checkedPhone:null,pendingClaim:null,gamePlaying:false};
+const state={user:null,role:null,profile:null,view:'home',games:[],passes:[],wallet:[],rewards:[],campaigns:[],ownerGames:[],pool:[],assigned:[],busy:false,refreshing:false,activeSession:null,currentRedemption:null,currentOffer:null,board:[],staffRoles:[],handleToken:null,loginMode:'phone',checkedPhone:null,pendingClaim:null,gamePlaying:false,referralDraft:'',loyalty:null};
 let scanner=null,scannerRunning=false,qrLibPromise=null,barcodeLibPromise=null;
 const uuid=()=>crypto.randomUUID();
 const esc=x=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
@@ -21,7 +21,7 @@ const failerr=(message)=>{throw new Error(message);};
 function toast(message,bad=false){const el=$('toast');el.textContent=message;el.style.borderColor=bad?'#c77d70':'#ccaa76';el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),4600);}
 function errorText(e){const s=String(e?.message||e||'操作失败');const map={owner_only:'仅限 Owner 操作',staff_only:'仅限员工操作',not_authenticated:'登录已失效，请重新登录',pass_invalid_or_claimed:'游戏码无效、已领取或已过期',offer_unavailable:'奖励已领完、尚未开放或已到期',offer_not_found:'找不到这个奖励领取码',account_claim_limit:'你已经达到这个活动的领取次数',reward_no_valid_window:'奖品的可用时间设置有冲突',reward_not_redeemable:'奖励尚未到可兑换时间，或已经过期',outside_redeem_hours:'不在奖品允许兑换的营业时段',reward_pool_empty_or_sold_out:'奖池库存已用完',invalid_credentials:'手机号或 PIN 不正确',too_many_attempts:'尝试次数过多，请 15 分钟后再试',already_registered:'该号码已注册，请直接登录',invalid_pin:'请输入 6 位数字 PIN',weak_pin:'PIN 太容易猜，请换一个',invalid_phone:'请输入正确的手机号码',request_conflict:'请刷新后重试'};return map[s]||s.replaceAll('_',' ');}
 function shell(showMain){$('authView').classList.toggle('hide',showMain);$('mainView').classList.toggle('hide',!showMain);$('workspaceView').classList.add('hide');}
-function navigate(page='home'){state.view=page;shell(true);for(const e of document.querySelectorAll('.page'))e.classList.toggle('hide',e.id!==page+'Page');for(const e of document.querySelectorAll('[data-page]'))e.classList.toggle('active',e.dataset.page===page);window.scrollTo({top:0,behavior:'smooth'});if(page==='wallet')wallet().catch(e=>toast(errorText(e),true));if(page==='home')updateHome();if(page==='account')drawProfile();}
+function navigate(page='home'){state.view=page;shell(true);for(const e of document.querySelectorAll('.page'))e.classList.toggle('hide',e.id!==page+'Page');for(const e of document.querySelectorAll('[data-page]'))e.classList.toggle('active',e.dataset.page===page);window.scrollTo({top:0,behavior:'smooth'});if(page==='wallet'){wallet().catch(e=>toast(errorText(e),true));loadMyLoyalty().catch(()=>{});}if(page==='home')updateHome();if(page==='account'){drawProfile();loadMyLoyalty().catch(()=>{});}}
 async function pinRequest(action,phone='',pin='',nickname='',extras={}){
  const {bearer, ...fields}=extras;
  const headers={'Content-Type':'application/json',apikey:urlConfig.publishableKey};
@@ -51,6 +51,8 @@ function changeAuthMode(mode='phone'){
  const signup=mode==='register';
  $('nicknameGroup').classList.toggle('hide',!signup);
  $('birthdayGroup').classList.toggle('hide',!signup);
+ $('referralGroup').classList.toggle('hide',!signup);
+  if(signup && state.referralDraft)$('referralCode').value=state.referralDraft;
  $('confirmPinGroup').classList.toggle('hide',!signup);
  $('consentGroup').classList.toggle('hide',!signup);
  $('nickname').required=signup;$('birthday').required=signup;$('pinConfirm').required=signup;
@@ -81,14 +83,16 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
    if($('pinConfirm').value!==pin)throw Error('两次 PIN 不一致');
    if($('nickname').value.trim().length<2)throw Error('请填写你的称呼');
    if(!$('birthday').value)throw Error('请选择完整出生日期');
-   extras={birthday:$('birthday').value};
+   extras={birthday:$('birthday').value,referral_code:$('referralCode').value.trim().toUpperCase()};
   }
   const data=await pinRequest(state.loginMode,phone,pin,$('nickname').value.trim(),extras);
   const {error}=await db.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
   if(error)throw error;
   $('pin').value='';$('pinConfirm').value='';
   await initialize();toast(signup?'欢迎加入 Yetipsy Play ✳':'欢迎回来 ✳');
-  if(state.pendingClaim){const claim=state.pendingClaim;state.pendingClaim=null;try{await redeemScanValue(claim.token,claim.kind);}catch(e){toast(errorText(e),true);}}
+   if(signup){state.referralDraft='';const next=new URL(location.href);next.searchParams.delete('invite');history.replaceState(null,'',next.href);}
+   loadMyLoyalty().catch(()=>{});
+   if(state.pendingClaim){const claim=state.pendingClaim;state.pendingClaim=null;try{await redeemScanValue(claim.token,claim.kind);}catch(e){toast(errorText(e),true);}}
  });
 }catch(err){$('authError').textContent=errorText(err);}}
 async function initialize(){if(!db)return;const {data:{user},error}=await db.auth.getUser();if(error&&!/Auth session missing/i.test(error.message||''))console.warn('Session:',error.message);state.user=user||null;
@@ -105,7 +109,7 @@ async function initialize(){if(!db)return;const {data:{user},error}=await db.aut
 }
 function drawProfile(){const p=state.profile||{};$('profileName').textContent=p.display_name||'Yetipsy Member';$('profilePhone').textContent=p.phone||'PLAY CLUB MEMBER';$('profileLevel').textContent=isOwner()?'OWNER MEMBER':isStaff()?'STAFF MEMBER':'PLAY CLUB MEMBER';}
 function updateHome(){const valid=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());$('homePassCount').textContent=`${valid.length} 次待使用机会`;$('openExistingPass').classList.toggle('hide',!valid.length);$('homeGreetingSub').textContent=state.profile?.display_name?'嗨，'+state.profile.display_name+' · 今晚玩点新的？':'YETIPSY PLAY · 轻松享受此刻';}
-async function refreshPasses(){if(!state.user)return;state.passes=unpack(await db.from('game_passes').select('id,status,claimed_at,expires_at,campaign_id,created_at').eq('customer_id',state.user.id).order('created_at',{ascending:false}).limit(50));updateHome();}
+async function refreshPasses(){if(!state.user)return;state.passes=unpack(await db.from('game_passes').select('id,status,claimed_at,expires_at,campaign_id,created_at,spend_amount_rm,spend_ref,selection').eq('customer_id',state.user.id).order('created_at',{ascending:false}).limit(50));updateHome();}
 async function loadGames(){state.games=unpack(await db.from('games').select('id,slug,title,mode,active').eq('active',true).order('slug'));}
 async function wallet(silent=false){if(!state.user)return;const items=unpack(await db.from('user_rewards').select('id,status,created_at,redeem_after,expires_at,redeemed_at,rewards(name,description,category,daily_start_local,daily_end_local)').eq('customer_id',state.user.id).order('created_at',{ascending:false}).limit(100));state.wallet=items;renderWallet();if(!silent)updateHome();}
 const iconFor=category=>({drink:'♧',voucher:'◇',gift:'✳',event:'✦',custom:'◈'})[category]||'✦';
@@ -166,7 +170,7 @@ async function redeemScanValue(raw,assumed){const info=tokenDetails(raw);if(assu
  if(info.kind==='gift'){
   const key='gift:'+info.token,req=retryId(key);const rows=unpack(await db.rpc('yt_claim_offer',{p_token:info.token,p_request:req}));if(!rows?.length)throw Error('奖励领取失败');requestStore.remove('v11:'+key);stripLink('gift');await wallet(true);await showSimpleSuccess('领取成功',rows[0].reward_name||'礼物已放进奖励钱包','奖励可在「我的奖励」里查看使用时间。');return;
  }
- const claimedId=unpack(await db.rpc('yt_claim_pass',{p_token:info.token}));stripLink('claim');await refreshPasses();toast('游戏机会已经领取 ✳');const p=state.passes.find(x=>x.id===claimedId&&x.status==='claimed'&&millis(x.expires_at)>Date.now());if(p)await chooseGame(p);else toast('游戏机会已入账，请到首页选择游戏',true);
+ const claimedId=unpack(await db.rpc('yt_claim_pass',{p_token:info.token}));stripLink('claim');await refreshPasses();toast('游戏机会已经领取 ✳');const p=state.passes.find(x=>x.id===claimedId&&x.status==='claimed'&&millis(x.expires_at)>Date.now());if(p)await choosePassReward(p);else toast('游戏机会已入账，请到首页选择游戏',true);
 }
 function stripLink(kind){const u=new URL(location.href);u.searchParams.delete(kind);history.replaceState(null,'',u.href);}
 async function manualClaimSubmit(){const raw=$('scanManual').value.trim();await redeemScanValue(raw);}
@@ -413,7 +417,54 @@ async function startGame(pass,g){
  }finally{state.gamePlaying=false;}
 }
 
-async function existingGamePass(){await refreshPasses();const p=state.passes.find(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());if(!p)throw Error('还没有游戏机会，请先扫描员工二维码');await chooseGame(p);}
+
+async function loadMyLoyalty(){
+ if(!state.user)return;
+ try{state.loyalty=unpack(await db.rpc('yt_loyalty_member_summary'));renderMyLoyalty();}
+ catch(e){console.warn('Loyalty temporarily unavailable:',errorText(e));}
+}
+function renderMyLoyalty(){
+ const l=state.loyalty;if(!l)return;
+ const cards=['ytLoyaltyHome','ytLoyaltyAccount','ytLoyaltyWallet'];
+ for(const id of cards){const target=$(id);if(!target)continue;target.classList.remove('hide');target.replaceChildren();
+  const h=document.createElement('div');h.className='yt-loyalty-head';h.innerHTML='<strong>MY REWARDS CLUB</strong><span>会员积分 · 好友推荐</span>';target.append(h);
+  const p=document.createElement('div');p.className='yt-loyalty-points';p.innerHTML='<span>可用积分</span><b>'+Number(l.points_balance||0).toLocaleString('en-MY')+' P</b>';
+  target.append(p);
+  const row=document.createElement('div');row.className='yt-loyalty-code';
+  const label=document.createElement('span');label.textContent='我的好友码';row.append(label);
+  const code=document.createElement('b');code.textContent=l.referral_code||'—';row.append(code);target.append(row);
+  const desc=document.createElement('p');desc.className='tiny-help';desc.textContent=l.referral_enabled?'邀请好友注册可领取活动好礼；实际奖励与兑换规则以活动设置为准。':'好友推荐活动尚未开放，好友码已经为你保留。';target.append(desc);
+  if(l.referral_enabled){const b=document.createElement('button');b.type='button';b.className='button button-outline wide';b.textContent='复制我的好友邀请链接 ↗';b.onclick=()=>{const u=new URL('./',location.href);u.search='';u.searchParams.set('invite',l.referral_code);copy(u.href);};target.append(b);}
+  if(id==='ytLoyaltyWallet'){
+    const history=document.createElement('div');history.className='yt-loyalty-history';const hh=document.createElement('strong');hh.textContent='最近积分记录';history.append(hh);
+    const items=l.points_history||[];
+    if(!items.length){const e=document.createElement('p');e.className='tiny-help';e.textContent='目前尚未获得积分。';history.append(e);}
+    for(const item of items.slice(0,15)){const line=document.createElement('p');line.textContent=(item.direction==='earn'?'+':'−')+Number(item.points).toLocaleString('en-MY')+' P · '+fmt(item.created_at);history.append(line);}
+    target.append(history);
+  }
+ }
+}
+async function choosePassReward(pass){
+ if(!state.user)throw Error('请先登录会员账号');
+ if(!pass||pass.status!=='claimed')throw Error('这张 Game Pass 已失效或使用过');
+ let quote=null;
+ try{quote=unpack(await db.rpc('yt_point_pass_quote',{p_pass:pass.id}));}catch(e){console.warn('Points quote unavailable',e);}
+ if(!quote?.eligible){return chooseGame(pass);}
+ showSheet('今晚选哪一种？','GAME OR POINTS · ONE CHOICE');
+ sheetHtml('<div class="sheet-content yt-loyalty-choice"><h2>一张 Game Pass，一次惊喜。</h2><p>你的有效消费 RM '+Number(quote.spend_amount_rm||0).toFixed(2)+'，可以选择玩游戏领取随机奖品，或直接抽取积分。</p><div class="yt-choice-cap">本次积分上限：<b>'+Number(quote.max_points).toLocaleString('en-MY')+' P</b><small>按 Owner 设定的最高 '+Number(quote.max_percent)+'% 价值上限计算。实际随机获得的积分可能较少。</small></div><button id="ytChooseGame" type="button" class="button button-primary wide">玩小游戏 · 抽奖品 ↗</button><button id="ytChoosePoints" type="button" class="button button-outline wide">不玩游戏 · 随机领积分 ↗</button><p class="tiny-help">只能选择一次，选择积分后不可再玩游戏；积分暂不支持兑换或购物。</p></div>');
+ $('ytChooseGame').onclick=()=>pending($('ytChooseGame'),()=>chooseGame(pass)).catch(()=>{});
+ $('ytChoosePoints').onclick=()=>pending($('ytChoosePoints'),async()=>{
+  if(!confirm('确认用这次 Game Pass 兑换随机积分？确认后将不能再玩游戏。'))return;
+  const result=unpack(await db.rpc('yt_claim_random_points',{p_pass:pass.id}));
+  if(!result?.length)throw Error('积分暂时无法入账，请稍后再试');
+  await refreshPasses();await loadMyLoyalty();
+  showSheet('积分已经到账','POINTS SAVED');
+  sheetHtml('<div class="sheet-content"><div class="game-arena"><span class="game-result-star">✳</span><div class="game-result-name">+'+Number(result[0].points_awarded).toLocaleString('en-MY')+' POINTS</div><div class="game-result-sub">本次最高 '+Number(result[0].limit_points)+' P · 当前余额 '+Number(result[0].new_balance).toLocaleString('en-MY')+' P</div></div><button id="ytPointsWallet" class="button button-primary wide" type="button">查看我的积分钱包 ↗</button></div>');
+  $('ytPointsWallet').onclick=()=>{closeSheet();navigate('wallet');};
+ }).catch(()=>{});
+}
+
+async function existingGamePass(){await refreshPasses();const p=state.passes.find(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());if(!p)throw Error('还没有游戏机会，请先扫描员工二维码');await choosePassReward(p);}
 async function prizeBoard(){
   // This public endpoint returns only titles,玩法 and award terms; not prize weights or odds.
   const response=await pinRequest('prizes');
@@ -587,7 +638,10 @@ async function boot(){bindEvents();changeAuthMode('phone');initialiseOfferDates(
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
  db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;shell(false);changeAuthMode('phone');}});
- const qs=new URL(location.href).searchParams;
+  const qs=new URL(location.href).searchParams;
+  const invite=(qs.get('invite')||'').toUpperCase();
+  if(/^YT[A-Z0-9]{8}$/.test(invite)){state.referralDraft=invite;$('referralCode').value=invite;}
+  if(state.user)loadMyLoyalty().catch(()=>{});
  if(qs.has('reset')){try{await showResetFlow(qs.get('reset'));}catch(e){toast(errorText(e),true);}}
  else if(qs.has('claim')||qs.has('gift')){
   const kind=qs.has('claim')?'claim':'gift';try{await previewClaim(qs.get(kind),kind);}catch(e){toast(errorText(e),true);}
