@@ -14,7 +14,7 @@ const fmt=date=>date?new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpu
 const toMyTimestamp=s=>s?s+':00+08:00':null;
 const fromMyDate=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d).replace(' ','T');
 function status(message,bad=false){const el=$('toast');el.textContent=message;el.style.borderColor=bad?'#dc8380':'#dec392';el.classList.remove('hide');clearTimeout(status.timer);status.timer=setTimeout(()=>el.classList.add('hide'),5100);}
-function err(e){const s=String(e?.message||e||'请稍后重试');const messages={server_unavailable:'服务暂时不可用，请稍后重试',work_configuration_error:'工作账户服务器尚未配置完成',invalid_credentials:'账号或密码不正确',too_many_attempts:'错误次数过多，请 15 分钟后再试',weak_password:'密码至少12位，须含大写、小写字母和数字，不能包含用户名',invalid_username:'用户名须为3–24位小写字母开头，后接字母、数字或下划线',owner_only:'需要 Owner 权限',not_authenticated:'工作登录已失效，请重新登录',invalid_setup_or_already_used:'激活码无效、已过期或已经使用',invalid_setup:'初始用户名、密码或激活码不正确',username_taken:'用户名已经被使用',staff_not_found:'找不到员工账号',owner_already_exists:'Owner 已经激活，请直接登录',reward_pool_empty_or_sold_out:'奖池库存已用完',staff_only:'需要 Staff 或 Owner 权限',outside_redeem_hours:'不在允许核销的时段',token_invalid:'二维码无效、过期或已使用'};return messages[s]||s.replaceAll('_',' ');}
+function err(e){const s=String(e?.message||e||'请稍后重试');const messages={server_unavailable:'服务暂时不可用，请稍后重试',work_configuration_error:'工作账户服务器尚未配置完成',invalid_credentials:'账号或密码不正确',too_many_attempts:'错误次数过多，请 15 分钟后再试',weak_password:'密码至少12位，须含大写、小写字母和数字，不能包含用户名',invalid_username:'用户名须为3–24位小写字母开头，后接字母、数字或下划线',owner_only:'需要 Owner 权限',not_authenticated:'工作登录已失效，请重新登录',invalid_setup_or_already_used:'激活码无效、已过期或已经使用',invalid_setup:'初始用户名、密码或激活码不正确',username_taken:'用户名已经被使用',staff_not_found:'找不到员工账号',owner_already_exists:'Owner 已经激活，请直接登录',reward_pool_empty_or_sold_out:'奖池库存已用完',staff_only:'需要 Staff 或 Owner 权限',outside_redeem_hours:'不在允许核销的时段',token_invalid:'二维码无效、过期或已使用',invalid_offer:'领取截止时间必须晚于现在，且总份数与每人领取次数需符合限制',reward_inactive:'这个奖品尚未开放，请先启用奖品',invalid_claim_token:'QR 内容无效，请重新生成'};return messages[s]||s.replaceAll('_',' ');}
 function busy(button,fn){if(button?.disabled)return Promise.resolve();if(button)button.disabled=true;return Promise.resolve().then(fn).catch(e=>{status(err(e),true);throw e}).finally(()=>{if(button)button.disabled=false});}
 const unpack=r=>{if(r?.error)throw Error(r.error.message||'服务器操作失败');return r.data;};
 async function token(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
@@ -38,11 +38,65 @@ async function boot(){bind();if(!configured){renderGate();$('gateMessage').textC
 let qrcodePromise=null;function script(src){return new Promise((resolve,reject)=>{const el=document.createElement('script');el.src=src;el.async=true;el.onload=resolve;el.onerror=()=>reject(Error('无法加载二维码资源；可使用下方复制链接'));document.head.append(el)});}
 function copy(s){return navigator.clipboard?.writeText(s).then(()=>status('已复制')).catch(()=>fallbackCopy(s))??fallbackCopy(s);}
 function fallbackCopy(s){const el=document.createElement('textarea');el.value=s;document.body.append(el);el.select();document.execCommand('copy');el.remove();status('已复制');}
-function codeLink(type,id){const url=new URL('../',location.href);url.searchParams.set(type,id);return url.href;}
-async function showQR(target,title,link,expiry=null){const el=$(target);el.classList.remove('hide');el.replaceChildren();const heading=document.createElement('h3');heading.textContent=title;el.append(heading);const square=document.createElement('div');square.className='qr-canvas';el.append(square);const href=document.createElement('a');href.className='qr-link';href.href=link;href.textContent=link;href.target='_blank';href.rel='noreferrer';el.append(href);const btn=document.createElement('button');btn.className='btn outline small';btn.textContent='复制二维码链接';btn.onclick=()=>copy(link);el.append(btn);if(expiry){const exp=document.createElement('div');exp.className='qr-exp';exp.textContent='领取码有效至：'+fmt(expiry);el.append(exp);}try{if(!window.QRCode)qrcodePromise??=script('https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js');await qrcodePromise;new window.QRCode(square,{text:link,width:212,height:212,colorDark:'#202820',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});}catch(e){square.textContent='QR 图形未加载，请复制上面的链接';status(err(e),true);}}
+function codeLink(type,id){
+ // Resolve from the module file, not from the current Owner/Staff page URL.
+ if(!['claim','gift','reset'].includes(type)||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id)))throw Error('invalid_claim_token');
+ const url=new URL('../',import.meta.url);url.search='';url.hash='';url.searchParams.set(type,id);
+ return url.href;
+}
+async function ensureQRLibrary(){
+ if(window.QRCode?.CorrectLevel)return;
+ if(!qrcodePromise){qrcodePromise=(async()=>{
+  for(const src of ['https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+   'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js']){
+   try{await script(src);if(window.QRCode?.CorrectLevel)return;}catch(e){console.warn('QR library source unavailable',src);}
+  }
+  throw Error('二维码图片组件暂时加载失败，领取链接仍可复制和打开');
+ })().catch(e=>{qrcodePromise=null;throw e;});}
+ return qrcodePromise;
+}
+async function showQR(target,title,link,expiry=null){
+ const el=$(target);el.classList.remove('hide');el.replaceChildren();
+ const heading=document.createElement('h3');heading.textContent=title;el.append(heading);
+ const square=document.createElement('div');square.className='qr-canvas';el.append(square);
+ const href=document.createElement('a');href.className='qr-link';href.href=link;href.textContent=link;href.target='_blank';href.rel='noreferrer';el.append(href);
+ const btn=document.createElement('button');btn.className='btn outline small';btn.type='button';btn.textContent='复制二维码链接';btn.onclick=()=>copy(link);el.append(btn);
+ if(expiry){const exp=document.createElement('div');exp.className='qr-exp';exp.textContent='领取码有效至：'+fmt(expiry);el.append(exp);}
+ const verification=document.createElement('div');verification.className='notice';verification.textContent='正在验证二维码可领取状态…';el.append(verification);
+ let rendered=false;
+ try{
+  await ensureQRLibrary();
+  new window.QRCode(square,{text:link,width:212,height:212,colorDark:'#202820',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});
+  rendered=true;
+ }catch(e){square.textContent='无法显示 QR 图片，请使用下方链接直接打开或复制';console.warn('QR render',e);}
+ return {rendered,verification};
+}
+async function verifyIssuedCode(kind,raw,render){
+ try{
+  const result=await pin('preview',{kind,token:raw});
+  if(!result.preview?.valid){
+   render.verification.textContent='⚠ 服务器未确认这个领取码可用：'+(result.preview?.message||'码可能已到期或活动尚未开放')+'。先不要发给顾客。';
+   status('二维码尚未通过服务器核验，请勿分享',true);return false;
+  }
+  render.verification.textContent=render.rendered?'✓ 服务器已验证：此 QR 当前可领取':'✓ 服务器已验证领取码：QR 图片加载失败，可复制链接领取';
+  status(render.rendered?'已创建并验证 QR，可让顾客扫码':'领取码已创建并验证，请使用复制链接',!render.rendered);
+  return true;
+ }catch(e){
+  render.verification.textContent='⚠ 领取码已写入服务器，但实时验证失败：'+err(e)+'。请暂时不要分享。';
+  status('无法验证领取码：'+err(e),true);return false;
+ }
+}
 function optionSet(node,values,value,label){const last=node.value;node.replaceChildren();for(const x of values)node.add(new Option(label(x),value(x)));if(values.some(x=>value(x)===last))node.value=last;}
 async function loadCampaigns(){const rows=unpack(await db.from('campaigns').select('id,name,active,starts_at,ends_at').eq('active',true).order('created_at',{ascending:false}));state.campaigns=rows||[];optionSet($('passCampaign'),state.campaigns,x=>x.id,x=>x.name);if(!rows.length)status('目前没有开放中的活动；Owner 请先开放活动。',true);}
-async function issuePass(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{const campaign=$('passCampaign').value;if(!campaign)throw Error('请选择有效的活动');const mins=Number($('passMins').value);if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('有效分钟须为1–60');const raw=uuid(),req=uuid();const result=unpack(await db.rpc('yt_issue_pass',{p_campaign:campaign,p_request:req,p_token:raw,p_minutes:mins}));if(!result?.length)throw Error('生成 Game Pass 失败');await showQR('passQR','已生成 Game Pass · 请顾客扫码',codeLink('claim',raw),result[0].expires_at);status('Game Pass 已生成，可以扫码领取');});}
+async function issuePass(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{
+ const campaign=$('passCampaign').value;if(!campaign)throw Error('请选择有效的活动');
+ const mins=Number($('passMins').value);if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('有效分钟须为1–60');
+ const raw=uuid(),req=uuid();
+ const result=unpack(await db.rpc('yt_issue_pass',{p_campaign:campaign,p_request:req,p_token:raw,p_minutes:mins}));
+ if(!result?.length)throw Error('生成 Game Pass 失败');
+ const card=await showQR('passQR','Game Pass · 顾客扫码领取',codeLink('claim',raw),result[0].expires_at);
+ await verifyIssuedCode('claim',raw,card);
+});}
 function parseQR(raw){const text=String(raw||'').trim();let value=text,kind='redeem';const match=text.match(/^(claim|gift|redeem|reset):([0-9a-f-]{36})$/i);if(match){kind=match[1].toLowerCase();value=match[2];}else{try{const u=new URL(text);for(const key of ['redeem','claim','gift','reset'])if(u.searchParams.has(key)){kind=key;value=u.searchParams.get(key);break;}}catch{}}
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value))throw Error('无效二维码，请扫描完整的兑奖凭证');return{kind,token:value};}
 async function lookupRedeem(e){e?.preventDefault();const btn=e?.submitter||$('lookupBtn');await busy(btn,async()=>{const parsed=parseQR($('redeemValue').value);if(parsed.kind!=='redeem')throw Error('这不是兑奖凭证，请让顾客打开 Wallet 生成兑奖 QR');const rows=unpack(await db.rpc('yt_lookup_redeem',{p_token:parsed.token}));const r=rows?.[0];state.pendingRedeem=null;const root=$('redeemResult');root.className='';root.replaceChildren();if(!r){root.className='empty';root.textContent='找不到这个兑奖码。';return;}root.innerHTML='<h3>'+esc(r.reward_name||'Yetipsy Reward')+'</h3><p class="muted tiny">有效期至 '+esc(fmt(r.expires_at))+'</p>';if(!r.valid){const div=document.createElement('div');div.className='notice';div.textContent='该码无效、已过期、未到使用时间或已核销。';root.append(div);return;}state.pendingRedeem=parsed.token;const confirm=document.createElement('button');confirm.className='btn full';confirm.textContent='确认核销这份奖励 →';confirm.onclick=()=>busy(confirm,redeemReward).catch(()=>{});root.append(confirm);});}
@@ -62,9 +116,29 @@ async function loadStaff(){const result=await work('staff_list',{},true);const r
  const reset=document.createElement('button');reset.className='btn outline small';reset.textContent='重设临时密码';reset.onclick=()=>busy(reset,async()=>{if(!confirm('确定重设 '+person.username+' 的登录密码？原密码将失效。'))return;const pw=randomPassword();await work('staff_reset',{username:person.username,temporary_password:pw},true);showModal('员工临时密码已重设','Username: '+person.username+'\nNew temporary password: '+pw+'\n\n员工下次登录必须改为自己的密码。');await loadStaff();}).catch(()=>{});
  buttons.append(toggle,reset);card.append(buttons);root.append(card);}
  if(!root.children.length)root.innerHTML='<div class="empty">尚未创建 Staff。填写左侧表单即可新增员工。</div>';}
-async function loadRewards(){const [rs,customers]=await Promise.all([db.from('rewards').select('id,name,description,active,category').eq('active',true).order('created_at',{ascending:false}).limit(400),db.from('profiles').select('id,display_name,phone').not('phone','is',null).order('created_at',{ascending:false}).limit(300)]);state.rewards=unpack(rs)||[];state.customers=unpack(customers)||[];optionSet($('issueReward'),state.rewards,x=>x.id,x=>x.name);optionSet($('directMember'),state.customers,x=>x.id,x=>(x.display_name||'Member')+' · '+(x.phone||'——'));if(!$('offerUntil').value){$('offerFrom').value=fromMyDate(new Date());$('offerUntil').value=fromMyDate(new Date(Date.now()+7*86400000));}}
+async function loadRewards(){
+ if(!$('offerUntil').value){$('offerFrom').value=fromMyDate(new Date());$('offerUntil').value=fromMyDate(new Date(Date.now()+7*86400000));}
+ const [rs,customers]=await Promise.all([db.from('rewards').select('id,name,description,active,category').eq('active',true).order('created_at',{ascending:false}).limit(400),db.from('profiles').select('id,display_name,phone').not('phone','is',null).order('created_at',{ascending:false}).limit(300)]);
+ state.rewards=unpack(rs)||[];state.customers=unpack(customers)||[];
+ optionSet($('issueReward'),state.rewards,x=>x.id,x=>x.name);
+ optionSet($('directMember'),state.customers,x=>x.id,x=>(x.display_name||'Member')+' · '+(x.phone||'——'));
+ if(!state.rewards.length)status('当前没有开放奖品，请先在本页创建一个奖品',true);
+}
 async function createReward(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{const df=$('rewardClockFrom').value,du=$('rewardClockUntil').value;if(Boolean(df)!==Boolean(du))throw Error('每日使用时间必须同时输入开始和结束');const r=unpack(await db.rpc('yt_create_reward_v11',{p_name:$('rewardName').value.trim(),p_description:$('rewardDesc').value.trim(),p_category:$('rewardCategory').value,p_validity:Number($('rewardDays').value),p_next_day:$('rewardNextDay').checked,p_use_from:toMyTimestamp($('rewardStart').value),p_use_until:toMyTimestamp($('rewardEnd').value),p_daily_from:df||null,p_daily_until:du||null}));$('rewardForm').reset();$('rewardNextDay').checked=true;await loadRewards();$('issueReward').value=r;status('自定义奖品创建成功，可以直接发放或生成 QR');});}
-async function createOffer(e){const btn=e.currentTarget;await busy(btn,async()=>{const reward=$('issueReward').value;if(!reward)throw Error('请先创建并选择奖品');const from=toMyTimestamp($('offerFrom').value),until=toMyTimestamp($('offerUntil').value);const token=uuid();unpack(await db.rpc('yt_create_offer',{p_reward:reward,p_token:token,p_from:from,p_until:until,p_max:Number($('offerTotal').value),p_per_user:Number($('offerPerPerson').value)}));await showQR('giftQR','领取这份好礼 · 顾客扫码',codeLink('gift',token),until);status('奖励领取二维码已生成');});}
+async function createOffer(e){const btn=e.currentTarget;await busy(btn,async()=>{
+ const reward=$('issueReward').value;if(!reward)throw Error('请先创建并选择奖品');
+ const startRaw=$('offerFrom').value,endRaw=$('offerUntil').value;
+ if(!endRaw)throw Error('请先选择奖励领取的截止时间');
+ const from=toMyTimestamp(startRaw),until=toMyTimestamp(endRaw);
+ if(!Number.isFinite(Date.parse(until))||Date.parse(until)<=Date.now()+10000)throw Error('领取截止时间必须晚于现在');
+ if(from&&Date.parse(from)>=Date.parse(until))throw Error('领取截止时间必须晚于开始时间');
+ const total=Number($('offerTotal').value),per=Number($('offerPerPerson').value);
+ if(!Number.isInteger(total)||total<1||total>10000||!Number.isInteger(per)||per<1||per>10)throw Error('总份数应为1–10000，每人可领次数应为1–10');
+ const token=uuid();
+ unpack(await db.rpc('yt_create_offer',{p_reward:reward,p_token:token,p_from:from,p_until:until,p_max:total,p_per_user:per}));
+ const card=await showQR('giftQR','Reward Claim · 顾客扫码领取',codeLink('gift',token),until);
+ await verifyIssuedCode('gift',token,card);
+});}
 async function directReward(e){const btn=e.currentTarget;await busy(btn,async()=>{const member=$('directMember').value,reward=$('issueReward').value;if(!member||!reward)throw Error('请选择会员与奖品');if(!confirm('确认把这份奖励直接放入所选顾客钱包？'))return;unpack(await db.rpc('yt_send_reward',{p_customer:member,p_reward:reward,p_request:uuid()}));status('奖励已入账顾客钱包');});}
 async function loadCampaignAdmin(){const [ca,g,r]=await Promise.all([db.from('campaigns').select('id,name,active').order('created_at',{ascending:false}),db.from('games').select('id,title,slug,active').eq('active',true).order('slug'),db.from('rewards').select('id,name,active').eq('active',true)]);state.campaigns=unpack(ca)||[];state.games=unpack(g)||[];state.rewards=unpack(r)||[];optionSet($('ownerCampaign'),state.campaigns,x=>x.id,x=>(x.active?'● ':'○ ')+x.name);optionSet($('poolGame'),state.games,x=>x.id,x=>x.title);await loadCampaignSettings();}
 async function loadCampaignSettings(){const campaign=$('ownerCampaign').value;if(!campaign)return;const c=state.campaigns.find(x=>x.id===campaign);$('campaignActive').checked=!!c?.active;const [links,pool]=await Promise.all([db.from('campaign_games').select('game_id').eq('campaign_id',campaign),db.from('reward_pool_entries').select('id,game_id,result_key,reward_id,weight,max_total,max_daily,issued_total,issued_today').eq('campaign_id',campaign)]);state.assigned=(unpack(links)||[]).map(x=>x.game_id);state.pool=unpack(pool)||[];const root=$('gameToggles');root.replaceChildren();for(const game of state.games){const card=document.createElement('div');card.className='user-card tiny-row';const label=document.createElement('label');label.className='checkline';const cb=document.createElement('input');cb.type='checkbox';cb.checked=state.assigned.includes(game.id);const span=document.createElement('span');span.textContent=game.title;label.append(cb,span);cb.onchange=()=>busy(cb,async()=>{unpack(await db.rpc('yt_owner_set_game',{p_campaign:campaign,p_game:game.id,p_enabled:cb.checked}));await loadCampaignSettings();status('游戏状态已保存');}).catch(()=>{cb.checked=!cb.checked});card.append(label);root.append(card);}renderPool();}
