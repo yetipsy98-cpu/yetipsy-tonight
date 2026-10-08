@@ -209,9 +209,41 @@ async function startGame(pass,g){if(state.gamePlaying)throw Error('游戏进行�
  finally{state.gamePlaying=false;}
 }
 async function existingGamePass(){await refreshPasses();const p=state.passes.find(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());if(!p)throw Error('还没有游戏机会，请先扫描员工二维码');await chooseGame(p);}
-async function prizeBoard(){const board=unpack(await db.rpc('yt_prize_board'));state.board=board||[];showSheet('奖品公示','REWARD DISCLOSURE');if(!board?.length){sheetHtml('<div class="empty-state">当前还没有开放的活动奖池。</div>');return;}const groups=new Map();for(const row of board){const key=row.campaign_name+' · '+row.game_slug;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(row);}const root=document.createElement('div');root.className='sheet-content';root.innerHTML='<p>下列为当前开放活动的奖品及按服务器设置计算的概率。库存或活动设置变化时，概率也可能变化。</p>';
- for(const [name,rows] of groups){const box=document.createElement('div');box.className='prize-group';box.innerHTML=`<div class="prize-head"><b>${esc(rows[0].game_title)}</b><span>${esc(rows[0].campaign_name)}</span></div>`;
- for(const r of rows){const line=document.createElement('div');line.className='prize-row';line.innerHTML=`<div><strong>${esc(r.reward_name)}</strong><small>${esc(r.description||r.redeem_rules||'兑换规则以奖品详情为准')}</small></div><span class="prize-rate">${Number(r.probability).toFixed(2)}%</span>`;box.append(line);}root.append(box);}const note=document.createElement('p');note.textContent='中奖奖励会自动进入钱包，实际可用日期以具体奖励为准。';root.append(note);$('sheetBody').append(root);}
+async function prizeBoard(){
+  // This public endpoint returns only titles,玩法 and award terms; not prize weights or odds.
+  const response=await pinRequest('prizes');
+  const board=response.prizes||[];
+  state.board=board;
+  showSheet('奖品与玩法','PRIZES & HOW TO PLAY');
+  if(!board.length){sheetHtml('<div class="empty-state">当前暂无开放的活动奖品。</div>');return;}
+  const groups=new Map();
+  for(const row of board){
+    const key=row.campaign_name+' · '+row.game_slug;
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(row);
+  }
+  const root=document.createElement('div');root.className='sheet-content';
+  const intro=document.createElement('p');intro.textContent='本页仅介绍游戏玩法、可获得的奖品和兑换规则。实际发奖结果以服务器结算及会员钱包为准。';root.append(intro);
+  for(const rows of groups.values()){
+    const group=rows[0],box=document.createElement('div');box.className='prize-group';
+    const title=document.createElement('div');title.className='prize-head';
+    const game=document.createElement('b');game.textContent=group.game_title;
+    const event=document.createElement('span');event.textContent=group.campaign_name;
+    title.append(game,event);box.append(title);
+    const how=document.createElement('p');how.className='soft-text';how.textContent='怎么玩：'+(group.how_to_play||'领取 Game Pass 后参与游戏，完成后奖励自动存入钱包。');box.append(how);
+    const list=document.createElement('div');
+    for(const reward of rows){
+      const line=document.createElement('div');line.className='prize-row';
+      const content=document.createElement('div');
+      const name=document.createElement('strong');name.textContent=reward.reward_name;
+      const details=document.createElement('small');details.textContent=[reward.description,reward.redeem_rules].filter(Boolean).join(' · ')||'兑换规则以奖励详情为准';
+      content.append(name,details);line.append(content);list.append(line);
+    }
+    box.append(list);root.append(box);
+  }
+  const notice=document.createElement('p');notice.className='soft-text';notice.textContent='奖品及玩法以活动当时公布的规则为准；奖励的可用日期与有效期请查看钱包。';root.append(notice);
+  $('sheetBody').append(root);
+}
 
 function openWorkspace(which){if(which==='owner'&&!isOwner())return toast('没有 Owner 权限',true);if(which==='staff'&&!isStaff())return toast('没有 Staff 权限',true);
  $('mainView').classList.add('hide');$('authView').classList.add('hide');$('workspaceView').classList.remove('hide');$('workspaceHeading').textContent=which==='owner'?'Owner 工作台':'员工工作台';$('workspaceOverline').textContent=which==='owner'?'OWNER CONSOLE':'STAFF OPERATIONS';$('workChip').textContent=which.toUpperCase();$('staffTools').classList.toggle('hide',which!=='staff');$('ownerTools').classList.toggle('hide',which!=='owner');window.scrollTo(0,0);
