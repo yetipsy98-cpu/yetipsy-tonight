@@ -1,0 +1,18 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # 每 3 天的凌晨 0 点（UTC 时间）自动运行一次，防止 7 天暂停限制
+    - cron: '0 0 */3 * *'
+  # 允许你在 GitHub 页面上点击按钮手动触发测试
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Ping Request to Supabase Auth API
+        run: |
+          curl -i -X GET "${{ secrets.SUPABASE_URL }}/auth/v1/health" \
+          -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}"
