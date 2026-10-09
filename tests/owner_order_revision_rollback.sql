@@ -27,7 +27,7 @@ begin
  insert into public.user_rewards(customer_id,reward_id,session_id,issued_by,expires_at) values(member,reward,session,actor,now()+interval '1 day') returning id into award;
  insert into public.yt_point_wallets(customer_id,balance,lifetime_earned) values(member,10,10) on conflict(customer_id) do update set balance=yt_point_wallets.balance+10,lifetime_earned=yt_point_wallets.lifetime_earned+10;
  select balance into before_points from public.yt_point_wallets where customer_id=member;
- insert into public.yt_point_entries(customer_id,game_pass_id,direction,points,reference) values(member,pass,'earn',10,'rollback revision earn');
+ insert into public.yt_point_entries(customer_id,game_pass_id,direction,points,reference,remaining_points) values(member,pass,'earn',10,'rollback revision earn',10);
  select updated_at into old_updated from public.yt_member_orders where id=o;
  payload:=jsonb_build_array(jsonb_build_object('item_id',item,'product_id',product,'quantity',3,'unit_price_rm',20));req:=gen_random_uuid();
  foreach member in array array[cashier,member] loop

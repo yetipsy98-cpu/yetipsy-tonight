@@ -58,11 +58,12 @@ begin
  perform public.yt_game_checkpoint(session,'begin',2);r:=public.yt_game_checkpoint(session,'resume');
  if r->'rounds'<>'[100,0]'::jsonb then raise exception 'reload_did_not_preserve_attempts';end if;
  begin perform public.yt_game_checkpoint(session,'begin',1);raise exception 'expected_failure';exception when others then if sqlerrm<>'game_round_locked' then raise;end if;end;
- begin perform public.yt_finish_game_ranked(session,100);raise exception 'expected_failure';exception when others then if sqlerrm<>'game_rounds_incomplete' then raise;end if;end;
+ update public.game_sessions set started_at=now()-interval '5 seconds' where id=session;
+ begin perform public.yt_game_result(session,100);raise exception 'expected_failure';exception when others then if sqlerrm<>'game_rounds_incomplete' then raise;end if;end;
  perform public.yt_game_checkpoint(session,'begin',3);perform public.yt_game_checkpoint(session,'finish',3,70);
  update public.game_sessions set started_at=now()-interval '5 seconds' where id=session;
- select session_score into score from public.yt_finish_game_ranked(session,1);if score<>100 then raise exception 'client_100_must_record_100';end if;
- perform public.yt_finish_game_ranked(session,80);if (select count(*) from public.user_rewards where session_id=session)<>1 then raise exception 'game_paid_twice';end if;
+ r:=public.yt_game_result(session,1);score:=(r->>'session_score')::numeric;if score<>100 then raise exception 'client_100_must_record_100';end if;
+ perform public.yt_game_settle(session,'points');perform public.yt_game_settle(session,'points');if (select count(*) from public.yt_point_entries where game_pass_id=p and direction='earn')<>1 then raise exception 'game_paid_twice';end if;
  -- Whole-order cancellation cancels all constituent passes; reissue keeps their IDs.
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',staff_id)::text,true);
  token:=gen_random_uuid();r:=public.yt_pos_bundle_issue(o,campaign,token,gen_random_uuid(),60);bundle:=(r->>'id')::uuid;
@@ -80,7 +81,7 @@ begin
  -- Expiry never frees the consumed POS entitlement or extends it on retry.
  update public.game_passes set expires_at=now()-interval '1 second' where id=p2;
  begin perform public.yt_start_game(p2,game);raise exception 'expected_failure';exception when others then if sqlerrm<>'pass_expired_or_used' then raise;end if;end;
- begin perform public.yt_finish_game(session);raise exception 'expected_failure';exception when others then if sqlerrm<>'pass_expired_or_used' then raise;end if;end;
+ begin perform public.yt_game_settle(session,'reward');raise exception 'expected_failure';exception when others then if sqlerrm<>'pass_expired_or_used' then raise;end if;end;
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',staff_id)::text,true);
  r:=public.yt_pos_benefit_orders();if exists(select 1 from jsonb_array_elements(r->'orders')x where x->>'id'=o::text) then raise exception 'all_claimed_order_not_removed';end if;
  begin perform public.yt_pos_cancel_code(null,bundle,'after claim');raise exception 'expected_failure';exception when others then if sqlerrm<>'pass_already_claimed' then raise;end if;end;
