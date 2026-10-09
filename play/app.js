@@ -110,12 +110,12 @@ async function initialize(){if(!db)return;const {data:{user},error}=await db.aut
  if(new URL(location.href).searchParams.has('redeem')&&isStaff()){openWorkspace('staff');$('staffRedeemInput').value=new URL(location.href).searchParams.get('redeem');showStaffRedeem();}
 }
 function drawProfile(){const p=state.profile||{};$('profileName').textContent=p.display_name||'Yetipsy Member';$('profilePhone').textContent=p.phone||'PLAY CLUB MEMBER';$('profileLevel').textContent=isOwner()?'OWNER MEMBER':isStaff()?'STAFF MEMBER':'PLAY CLUB MEMBER';}
-function updateHome(){const valid=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());$('homePassCount').textContent=`${valid.length} 次待使用机会`;$('openExistingPass').classList.toggle('hide',!valid.length);$('homeGreetingSub').textContent=state.profile?.display_name?'嗨，'+state.profile.display_name+' · 今晚玩点新的？':'YETIPSY PLAY · 轻松享受此刻';}
+function updateHome(){const valid=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());$('openExistingPass').classList.toggle('hide',!valid.length);$('homeGreetingSub').textContent=state.profile?.display_name?'嗨，'+state.profile.display_name+' · 今晚玩点新的？':'YETIPSY PLAY · 轻松享受此刻';}
 async function refreshPasses(){if(!state.user)return;state.passes=unpack(await db.from('game_passes').select('id,status,claimed_at,expires_at,campaign_id,created_at,spend_amount_rm,spend_ref,selection').eq('customer_id',state.user.id).order('created_at',{ascending:false}).limit(50));updateHome();}
 async function loadGames(){state.games=unpack(await db.from('games').select('id,slug,title,mode,active').eq('active',true).order('slug'));}
 async function wallet(silent=false){if(!state.user)return;const items=unpack(await db.from('user_rewards').select('id,status,created_at,redeem_after,expires_at,redeemed_at,rewards(name,description,category,daily_start_local,daily_end_local)').eq('customer_id',state.user.id).order('created_at',{ascending:false}).limit(100));state.wallet=items;renderWallet();if(!silent)updateHome();}
 const iconFor=category=>({drink:'♧',voucher:'◇',gift:'✳',event:'✦',custom:'◈'})[category]||'✦';
-function renderWallet(){const root=$('walletItems');root.replaceChildren();const usable=state.wallet.filter(x=>x.status==='available'&&millis(x.redeem_after)<=Date.now()&&millis(x.expires_at)>Date.now());$('availableRewards').textContent=usable.length;
+function renderWallet(){const root=$('walletItems');root.replaceChildren();
  if(!state.wallet.length){root.innerHTML='<div class="empty-state"><span class="empty-symbol">✦</span>这里还没有奖励。<br/>扫码玩游戏，或领取店主送出的好礼。</div>';return;}
  for(const r of state.wallet){const expires=millis(r.expires_at)<=Date.now(),early=millis(r.redeem_after)>Date.now(),redeemed=r.status==='redeemed';const available=r.status==='available'&&!expires&&!early;const card=document.createElement('div');card.className='reward-item';const status=redeemed?'已核销':expires?'已过期':r.status==='revoked'?'已作废':early?'未到使用时间':'可兑换';card.innerHTML=`<div class="reward-icon">${iconFor(r.rewards?.category)}</div><div><span class="chip ${available?'ok':redeemed?'off':''}">${status}</span><h3>${esc(r.rewards?.name||'Reward')}</h3><p>${esc(r.rewards?.description||'到店出示凭证由员工核销')}</p><p>开始：${esc(fmt(r.redeem_after))}<br/>截止：${esc(fmt(r.expires_at))}</p>${r.rewards?.daily_start_local?`<p>每日可用：${esc(r.rewards.daily_start_local.slice(0,5))} – ${esc(r.rewards.daily_end_local.slice(0,5))}</p>`:''}</div>`;
  if(available){const btn=document.createElement('button');btn.className='button button-outline';btn.textContent='▣ 出示兑奖二维码 / 兑换码';btn.onclick=()=>pending(btn,()=>showRewardQR(r));card.append(btn);}root.append(card);}
@@ -435,7 +435,7 @@ async function loadMyLoyalty(){
 }
 function renderMyLoyalty(){
  const l=state.loyalty;if(!l)return;
- const cards=['ytLoyaltyHome','ytLoyaltyAccount','ytLoyaltyWallet'];
+ const cards=['ytLoyaltyWallet'];
  for(const id of cards){const target=$(id);if(!target)continue;target.classList.remove('hide');target.replaceChildren();
   const h=document.createElement('div');h.className='yt-loyalty-head';h.innerHTML='<strong>MY REWARDS CLUB</strong><span>会员积分 · 好友推荐</span>';target.append(h);
   const p=document.createElement('div');p.className='yt-loyalty-points';p.innerHTML='<span>可用积分</span><b>'+Number(l.points_balance||0).toLocaleString('en-MY')+' P</b>';
