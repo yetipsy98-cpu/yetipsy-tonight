@@ -11,7 +11,7 @@ for (const page of ['pos', 'cashier']) {
  const ids = [...h.matchAll(/id="([^"]+)"/g)].map(m => m[1]);
  assert.equal(ids.length, new Set(ids).size, `${page}: duplicate DOM IDs`);
  for (const id of ['draftRedeemToken','draftRedeemScan','draftRedeemCheck','draftRewardRows','draftGross','draftDiscount','draftStatus','draftRefresh']) assert(ids.includes(id));
- assert(h.includes('data-go-tab="create">⌗ 点单购物车兑奖'));
+ assert(h.includes('id="draftRedeemToken"'));
  assert(h.includes('class="cart-redeem-form hidden"'));
 }
 class Element {

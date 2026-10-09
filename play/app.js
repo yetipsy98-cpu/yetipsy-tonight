@@ -175,8 +175,8 @@ function copy(text){navigator.clipboard?.writeText(text).then(()=>toast('已复�
 async function showCodeSheet(title,subtitle,link,withBarcode=true,deadline=null,shortCode=null,shortKind='redeem'){showSheet(title,'SCAN & CLAIM');sheetHtml(`<div class="sheet-content"><p>${esc(subtitle)}</p><div class="code-card"><b>YE·TIPSY</b><small style="display:block">PRESENT THIS CODE</small><div id="sheetQR" class="sheet-qr-container"></div>${withBarcode?'<svg id="sheetBarcode" aria-label="可扫描条形码"></svg>':''}<div class="token-text" id="sheetToken"></div></div><button type="button" id="sheetCopy" class="button button-outline wide">${shortCode?(shortKind==='gift'?'复制领取码':'复制兑换码'):'复制领取链接 / 扫描内容'}</button>${deadline?'<p id="sheetCountdown" class="tiny-help"></p>':''}<p class="tiny-help">${shortCode?(shortKind==='gift'?'扫不到时，在客户端点击「领取奖励」，输入这组 8 位领取码。':'扫不到时，把这组 8 位兑换码报给店员，在点单购物车中输入即可。'):'优先使用二维码；支持条形码的扫描设备也可以读取同一凭证。'}</p></div>`);$('sheetToken').textContent=shortCode||link;if(shortCode){$('sheetToken').classList.add('redeem-short-code');$('sheetToken').setAttribute('aria-label','短兑换码');}const codeURL=new URL(link);const codeKey=[...codeURL.searchParams.keys()][0]||'claim';const codeRaw=codeURL.searchParams.get(codeKey)||link;const raw=codeKey+':'+codeRaw;try{await qrcode($('sheetQR'),link);}catch(e){$('sheetQR').style.display='none';toast(shortCode?'二维码加载失败，请出示下方兑换码':'二维码素材加载失败，请复制链接',true);}if(withBarcode){try{await barcode($('sheetBarcode'),raw);}catch(e){$('sheetBarcode').classList.add('hide');}}
  $('sheetCopy').onclick=()=>copy(shortCode||link);if(deadline){const tick=()=>{const el=$('sheetCountdown');if(!el||!el.isConnected){clearInterval(timer);return;}const secs=Math.max(0,Math.ceil((millis(deadline)-Date.now())/1000));el.textContent=secs?(shortKind==='gift'?'领取截止：'+fmt(deadline):`${shortCode?(shortKind==='gift'?'二维码与领取码':'二维码与兑换码'):'动态二维码'} ${secs} 秒后失效`):'已过期，需要重新生成';if(!secs){clearInterval(timer);if(shortCode){$('sheetCopy').disabled=true;$('sheetToken').classList.add('code-expired');}}};let timer=setInterval(tick,1000);tick();}}
 async function showRewardQR(reward){const code=uuid();const data=unpack(await db.rpc('yt_make_redeem_v5',{p_award:reward.id,p_token:code}));const link=newLink('redeem',code);await showCodeSheet('出示奖励凭证',reward.rewards?.name||'Yetipsy Reward',link,true,data.expires_at,data.display_code);const regenerate=document.createElement('button');regenerate.type='button';regenerate.className='button button-outline wide';regenerate.textContent='重新生成兑换码';regenerate.onclick=()=>pending(regenerate,()=>showRewardQR(reward));$('sheetCountdown').after(regenerate);}
-function tokenDetails(raw){const s=String(raw||'').trim();const short=s.replace(/[\s-]/g,'').toUpperCase();if(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short))return {kind:'gift_code',token:short};let kind='claim',token=s;const prefixed=s.match(/^(gift|claim|redeem):([0-9a-f-]{36})$/i);if(prefixed){kind=prefixed[1].toLowerCase();token=prefixed[2];}
- try{const url=new URL(s);for(const k of ['claim','gift','redeem']){if(url.searchParams.has(k)){kind=k;token=url.searchParams.get(k);break;}}}catch{}
+function tokenDetails(raw){const s=String(raw||'').trim();const short=s.replace(/[\s-]/g,'').toUpperCase();if(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short))return {kind:'gift_code',token:short};let kind='claim',token=s;const prefixed=s.match(/^(gift|claim|bundle|redeem):([0-9a-f-]{36})$/i);if(prefixed){kind=prefixed[1].toLowerCase();token=prefixed[2];}
+ try{const url=new URL(s);for(const k of ['claim','bundle','gift','redeem']){if(url.searchParams.has(k)){kind=k;token=url.searchParams.get(k);break;}}}catch{}
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token))throw Error('无效的二维码或条形码，请扫描完整凭证');return {kind,token};}
 const requestStore={get(key){try{return sessionStorage.getItem(key)}catch{return null}},set(key,v){try{sessionStorage.setItem(key,v)}catch{}},remove(key){try{sessionStorage.removeItem(key)}catch{}}};
 function retryId(key){let prev=requestStore.get('v11:'+key);if(prev)return prev;prev=uuid();requestStore.set('v11:'+key,prev);return prev;}
@@ -184,15 +184,15 @@ async function previewClaim(raw,assumed=null){
  const info=tokenDetails(raw);if(assumed&&info.kind!=='gift_code')info.kind=assumed;
  if(info.kind==='gift_code')return redeemScanValue(info.token);
  if(info.kind==='redeem'){if(!state.user||!isStaff())throw Error('请由店员扫码核销奖励');return redeemScanValue(info.token,'redeem');}
- const data=(await pinRequest('preview','','','',{kind:info.kind,token:info.token})).preview;
+ const data=info.kind==='bundle'?{...unpack(await db.rpc('yt_pos_bundle_preview',{p_token:info.token})),title:'整单 Game Pass',description:'一次领取这张订单分配给你的游戏权益。',rules:'整单权益由同一名会员领取。'}:(await pinRequest('preview','','','',{kind:info.kind,token:info.token})).preview;
  if(!data)throw Error('暂时无法查看这份领取码');
  showSheet(data.valid?'Almost yours.':'领取状态','YETIPSY · JUST ONE MORE STEP');
  const title=data.title||'Yetipsy Reward',limit=data.expires_at?`有效至 ${fmt(data.expires_at)}`:'';
- const count=info.kind==='gift'&&data.remaining!=null?`剩余 ${Number(data.remaining)} 份`:info.kind==='claim'?`${data.game_count||0} 款游戏可选`:'';
+ const count=info.kind==='bundle'?`${Number(data.pass_count||0)} 份 Game Pass`:info.kind==='gift'&&data.remaining!=null?`剩余 ${Number(data.remaining)} 份`:info.kind==='claim'?`${data.game_count||0} 款游戏可选`:'';
  sheetHtml(`<div class="sheet-content claim-preview"><div class="preview-glyph">${info.kind==='gift'?'✦':'◇'}</div><div class="overline">${esc(data.subtitle||'YETIPSY PLAY')}</div><h2>${esc(title)}</h2><p>${esc(data.description||'你的专属惊喜')}</p><div class="preview-infos"><span>${esc(limit)}</span><span>${esc(count)}</span></div>${data.rules?`<p class="tiny-help">${esc(data.rules)}</p>`:''}<div id="previewAction"></div></div>`);
  const target=$('previewAction');
  if(!data.valid){target.innerHTML='<div class="preview-unavailable">这份领取码暂不可用，可能尚未开始、已被领取、已过期或已领完。</div>';return;}
- const button=document.createElement('button');button.className='button button-primary wide';button.textContent=state.user?'确认领取 '+(info.kind==='claim'?'Game Pass':'奖励')+' ↗':'领取 '+(info.kind==='claim'?'Game Pass':'奖励')+' · 只差一步 ↗';
+ const button=document.createElement('button');button.className='button button-primary wide';button.textContent=state.user?'确认领取 '+(['claim','bundle'].includes(info.kind)?'Game Pass':'奖励')+' ↗':'领取 '+(['claim','bundle'].includes(info.kind)?'Game Pass':'奖励')+' · 只差一步 ↗';
  button.onclick=()=>pending(button,async()=>{
   if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='只差一步！输入手机号码，领取会在登录或注册后自动完成。';window.scrollTo(0,0);return;}
   await redeemScanValue(info.token,info.kind);
@@ -202,6 +202,10 @@ async function redeemScanValue(raw,assumed){const info=tokenDetails(raw);if(assu
  if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='只差一步！登录或注册后会继续领取这份奖励。';return;}
 
  if(info.kind==='redeem'){if(!isStaff())throw Error('兑奖二维码需由 Staff 扫描');openWorkspace('staff');showStaffRedeem();$('staffRedeemInput').value=info.token;await lookupRedeem();return;}
+ if(info.kind==='bundle'){
+  const result=unpack(await db.rpc('yt_pos_bundle_claim',{p_token:info.token}));stripLink('bundle');await refreshPasses();
+  showSheet('领取成功','GAME PASS');sheetHtml(`<div class="sheet-content"><h2>${Number(result.count||0)} 份 Game Pass 已入账</h2><p>回首页逐次选择游戏。</p><button id="bundleGoHome" class="button button-primary wide">回首页选择游戏 ↗</button></div>`);$('bundleGoHome').onclick=()=>{closeSheet();navigate('home');};return;
+ }
  if(info.kind==='gift'||info.kind==='gift_code'){
   const key=info.kind+':'+info.token,req=retryId(key);let rows;
   if(info.kind==='gift_code'){const result=unpack(await db.rpc('yt_claim_offer_code',{p_code:info.token,p_request:req}));if(result?.error_code)throw Error(result.error_code);rows=result?.awards;}
@@ -688,8 +692,8 @@ async function boot(){bindEvents();homeCarousel=createHomeCarousel({db,root:$('h
   if(/^YT[A-Z0-9]{8}$/.test(invite)){state.referralDraft=invite;$('referralCode').value=invite;}
   if(state.user)loadMyLoyalty().catch(()=>{});
  if(qs.has('reset')){try{await showResetFlow(qs.get('reset'));}catch(e){toast(errorText(e),true);}}
- else if(qs.has('claim')||qs.has('gift')){
-  const kind=qs.has('claim')?'claim':'gift';try{await previewClaim(qs.get(kind),kind);}catch(e){toast(errorText(e),true);}
+ else if(qs.has('claim')||qs.has('bundle')||qs.has('gift')){
+  const kind=qs.has('claim')?'claim':qs.has('bundle')?'bundle':'gift';try{await previewClaim(qs.get(kind),kind);}catch(e){toast(errorText(e),true);}
  }
  if('serviceWorker'in navigator&&location.protocol==='https:'&&location.pathname.includes('/play-v12/'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }

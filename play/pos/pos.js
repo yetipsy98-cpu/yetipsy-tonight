@@ -1,15 +1,17 @@
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261009-client-v5-1';
-import {createConsole} from './console.js?v=20261009-console-v7-1';
+import {createConsole} from './console.js?v=20261009-console-v8-1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
 const $=id=>document.getElementById(id);
 const conf=window.YETIPSY_PLAY_CONFIG||{};
-const portal=document.body.dataset.entry==='cashier'?'cashier':'work';
+const portal='work';
+// Keep an existing Cashier login when all entry points adopt the shared workspace.
+try{if(!localStorage.getItem('yt-work-session-v1')&&localStorage.getItem('yt-cashier-session-v2'))localStorage.setItem('yt-work-session-v1',localStorage.getItem('yt-cashier-session-v2'));localStorage.removeItem('yt-cashier-session-v2');}catch{}
 const usable=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(conf.url||'')&&/^sb_publishable_/.test(conf.publishableKey||'');
-const db=usable?createClient(conf.url,conf.publishableKey,{auth:{storageKey:portal==='cashier'?'yt-cashier-session-v2':'yt-work-session-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
+const db=usable?createClient(conf.url,conf.publishableKey,{auth:{storageKey:'yt-work-session-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
 const workURL=(conf.url||'')+'/functions/v1/yt-work-auth';
 const rewardBindingEditor=$('rewardBindingRoot')?createRewardBindingEditor({db,root:$('rewardBindingRoot')}):null;
 const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
@@ -17,7 +19,7 @@ const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
    series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0};
-const msgMap={reset_confirmation_expired:'本次重置确认已过期，请从第一次密码确认重新开始',reset_cleanup_pending:'上一次重置的账号清理尚未完成，请继续清理',reset_cleanup_failed:'旧账号或广告文件清理暂未完成，请稍后重试',invalid_reset_request:'重置确认无效，请重新开始',short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
+const msgMap={active_order_bundle_exists:'这张订单已有整单 QR，请从原设备找回，或等待到期',no_eligible_bundle_units:'这张订单没有尚可分配的 Game Pass',bundle_request_conflict:'发码请求不一致，请刷新后核对',reset_confirmation_expired:'本次重置确认已过期，请从第一次密码确认重新开始',reset_cleanup_pending:'上一次重置的账号清理尚未完成，请继续清理',reset_cleanup_failed:'旧账号或广告文件清理暂未完成，请稍后重试',invalid_reset_request:'重置确认无效，请重新开始',short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
   order_not_pending:'订单不在待接受状态',order_not_accepted:'订单必须先由 Cashier 接受',order_not_served:'请先完成出品，之后才能收款',
   product_unavailable:'这款产品已停止销售，请重新选择',order_too_large:'单笔订单金额或数量过大',
   invalid_line:'订单产品无效',invalid_order:'订单资料不正确',invalid_channel:'下单渠道无效',invalid_filter:'订单筛选条件无效',
@@ -58,27 +60,22 @@ function showNotice(message,bad=false,persist=false){const n=$('notice');n.textC
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
 async function work(action,data={},signed=false){const headers={'Content-Type':'application/json',apikey:conf.publishableKey};if(signed)headers.Authorization='Bearer '+await getBearer();const resp=await fetch(workURL,{method:'POST',headers,cache:'no-store',body:JSON.stringify({action,...data})});const res=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));if(!resp.ok||!res.ok)throw Error(res.error||'server_unavailable');return res;}
-function resetLogin(){stopRedeemCamera();stopPolling();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.activeView='login';state.identity=null;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
+function resetLogin(){stopRedeemCamera();stopPolling();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.activeView='login';state.identity=null;$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
 async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
  const username=$('username').value.trim().toLowerCase(),password=$('password').value;
  const result=await work('login',{username,password});
-  if(portal==='cashier'&&result.role!=='cashier')throw Error('role_mismatch');
-  if(portal==='work'&&result.role==='cashier')throw Error('role_mismatch');
-  if(document.body.dataset.requiredRole==='owner'&&result.role!=='owner')throw Error('owner_only');
   const {error}=await db.auth.setSession({access_token:result.access_token,refresh_token:result.refresh_token});if(error)throw error;
  if(result.must_change_password){$('signinForm').classList.add('hidden');$('firstPasswordForm').classList.remove('hidden');$('firstOldPassword').value=password;return;}
  $('password').value='';await launch();
 });}
 async function launch(){if(!usable){showNotice('尚未配置 /play/config.js 的 Supabase 连接',true,true);return;}
  const identity=unpack(await db.rpc('yt_pos_identity'));if(!identity)throw Error('staff_only');
-  if(portal==='cashier'&&identity.role!=='cashier')throw Error('role_mismatch');
-  if(portal==='work'&&identity.role==='cashier')throw Error('role_mismatch');
-  if(document.body.dataset.requiredRole==='owner'&&!identity.can_owner)throw Error('owner_only');
   state.identity=identity;state.activeView='dashboard';$('signin').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');
  $('accountName').textContent=identity.username+' · '+(identity.can_owner?'OWNER':identity.role==='cashier'?'CASHIER':identity.can_cashier?'STAFF + CASHIER':'STAFF');$('permissionPill').textContent=identity.can_owner?'OWNER':identity.role==='cashier'?'CASHIER':identity.can_cashier?'STAFF + CASHIER':'STAFF';
  $('cashierCreateChoice').classList.toggle('hidden',!isCashier());$('cashierDirect').checked=isCashier();
  $('createHint').textContent=isCashier()?'选择 Cashier 自开单即可自动接受；取消勾选将作为 Staff 单提交审核。':'Staff 点单后等待 Cashier 接受，自动进入对方的待审核队列。';
- restoreDraft();buildNav();consoleUI?.roleChanged();await Promise.all([loadCatalog(),refreshOrders(false)]);{const requested=new URL(location.href).searchParams.get('tab');const defaultPage=isOwner()?'admin':portal==='cashier'?'pending':'create';showTab(['benefits','orders','create','pending','history','reset','admin','more'].includes(requested)?requested:defaultPage);}startPolling();
+ $('accountMenu').classList.remove('hidden');
+ restoreDraft();buildNav();consoleUI?.roleChanged();await Promise.all([loadCatalog(),refreshOrders(false)]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
 }
 async function changeCashierFirstPassword(e){e.preventDefault();const button=e.submitter;await busy(button,async()=>{
  const oldPw=$('firstOldPassword').value,newPw=$('firstNewPassword').value;
@@ -90,21 +87,26 @@ async function changeCashierFirstPassword(e){e.preventDefault();const button=e.s
  showNotice('工作账号新密码设置成功，请重新登录');
  }).catch(()=>{});}
 
+const defaultTab=()=>isOwner()?'admin':state.identity?.role==='cashier'?'pending':'create';
 function buildNav(){const nav=$('nav');const tabs=isOwner()
-  ?[['admin','管理'],['orders','订单'],['create','点单'],['more','工具']]
-  :isCashier()?[['pending','待审核'],['orders','订单'],['create','点单'],['more','工具']]
-  :[['create','点单'],['orders','订单'],['more','工具']];
+  ?[['admin','管理'],['create','点单'],['orders','订单'],['benefits','Game Pass']]
+  :isCashier()?[['orders','订单'],['create','点单'],['benefits','Game Pass']]
+  :[['create','点单'],['orders','订单'],['benefits','Game Pass']];
+ $('orderPendingTab').classList.toggle('hidden',!isCashier());
  nav.replaceChildren();for(const [key,label] of tabs){const b=document.createElement('button');b.type='button';b.dataset.tab=key;b.textContent=label;b.onclick=()=>showTab(key);nav.append(b);}}
-function showTab(tab){
+function showTab(tab,orderId=null){
+ if(tab==='more')tab=isOwner()?'admin':'benefits';
  if(tab==='redeem'){tab='create';}
+ if(!['create','pending','orders','history','benefits','reset','admin'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='admin'&&!isOwner()))tab=defaultTab();
+ $('accountMenu').open=false;
  if(tab==='reset'&&consoleUI){consoleUI.open('pin');return;}
- if((tab==='pending'&&!isCashier())||(tab==='admin'&&!isOwner()))return;
  if(tab!=='create'){closeCartDrawer();stopRedeemCamera();}state.currentTab=tab;
- for(const section of ['create','pending','orders','history','benefits','redeem','reset','admin','more'])$('tab-'+section).classList.toggle('hidden',section!==tab);
- for(const b of $('nav').querySelectorAll('button'))b.classList.toggle('active',b.dataset.tab===tab ||
-   (['history','reset','admin'].includes(tab)&&b.dataset.tab==='more'));
+ for(const section of ['create','pending','orders','history','benefits','redeem','reset','admin'])$('tab-'+section).classList.toggle('hidden',section!==tab);
+ const orderView=['pending','orders','history'].includes(tab);$('orderTabs').classList.toggle('hidden',!orderView);
+ for(const b of $('orderTabs').querySelectorAll('button'))b.classList.toggle('active',b.dataset.goTab===tab);
+ for(const b of $('nav').querySelectorAll('button'))b.classList.toggle('active',b.dataset.tab===tab||(orderView&&b.dataset.tab==='orders'));
  if(tab==='admin'&&!consoleUI)loadAdmin().then(loadOwnerRewardOffers).catch(e=>showNotice(errorText(e),true));
- if(tab==='benefits')loadBenefits().catch(e=>showNotice(errorText(e),true));
+ if(tab==='benefits')loadBenefits(orderId).catch(e=>showNotice(errorText(e),true));
  if(tab==='pending'||tab==='orders'||tab==='history')refreshOrders(false).catch(e=>showNotice(errorText(e),true));
 }
 async function loadCatalog(){const [products,series]=await Promise.all([db.rpc('yt_pos_catalog'),db.rpc('yt_pos_series_catalog')]);state.catalog=unpack(products)||[];state.series=unpack(series)||[];
@@ -120,7 +122,7 @@ const draftItems=()=>[...state.cart].map(([product_id,quantity])=>({product_id,q
 const draftKey=()=>`yt-pos-v5-draft:${portal}:${state.identity?.username||''}`;
 function restoreDraft(){
  state.cart.clear();state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.currentRequestId=null;
- try{const d=JSON.parse(sessionStorage.getItem(draftKey())||'null');if(d?.draftId){state.draftId=d.draftId;state.cart=new Map(d.items||[]);state.draftSelection=d.selection||null;state.pendingSubmit=d.pending||null;$('tableInput').value=d.table||'';$('orderNote').value=d.note||'';if(state.pendingSubmit)$('cashierDirect').checked=state.pendingSubmit.p_channel==='cashier';}}catch{}
+ try{const oldKey=`yt-pos-v5-draft:cashier:${state.identity?.username||''}`;if(state.identity?.role==='cashier'&&!sessionStorage.getItem(draftKey())&&sessionStorage.getItem(oldKey)){sessionStorage.setItem(draftKey(),sessionStorage.getItem(oldKey));sessionStorage.removeItem(oldKey);}const d=JSON.parse(sessionStorage.getItem(draftKey())||'null');if(d?.draftId){state.draftId=d.draftId;state.cart=new Map(d.items||[]);state.draftSelection=d.selection||null;state.pendingSubmit=d.pending||null;$('tableInput').value=d.table||'';$('orderNote').value=d.note||'';if(state.pendingSubmit)$('cashierDirect').checked=state.pendingSubmit.p_channel==='cashier';}}catch{}
 }
 function saveDraft(){if(!state.identity)return;try{sessionStorage.setItem(draftKey(),JSON.stringify({draftId:state.draftId,items:[...state.cart],selection:state.draftSelection,pending:state.pendingSubmit,table:$('tableInput').value,note:$('orderNote').value}));}catch{}}
 function updateDraftControls(){
@@ -406,16 +408,16 @@ async function saveSeries(event){event.preventDefault();const btn=$('seriesForm'
  }));$('seriesForm').reset();$('seriesId').value='';await loadCatalog();showNotice('系列规则已保存');
 }).catch(()=>{});}
 
-async function loadBenefits(){
+async function loadBenefits(preferred=null){
  if(!state.identity)return;
- const existing=$('benefitOrderSelect').value;
+ const existing=preferred||$('benefitOrderSelect').value;
  const list=unpack(await db.rpc('yt_pos_orders',{p_scope:'paid',p_limit:120}))||[];
  state.paid=list;
  const select=$('benefitOrderSelect');select.replaceChildren(new Option('请选择已付款订单',''));
  for(const r of list)select.add(new Option(`#${r.order_no} · ${r.table_label||'Walk-in'} · ${money(r.amount_rm)}`,r.id));
  if(list.some(x=>x.id===existing))select.value=existing;
  await loadBenefitCampaigns();
- if(select.value)await loadSelectedPaidUnits();else $('benefitUnits').innerHTML='<div class="empty">没有已付款订单可分配。</div>';
+ await loadSelectedPaidUnits();
 }
 async function loadBenefitCampaigns(){
  const selected=$('benefitCampaign').value;
@@ -423,12 +425,26 @@ async function loadBenefitCampaigns(){
  const sel=$('benefitCampaign');sel.replaceChildren(new Option('请选择活动',''));
  for(const c of r)sel.add(new Option(c.name,c.id));
  if(r.some(x=>x.id===selected))sel.value=selected;
+ else if(r.length===1)sel.value=r[0].id;
+}
+let benefitEpoch=0;
+const bundleKey=id=>`yt-pos-v8-bundle:${state.identity?.username||''}:${id}`;
+function cachedBundle(id){try{return JSON.parse(sessionStorage.getItem(bundleKey(id))||'null')}catch{return null}}
+function benefitMode(mode){state.benefitMode=mode;$('benefitWhole').classList.toggle('hidden',mode!=='whole');$('benefitUnits').classList.toggle('hidden',mode!=='single');for(const [id,m] of [['benefitWholeMode','whole'],['benefitSingleMode','single']]){$(id).classList.toggle('active',mode===m);$(id).setAttribute('aria-pressed',String(mode===m));}$('benefitQR').classList.add('hidden');}
+function renderBundleQuote(id,quote){
+ const pair=cachedBundle(id),active=quote.active_bundle;
+ const recover=active&&pair?.raw&&pair.request===active.request_id;
+ $('benefitWholeInfo').textContent=active?(recover?`已生成 ${active.pass_count} 份 Game Pass，可找回原码。`:'已有整单 QR 待领取，请在原设备找回，或等到期后重新生成。'):`${quote.eligible_units} / ${quote.total_units} 份可分配。整单 QR 由一名会员一次领取。`;
+ $('issueWholePass').textContent=recover?'重新显示整单 QR':`生成整单 QR${quote.eligible_units?' · '+quote.eligible_units+' 份':''}`;
+ $('issueWholePass').disabled=!(recover||quote.can_issue);
 }
 async function loadSelectedPaidUnits(){
- const id=$('benefitOrderSelect').value,root=$('benefitUnits');root.replaceChildren();
+ const epoch=++benefitEpoch,id=$('benefitOrderSelect').value,root=$('benefitUnits');root.replaceChildren();state.benefitOrder=null;state.bundleQuote=null;$('benefitQR').classList.add('hidden');$('issueWholePass').disabled=true;
+ $('benefitWholeInfo').textContent=id?'正在核对可分配权益…':'请选择已付款订单。';
  if(!id){root.innerHTML='<div class="empty">请选择已付款订单。</div>';return;}
- const result=unpack(await db.rpc('yt_pos_paid_units',{p_order:id}));
- state.benefitOrder=result;
+ const [units,quote]=await Promise.all([db.rpc('yt_pos_paid_units',{p_order:id}),db.rpc('yt_pos_bundle_quote',{p_order:id})]);
+ if(epoch!==benefitEpoch||id!==$('benefitOrderSelect').value)return;
+ const result=unpack(units);state.benefitOrder=result;state.bundleQuote=unpack(quote);renderBundleQuote(id,state.bundleQuote);
  if(!result.units?.length){root.innerHTML='<div class="empty">这个订单没有可以处理的单杯权益。</div>';return;}
  for(const unit of result.units){
   const ready=!unit.reward_redeemed&&unit.series_active&&['games','choose'].includes(unit.benefit_mode)&&Number(unit.game_plays)===1;
@@ -458,11 +474,11 @@ async function qrLibrary(){
   }return false;
  })();return qrLibraryWait;
 }
-async function showUnitQR(token,pass,unit){
+async function showUnitQR(token,pass,unit,kind='claim'){
  const root=$('benefitQR');root.classList.remove('hidden');root.replaceChildren();
- const url=portalClientUrl();url.searchParams.set('claim',token);
- const title=document.createElement('h3');title.textContent=`${unit.product_name} · 第 ${unit.unit_number} 份 QR`;
- const text=document.createElement('p');text.className='muted';text.textContent=`${money(unit.unit_price_rm)} · 每份独立领取，扫码后进入 Yetipsy Play。`;
+ const url=portalClientUrl();url.searchParams.set(kind,token);
+ const title=document.createElement('h3');title.textContent=kind==='bundle'?`整单 · ${pass.pass_count} 份 Game Pass`:`${unit.product_name} · 第 ${unit.unit_number} 份 QR`;
+ const text=document.createElement('p');text.className='muted';text.textContent=kind==='bundle'?'由一名会员扫码一次领取。':`${money(unit.unit_price_rm)} · 每份独立领取，扫码后进入 Yetipsy Play。`;
  const square=document.createElement('div');square.className='qr-screen';
  const link=document.createElement('a');link.href=url.href;link.className='qr-link';link.textContent=url.href;link.target='_blank';link.rel='noreferrer';
  const copyBtn=document.createElement('button');copyBtn.type='button';copyBtn.className='quiet';copyBtn.textContent='复制领取链接';copyBtn.onclick=()=>navigator.clipboard?.writeText(url.href).then(()=>showNotice('已复制'));
@@ -470,14 +486,29 @@ async function showUnitQR(token,pass,unit){
  root.append(title,text,square,link,copyBtn,badge);
  let shown=false;if(await qrLibrary()){new window.QRCode(square,{text:url.href,width:206,height:206,colorDark:'#1d251f',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});shown=true;}
  if(!shown)square.textContent='QR 图片暂不可用，可以复制上面的顾客领取链接。';
- try{const response=await fetch(conf.url+'/functions/v1/yt-pin-auth',{
+ try{let valid;if(kind==='bundle'){valid=unpack(await db.rpc('yt_pos_bundle_preview',{p_token:token}))?.valid;}else{const response=await fetch(conf.url+'/functions/v1/yt-pin-auth',{
    method:'POST',headers:{'Content-Type':'application/json','apikey':conf.publishableKey},
    body:JSON.stringify({action:'preview',kind:'claim',token}),cache:'no-store'
-  });const data=await response.json();
-  badge.textContent=data.ok&&data.preview?.valid?'✓ 服务器已确认二维码当前可以领取':
+  });const data=await response.json();valid=data.ok&&data.preview?.valid;}
+  badge.textContent=valid?'✓ 服务器已确认二维码当前可以领取':
    '⚠ 服务器暂未确认此码可领取。请勿发给顾客，可能已领取或失效。';
  }catch{badge.textContent='⚠ 领取码尚未通过实时网络核验，请先检查网络连接。';}
  root.scrollIntoView({behavior:'smooth',block:'center'});
+}
+async function issueWholePass(button){
+ const orderId=$('benefitOrderSelect').value;if(!orderId||state.benefitOrder?.order_id!==orderId)throw Error('请先选择已付款订单');
+ await busy(button,async()=>{
+  const quote=unpack(await db.rpc('yt_pos_bundle_quote',{p_order:orderId}));let pair=cachedBundle(orderId);
+  if(quote.active_bundle){if(pair?.raw&&pair.request===quote.active_bundle.request_id){await showUnitQR(pair.raw,quote.active_bundle,null,'bundle');return;}throw Error('active_order_bundle_exists');}
+  if(!quote.can_issue)throw Error('no_eligible_bundle_units');
+  if(pair?.expires_at&&Date.parse(pair.expires_at)<=Date.now()){sessionStorage.removeItem(bundleKey(orderId));pair=null;}
+  if(!pair){const mins=Number($('benefitExpiry').value),campaign=$('benefitCampaign').value;if(!campaign)throw Error('请先选择活动');if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('QR 有效分钟为 1–60');pair={raw:crypto.randomUUID(),request:crypto.randomUUID(),campaign,mins};sessionStorage.setItem(bundleKey(orderId),JSON.stringify(pair));}
+  const pass=unpack(await db.rpc('yt_pos_bundle_issue',{p_order:orderId,p_campaign:pair.campaign,p_token:pair.raw,p_request:pair.request,p_minutes:pair.mins}));
+  pair={...pair,...pass};sessionStorage.setItem(bundleKey(orderId),JSON.stringify(pair));
+  if(pass.status!=='issued'||Date.parse(pass.expires_at)<=Date.now()){sessionStorage.removeItem(bundleKey(orderId));throw Error('原码已领取或过期，请刷新后重新分配');}
+  if($('benefitOrderSelect').value!==orderId)return;
+  await loadSelectedPaidUnits();await showUnitQR(pair.raw,pass,null,'bundle');showNotice(`已生成 ${pass.pass_count} 份 Game Pass 的整单领取码`);
+ }).catch(()=>{});
 }
 async function issuePaidUnit(itemId,unitNumber,button){const orderId=$('benefitOrderSelect').value;
  if(!orderId)throw Error('请先选择已付款订单');
@@ -498,8 +529,8 @@ async function issuePaidUnit(itemId,unitNumber,button){const orderId=$('benefitO
    p_token:pair.raw,p_request:pair.request,p_minutes:mins
   }));
   if(!rows?.length)throw Error('服务器未发出领取码');
-  await showUnitQR(pair.raw,rows[0],unit);
   await loadSelectedPaidUnits();
+  if($('benefitOrderSelect').value===orderId)await showUnitQR(pair.raw,rows[0],unit);
   showNotice(`已按订单产品生成 Game Pass · ${unit.product_name}`);
  }).catch(()=>{});
 }
@@ -739,12 +770,13 @@ function bind(){
   $('benefitOrderSelect').onchange=()=>loadSelectedPaidUnits().catch(e=>showNotice(errorText(e),true));
   $('refreshBenefits').onclick=()=>loadBenefits().catch(e=>showNotice(errorText(e),true));
   $('benefitUnits').onclick=e=>{const b=e.target.closest('[data-issue-unit]');if(b)issuePaidUnit(b.dataset.item,Number(b.dataset.unit),b).catch(()=>{});};
+  $('benefitWholeMode').onclick=()=>benefitMode('whole');$('benefitSingleMode').onclick=()=>benefitMode('single');$('issueWholePass').onclick=()=>issueWholePass($('issueWholePass')).catch(e=>showNotice(errorText(e),true));
   $('redeemLookup').onclick=()=>lookupPOSRedeem().catch(e=>showNotice(errorText(e),true));
   $('redeemScanCamera').onclick=()=>startRedeemCamera().catch(e=>showNotice(errorText(e),true));
   $('redeemCheck').onclick=e=>{const b=e.target.closest('[data-confirm-redeem]');if(b)confirmPOSRedeem(b).catch(()=>{});const u=e.target.closest('[data-pos-redeem]');if(u)confirmPOSItemRedeem(u).catch(()=>{});};
   document.body.addEventListener('click',e=>{const receipt=e.target.closest('[data-receipt]');if(receipt)viewReceipt(receipt.dataset.receipt).catch(e=>showNotice(errorText(e),true));
    const edit=e.target.closest('[data-edit]');if(edit)openEditDialog(edit.dataset.edit).catch(e=>showNotice(errorText(e),true));
-   const benefit=e.target.closest('[data-benefits]');if(benefit){showTab('benefits');$('benefitOrderSelect').value=benefit.dataset.benefits;loadSelectedPaidUnits().catch(err=>showNotice(errorText(err),true));}});
+   const benefit=e.target.closest('[data-benefits]');if(benefit)showTab('benefits',benefit.dataset.benefits);});
   $('editClose').onclick=closeEditDialog;$('editForm').onsubmit=submitEditOrder;
  $('receiptClose').onclick=closeReceipt;$('receiptPrint').onclick=()=>window.print();$('receiptOverlay').onclick=e=>{if(e.target===$('receiptOverlay'))closeReceipt();};
  $('mapReward').onchange=updateRewardMapForm;$('mapMode').onchange=toggleMapInputs;$('mapDiscountType').onchange=toggleMapInputs;$('rewardMapForm').onsubmit=saveRewardMap;$('mapRM5Preset').onclick=saveRM5Preset;
