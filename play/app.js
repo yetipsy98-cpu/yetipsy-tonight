@@ -185,7 +185,7 @@ async function previewClaim(raw,assumed=null){
  if(info.kind==='gift_code')return redeemScanValue(info.token);
  if(info.kind==='redeem'){if(!state.user||!isStaff())throw Error('请由店员扫码核销奖励');return redeemScanValue(info.token,'redeem');}
  const data=(await pinRequest('preview','','','',{kind:info.kind,token:info.token})).preview;
- if(!data)throw Error('暂时无法预览这份领取码');
+ if(!data)throw Error('暂时无法查看这份领取码');
  showSheet(data.valid?'Almost yours.':'领取状态','YETIPSY · JUST ONE MORE STEP');
  const title=data.title||'Yetipsy Reward',limit=data.expires_at?`有效至 ${fmt(data.expires_at)}`:'';
  const count=info.kind==='gift'&&data.remaining!=null?`剩余 ${Number(data.remaining)} 份`:info.kind==='claim'?`${data.game_count||0} 款游戏可选`:'';
@@ -267,13 +267,13 @@ async function chooseGame(pass){
  await loadGames();const ids=unpack(await db.from('campaign_games').select('game_id').eq('campaign_id',pass.campaign_id)).map(x=>x.game_id);
  const available=state.games.filter(g=>ids.includes(g.id));if(!available.length)throw Error('该活动暂时没有开放的游戏');
  showSheet('选一场今晚的小游戏','ONE PASS · YOUR CHOICE');
- const root=document.createElement('div');root.className='sheet-content yt-game-selection';root.innerHTML='<div class="yt-selection-header"><div class="yt-mini-symbol">✳</div><h2>挑一个，玩出今晚的故事。</h2><p>每张 Game Pass 只有一次机会。预览玩法不会消耗机会，点击「正式开始」才使用。</p></div><div class="choice-grid yt-choice-grid" id="gameChoices"></div>';
+ const root=document.createElement('div');root.className='sheet-content yt-game-selection';root.innerHTML='<div class="yt-selection-header"><div class="yt-mini-symbol">✳</div><h2>挑一个，玩出今晚的故事。</h2><p>每张 Game Pass 只有一次机会。查看玩法不消耗机会，点击「开始游戏」才使用。</p></div><div class="choice-grid yt-choice-grid" id="gameChoices"></div>';
  for(const g of available){const b=document.createElement('button');b.className='choice-card yt-choice-card';b.innerHTML=`<span class="yt-choice-number">${String(available.indexOf(g)+1).padStart(2,'0')}</span><span class="symbol">${symbols[g.slug]||'✦'}</span><strong>${esc(titles[g.slug]?.[0]||g.title)}</strong><small>${esc(titles[g.slug]?.[1]||'YETIPSY PLAY')}</small><p>${esc(gameTips[g.slug]||'开启一份属于你的惊喜。')}</p>`;b.onclick=()=>showGameIntro(pass,g);root.querySelector('#gameChoices').append(b);}
  $('sheetBody').append(root);
 }
 function showGameIntro(pass,g){
  showSheet(titles[g.slug]?.[0]||g.title,'READY TO PLAY');
- sheetHtml(`<div class="sheet-content yt-game-intro">${stageMeta('01','GET READY')}<div class="yt-intro-orb"><span>${symbols[g.slug]||'✦'}</span></div><div class="yt-eyebrow">${esc(titles[g.slug]?.[1]||'YETIPSY PLAY')}</div><h2>${esc(titles[g.slug]?.[0]||g.title)}</h2><p>${esc(gameTips[g.slug]||'开启你的小游戏体验。')}</p><div class="yt-rule-note">${esc(g.slug==='moon-dice'?'五颗骰子的「1」数量对应奖励档位；每种结果的出现概率由本游戏独立设置。': '本游戏奖品从自己的独立奖池随机抽取。技巧型游戏的成绩只用于排行榜，不改变中奖概率。')} 完成后先展示本局结果，再亲手揭晓奖励。</div><div id="ytDynamicRules" class="yt-game-prize-map"><span>正在加载本游戏可获得的奖励…</span></div><button id="ytStartActualGame" type="button" class="button button-primary wide yt-primary-action">正式开始 <span>↗</span></button><button id="ytGameBoard" type="button" class="button button-outline wide">查看这款游戏的排行榜 ↗</button><button id="ytBackToGames" type="button" class="button button-outline wide">换一个游戏</button></div>`);
+ sheetHtml(`<div class="sheet-content yt-game-intro">${stageMeta('01','GET READY')}<div class="yt-intro-orb"><span>${symbols[g.slug]||'✦'}</span></div><div class="yt-eyebrow">${esc(titles[g.slug]?.[1]||'YETIPSY PLAY')}</div><h2>${esc(titles[g.slug]?.[0]||g.title)}</h2><p>${esc(gameTips[g.slug]||'开启你的小游戏体验。')}</p><div class="yt-rule-note">${esc(g.slug==='moon-dice'?'五颗骰子的「1」数量对应奖励档位；每种结果的出现概率由本游戏独立设置。': '本游戏奖品从自己的独立奖池随机抽取。技巧型游戏的成绩只用于排行榜，不改变中奖概率。')} 完成后先展示本局结果，再亲手揭晓奖励。</div><div id="ytDynamicRules" class="yt-game-prize-map"><span>正在加载本游戏可获得的奖励…</span></div><button id="ytStartActualGame" type="button" class="button button-primary wide yt-primary-action">开始游戏 <span>↗</span></button><button id="ytGameBoard" type="button" class="button button-outline wide">查看这款游戏的排行榜 ↗</button><button id="ytBackToGames" type="button" class="button button-outline wide">换一个游戏</button></div>`);
  attachSound();loadGameRules(pass,g).catch(e=>{const el=$('ytDynamicRules');if(el)el.textContent='规则正在更新，请从「奖品与玩法」查看。';});$('ytStartActualGame').onclick=e=>pending(e.currentTarget,()=>startGame(pass,g)).catch(()=>{});$('ytBackToGames').onclick=()=>chooseGame(pass).catch(e=>toast(errorText(e),true));$('ytGameBoard').onclick=()=>showLeaderboard(g.slug).catch(e=>toast(errorText(e),true));
 }
 function diceElement(n){const patterns={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};return `<div class="dice-cube">${(patterns[n]||[]).map(i=>`<i class="pip p${i}"></i>`).join('')}</div>`;}

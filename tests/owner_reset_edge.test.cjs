@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict');
+const {webcrypto}=require('node:crypto');
+const OWNER='11111111-1111-4111-8111-111111111111',SESSION='22222222-2222-4222-8222-222222222222',CHALLENGE='33333333-3333-4333-8333-333333333333',OLD='44444444-4444-4444-8444-444444444444';
+(async()=>{
+ const {createOwnerReset}=await import('../supabase/functions/yt-work-auth/owner-reset.ts');
+ let allowed=true,valid=true,rateOK=true,deleteFailure=false,batch=[],rpcCalls=[],verifies=[],revoked=[],removed=[],deleted=[];
+ const admin={rpc:async(name,args)=>{rpcCalls.push(args);if(args.p_action==='batch')return {data:{challenge:CHALLENGE,complete:!batch.length,batch,remaining:batch.length}};if(args.p_action==='ack'){batch=batch.filter(x=>!args.p_done.includes(x.id));return {data:{challenge:CHALLENGE,complete:!batch.length,remaining:batch.length}};}return {data:{challenge:CHALLENGE,counts:{订单:4}}};},auth:{admin:{signOut:async(...args)=>{revoked.push(args);return {};},deleteUser:async id=>{deleted.push(id);return id===OLD&&deleteFailure?{error:{status:500}}:{error:id===OLD?{status:404}:null};}}},storage:{from:bucket=>({remove:async names=>{removed.push({bucket,names});return {};}})}};
+ const handle=createOwnerReset({admin,ownerFromRequest:async()=>{if(!allowed)throw Error('owner_only');return {auth_user_id:OWNER,username:'owner'};},rate:async()=>rateOK,verify:async(u,p,id)=>{verifies.push({u,p,id});return valid?{data:{session:{access_token:'temporary-'+verifies.length}}}:{error:{message:'invalid_credentials'}};},sha:async value=>Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(value))).toString('hex'),send:data=>data});
+ const req=new Request('https://example.test',{headers:{Authorization:'Bearer x.'+Buffer.from(JSON.stringify({sub:OWNER,session_id:SESSION})).toString('base64url')+'.x'}});
+ for(const action of ['reset_prepare','reset_confirm','reset_finish','reset_status']){allowed=false;await assert.rejects(handle(action,{request:CHALLENGE,challenge:CHALLENGE,password:'first'},req),/owner_only/);}assert.equal(verifies.length,0);assert.equal(rpcCalls.length,0);allowed=true;
+ valid=false;await assert.rejects(handle('reset_prepare',{request:CHALLENGE,password:'wrong'},req),/invalid_credentials/);assert.equal(rpcCalls.length,0);
+ valid=true;await handle('reset_prepare',{request:CHALLENGE,password:'first'},req);assert.equal(rpcCalls.at(-1).p_action,'prepare');assert.equal(revoked.at(-1)[1],'local');assert.equal(rpcCalls.some(x=>x.p_action==='commit'),false);
+ valid=false;await assert.rejects(handle('reset_confirm',{challenge:CHALLENGE,password:'wrong-second'},req),/invalid_credentials/);assert.equal(rpcCalls.some(x=>x.p_action==='commit'),false);
+ valid=true;await handle('reset_confirm',{challenge:CHALLENGE,password:'second'},req);assert.equal(rpcCalls.at(-1).p_action,'commit');assert.equal(verifies.at(-1).p,'second');assert.equal(revoked.length,2);assert.equal(rpcCalls[0].p_session,rpcCalls.at(-1).p_session);
+ rateOK=false;await assert.rejects(handle('reset_prepare',{request:CHALLENGE,password:'first'},req),/too_many_attempts/);rateOK=true;
+ batch=[{id:1,kind:'asset',target:'ads/old.jpg'},{id:2,kind:'user',target:OLD}];deleteFailure=true;
+ await assert.rejects(handle('reset_finish',{challenge:CHALLENGE,user:OWNER,path:'arbitrary.jpg'},req),/reset_cleanup_failed/);assert.deepEqual(removed[0],{bucket:'yetipsy-home-banners',names:['ads/old.jpg']});assert.deepEqual(deleted,[OLD]);assert.equal(batch.length,1);
+ deleteFailure=false;const done=await handle('reset_finish',{challenge:CHALLENGE},req);assert.equal(done.complete,true);assert.equal(done.batch,undefined);assert(!deleted.includes(OWNER));assert.equal(rpcCalls.filter(x=>x.p_action==='commit').length,1);
+ await handle('reset_finish',{challenge:CHALLENGE},req);assert.equal(deleted.length,2);await handle('reset_status',{},req);assert.equal(rpcCalls.at(-1).p_action,'status');
+ console.log('PASS: Owner authorization, two independent password verifications, rate limiting, local verification-session revocation, immutable cleanup scope, failed cleanup continuation and harmless retries.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,6 +1,7 @@
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261009-client-v5-1';
+import {createConsole} from './console.js?v=20261009-console-v7-1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -16,7 +17,7 @@ const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
    series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0};
-const msgMap={short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
+const msgMap={reset_confirmation_expired:'本次重置确认已过期，请从第一次密码确认重新开始',reset_cleanup_pending:'上一次重置的账号清理尚未完成，请继续清理',reset_cleanup_failed:'旧账号或广告文件清理暂未完成，请稍后重试',invalid_reset_request:'重置确认无效，请重新开始',short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
   order_not_pending:'订单不在待接受状态',order_not_accepted:'订单必须先由 Cashier 接受',order_not_served:'请先完成出品，之后才能收款',
   product_unavailable:'这款产品已停止销售，请重新选择',order_too_large:'单笔订单金额或数量过大',
   invalid_line:'订单产品无效',invalid_order:'订单资料不正确',invalid_channel:'下单渠道无效',invalid_filter:'订单筛选条件无效',
@@ -52,6 +53,7 @@ const unpack=r=>{if(r?.error){const e=Error(r.error.message||r.error.code||'serv
 const errorText=e=>{let s=String(e?.message||e||'server_unavailable');return msgMap[s]||s.replaceAll('_',' ')};
 const isOwner=()=>state.identity?.can_owner===true;
 const isCashier=()=>state.identity?.can_cashier===true;
+let consoleUI=null;
 function showNotice(message,bad=false,persist=false){const n=$('notice');n.textContent=message;n.classList.remove('hidden');n.classList.toggle('error',bad);clearTimeout(state.noticeTimer);if(!persist)state.noticeTimer=setTimeout(()=>n.classList.add('hidden'),6200);}
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
@@ -62,6 +64,7 @@ async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
  const result=await work('login',{username,password});
   if(portal==='cashier'&&result.role!=='cashier')throw Error('role_mismatch');
   if(portal==='work'&&result.role==='cashier')throw Error('role_mismatch');
+  if(document.body.dataset.requiredRole==='owner'&&result.role!=='owner')throw Error('owner_only');
   const {error}=await db.auth.setSession({access_token:result.access_token,refresh_token:result.refresh_token});if(error)throw error;
  if(result.must_change_password){$('signinForm').classList.add('hidden');$('firstPasswordForm').classList.remove('hidden');$('firstOldPassword').value=password;return;}
  $('password').value='';await launch();
@@ -70,11 +73,12 @@ async function launch(){if(!usable){showNotice('尚未配置 /play/config.js 的
  const identity=unpack(await db.rpc('yt_pos_identity'));if(!identity)throw Error('staff_only');
   if(portal==='cashier'&&identity.role!=='cashier')throw Error('role_mismatch');
   if(portal==='work'&&identity.role==='cashier')throw Error('role_mismatch');
+  if(document.body.dataset.requiredRole==='owner'&&!identity.can_owner)throw Error('owner_only');
   state.identity=identity;state.activeView='dashboard';$('signin').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');
- $('accountName').textContent=identity.username+' · '+(identity.role==='cashier'?'CASHIER':identity.can_cashier?'POS MANAGER':'STAFF');$('permissionPill').textContent=identity.can_owner?'OWNER':identity.role==='cashier'?'CASHIER':identity.can_cashier?'STAFF + CASHIER':'STAFF';
+ $('accountName').textContent=identity.username+' · '+(identity.can_owner?'OWNER':identity.role==='cashier'?'CASHIER':identity.can_cashier?'STAFF + CASHIER':'STAFF');$('permissionPill').textContent=identity.can_owner?'OWNER':identity.role==='cashier'?'CASHIER':identity.can_cashier?'STAFF + CASHIER':'STAFF';
  $('cashierCreateChoice').classList.toggle('hidden',!isCashier());$('cashierDirect').checked=isCashier();
  $('createHint').textContent=isCashier()?'选择 Cashier 自开单即可自动接受；取消勾选将作为 Staff 单提交审核。':'Staff 点单后等待 Cashier 接受，自动进入对方的待审核队列。';
- restoreDraft();buildNav();await Promise.all([loadCatalog(),refreshOrders(false)]);{const requested=new URL(location.href).searchParams.get('tab');const defaultPage=portal==='cashier'?'pending':'benefits';showTab(['benefits','orders','create','pending','history','reset','admin','more'].includes(requested)?requested:defaultPage);}startPolling();
+ restoreDraft();buildNav();consoleUI?.roleChanged();await Promise.all([loadCatalog(),refreshOrders(false)]);{const requested=new URL(location.href).searchParams.get('tab');const defaultPage=isOwner()?'admin':portal==='cashier'?'pending':'create';showTab(['benefits','orders','create','pending','history','reset','admin','more'].includes(requested)?requested:defaultPage);}startPolling();
 }
 async function changeCashierFirstPassword(e){e.preventDefault();const button=e.submitter;await busy(button,async()=>{
  const oldPw=$('firstOldPassword').value,newPw=$('firstNewPassword').value;
@@ -86,18 +90,20 @@ async function changeCashierFirstPassword(e){e.preventDefault();const button=e.s
  showNotice('工作账号新密码设置成功，请重新登录');
  }).catch(()=>{});}
 
-function buildNav(){const nav=$('nav');const tabs=portal==='cashier'
-  ?[['pending','▣ 待审核'],['orders','▤ 订单'],['create','＋ 点单'],['more','⋯ 更多']]
-  :[['benefits','▣ Game Pass'],['orders','▤ 订单'],['create','＋ 点单'],['more','⋯ 更多']];
+function buildNav(){const nav=$('nav');const tabs=isOwner()
+  ?[['admin','管理'],['orders','订单'],['create','点单'],['more','工具']]
+  :isCashier()?[['pending','待审核'],['orders','订单'],['create','点单'],['more','工具']]
+  :[['create','点单'],['orders','订单'],['more','工具']];
  nav.replaceChildren();for(const [key,label] of tabs){const b=document.createElement('button');b.type='button';b.dataset.tab=key;b.textContent=label;b.onclick=()=>showTab(key);nav.append(b);}}
 function showTab(tab){
  if(tab==='redeem'){tab='create';}
+ if(tab==='reset'&&consoleUI){consoleUI.open('pin');return;}
  if((tab==='pending'&&!isCashier())||(tab==='admin'&&!isOwner()))return;
  if(tab!=='create'){closeCartDrawer();stopRedeemCamera();}state.currentTab=tab;
  for(const section of ['create','pending','orders','history','benefits','redeem','reset','admin','more'])$('tab-'+section).classList.toggle('hidden',section!==tab);
  for(const b of $('nav').querySelectorAll('button'))b.classList.toggle('active',b.dataset.tab===tab ||
    (['history','reset','admin'].includes(tab)&&b.dataset.tab==='more'));
- if(tab==='admin')loadAdmin().then(loadOwnerRewardOffers).catch(e=>showNotice(errorText(e),true));
+ if(tab==='admin'&&!consoleUI)loadAdmin().then(loadOwnerRewardOffers).catch(e=>showNotice(errorText(e),true));
  if(tab==='benefits')loadBenefits().catch(e=>showNotice(errorText(e),true));
  if(tab==='pending'||tab==='orders'||tab==='history')refreshOrders(false).catch(e=>showNotice(errorText(e),true));
 }
@@ -199,7 +205,7 @@ function renderOrder(row,scope){const pay=row.payment_status==='paid',cancelled=
   if(row.status==='confirmed')controls=`<div class="action-row"><button type="button" class="primary" data-action="fulfilled" data-order="${escapeAttr(row.id)}">确认已完成出品</button>${isCashier()?`<button type="button" data-action="cancel" data-order="${escapeAttr(row.id)}">取消</button>`:''}</div>`;
   if(row.status==='fulfilled'&&isCashier())controls=`<div class="action-row"><select data-payment="${escapeAttr(row.id)}" aria-label="收款方式"><option value="foodcourt" selected>Foodcourt 食阁</option><option value="cash">Cash 现金</option><option value="duitnow">DuitNow QR</option><option value="card">Card 刷卡</option><option value="bank_transfer">Bank Transfer</option><option value="other">Other</option></select><button type="button" class="primary" data-action="paid" data-order="${escapeAttr(row.id)}">确认已收款</button></div>`;
  }
- return `<article class="order"><div class="order-head"><div><h3>#<span>${esc(row.order_no||'—')}</span> · ${esc(row.table_label||'Walk-in')}</h3><small>${esc(row.created_by_name||'Staff')} · ${stamp(row.created_at)}<br>消费先开单，收款最后确认</small><span class="order-status ${pay?'paid':cancelled?'cancelled':row.status==='pending'?'pending':''}">${statusLabel(row)}</span></div><div class="order-price">${money(row.amount_rm)}</div></div><div class="order-lines">${items}</div>${row.notes?`<small>备注：${esc(row.notes)}</small>`:''}${row.has_chit?'<small>▣ 已生成 Order Chit（待出品）</small>':''}${pay?`<small>✓ ${stamp(row.paid_at)} · ${esc(row.payment_method||'')}</small>`:''}${controls}<div class="receipt-actions"><button type="button" data-receipt="${escapeAttr(row.id)}">${pay?'预览 Receipt':'预览未付款账单'}</button>${!pay&&!cancelled&&['pending','confirmed'].includes(row.status)&&state.identity?.can_edit_orders?`<button type="button" data-edit="${escapeAttr(row.id)}">改单 · Audit</button>`:''}${!pay&&!cancelled&&['pending','confirmed','fulfilled'].includes(row.status)?`<button type="button" class="primary" data-order-cart="${escapeAttr(row.id)}">▣ 优惠与结账</button>`:''}${pay?`<button type="button" data-benefits="${escapeAttr(row.id)}">发 Game Pass ↗</button>`:''}</div></article>`;
+ return `<article class="order"><div class="order-head"><div><h3>#<span>${esc(row.order_no||'—')}</span> · ${esc(row.table_label||'Walk-in')}</h3><small>${esc(row.created_by_name||'Staff')} · ${stamp(row.created_at)}</small><span class="order-status ${pay?'paid':cancelled?'cancelled':row.status==='pending'?'pending':''}">${statusLabel(row)}</span></div><div class="order-price">${money(row.amount_rm)}</div></div><details><summary>${(row.items||[]).reduce((sum,item)=>sum+Number(item.quantity||0),0)} 件商品 · 查看明细</summary><div class="order-lines">${items}</div></details>${row.notes?`<small>备注：${esc(row.notes)}</small>`:''}${row.has_chit?'<small>▣ 已生成 Order Chit（待出品）</small>':''}${pay?`<small>✓ ${stamp(row.paid_at)} · ${esc(row.payment_method||'')}</small>`:''}${controls}<div class="receipt-actions"><button type="button" data-receipt="${escapeAttr(row.id)}">${pay?'账单':'未付款账单'}</button>${!pay&&!cancelled&&['pending','confirmed'].includes(row.status)&&state.identity?.can_edit_orders?`<button type="button" data-edit="${escapeAttr(row.id)}">改单</button>`:''}${!pay&&!cancelled&&['pending','confirmed','fulfilled'].includes(row.status)?`<button type="button" class="primary" data-order-cart="${escapeAttr(row.id)}">▣ 优惠与结账</button>`:''}${pay?`<button type="button" data-benefits="${escapeAttr(row.id)}">发游戏资格</button>`:''}</div></article>`;
 }
 function renderOrders(){const active=$('activeList'),pending=$('pendingList'),paid=$('paidList');
  active.innerHTML=state.active.length?state.active.map(row=>renderOrder(row,'active')).join(''):'<div class="empty">暂无需要处理的现场订单。</div>';
@@ -241,7 +247,7 @@ async function saveProduct(e){e.preventDefault();await busy($('productForm').que
  unpack(await db.rpc('yt_pos_owner_product_v2',{p_id:id,p_name:$('productName').value.trim(),p_category:$('productCategory').value.trim(),p_price:price,p_active:$('productActive').checked,p_sort:Number($('productSort').value),p_series:$('productSeries').value||null}));
  clearProduct();await loadCatalog();showNotice(id?'产品已更新':'产品已加入菜单');
  }).catch(()=>{});}
-function editProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;showTab('admin');$('productId').value=p.id;$('productName').value=p.name;$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=p.sort_order||100;$('productSeries').value=p.series_id||'';window.scrollTo({top:0,behavior:'smooth'});}
+function editProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value=p.id;$('productName').value=p.name;$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=p.sort_order||100;$('productSeries').value=p.series_id||'';window.scrollTo({top:0,behavior:'smooth'});}
 function clearProduct(){$('productForm').reset();$('productId').value='';$('productActive').checked=true;$('productSort').value=100;$('productSeries').value='';}
 async function loadRights(){if(!isOwner())return;const staff=unpack(await db.rpc('yt_pos_staff_list'))||[];
  $('staffRights').innerHTML=staff.length?staff.map(x=>`<div class="admin-entry"><div><strong>${esc(x.username)}</strong><small>${x.active?'Active':'Disabled'} · ${x.role==='cashier'?'Cashier 独立账号':'Staff'}</small></div>${x.role==='cashier'?'<span>独立 Cashier 账号</span>':`<label class="checkline"><input type="checkbox" data-cashier="${esc(x.id)}" ${x.can_cashier?'checked':''} ${!x.active?'disabled':''}><span>收银权限</span></label><label class="checkline"><input type="checkbox" data-edit-staff="${esc(x.id)}" ${x.can_edit_orders?'checked':''} ${!x.active?'disabled':''}><span>改单权限</span></label>`}</div>`).join(''):'<div class="empty">还没有 Staff 账户。</div>';}
@@ -381,11 +387,11 @@ async function changeEditRight(id,allowed,input){await busy(input,async()=>{
 }).catch(()=>{input.checked=!allowed});}
 function renderSeriesAdmin(){if(!isOwner())return;
  const root=$('seriesList');root.innerHTML=state.series.length?state.series.map(s=>`<div class="admin-entry"><div><strong>${esc(s.name)}</strong>
- <small>${esc(s.benefit_mode)} · ${Number(s.game_plays||0)} 次 · ${s.active?'已开放':'关闭'}${s.game_plays>1?' · 多次权益待开发':''}</small></div>
+ <small>${esc(s.benefit_mode)} · ${Number(s.game_plays||0)} 次 · ${s.active?'已开放':'关闭'}${s.game_plays>1?' · 暂不可发放':''}</small></div>
  <button type="button" data-series="${esc(s.id)}">编辑</button></div>`).join(''):'<div class="empty">还没有系列。先建立 CLASSIC / TOWER 等分类并设置权益。</div>';
 }
 function editSeries(id){const s=state.series.find(x=>x.id===id);if(!s)return;
- showTab('admin');$('seriesId').value=s.id;$('seriesName').value=s.name;$('seriesMode').value=s.benefit_mode;
+ consoleUI?consoleUI.open('catalog','series'):showTab('admin');$('seriesId').value=s.id;$('seriesName').value=s.name;$('seriesMode').value=s.benefit_mode;
  $('seriesPlays').value=s.game_plays??0;$('seriesPointPercent').value=s.point_percent??'';
  $('seriesSplit').checked=!!s.can_split;$('seriesActive').checked=!!s.active;
  $('seriesName').scrollIntoView({block:'center',behavior:'smooth'});
@@ -671,7 +677,7 @@ async function ownerCreateNewReward(event){event.preventDefault();const button=e
  const reward=await rewardBindingEditor.create({
   p_name:name,p_description:$('ownerNewRewardDesc').value.trim(),p_category:$('ownerNewRewardCategory').value,
   p_validity:days,p_next_day:$('ownerNewRewardNextDay').checked,
-  p_use_from:null,p_use_until:null,p_daily_from:null,p_daily_until:null
+  p_use_from:$('ownerNewRewardStart')?.value?$('ownerNewRewardStart').value+':00+08:00':null,p_use_until:$('ownerNewRewardEnd')?.value?$('ownerNewRewardEnd').value+':00+08:00':null,p_daily_from:$('ownerNewRewardClockFrom')?.value||null,p_daily_until:$('ownerNewRewardClockUntil')?.value||null
  });
  $('ownerNewRewardForm').reset();await loadRewardRules();await loadOwnerRewardOffers();
  $('mapReward').value=String(reward);updateRewardMapForm();$('ownerGiveReward').value=String(reward);
@@ -687,12 +693,12 @@ async function ownerDirectGift(){const btn=$('ownerSendGift');await busy(btn,asy
 async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn,async()=>{
  const reward=$('ownerGiveReward').value;if(!reward)throw Error('请选择一个已绑定的奖品');
  const until=$('ownerGiftUntil').value;
- if(!until||new Date(until).getTime()<=Date.now()+60000)throw Error('设置有效的领取截止时间');
+ if(!until||new Date(until+':00+08:00').getTime()<=Date.now()+60000)throw Error('设置有效的领取截止时间');
  const token=crypto.randomUUID();
  const cap=Number($('ownerGiftTotal').value);if(!Number.isInteger(cap)||cap<1||cap>10000)throw Error('数量需为 1–10000');
  const offer=unpack(await db.rpc('yt_create_offer_v5',{
-  p_reward:reward,p_token:token,p_from:new Date().toISOString(),p_until:new Date(until).toISOString(),
-  p_max:cap,p_per_user:1
+  p_reward:reward,p_token:token,p_from:$('ownerGiftFrom')?.value?$('ownerGiftFrom').value+':00+08:00':new Date().toISOString(),p_until:until+':00+08:00',
+  p_max:cap,p_per_user:Number($('ownerGiftPerUser')?.value||1)
  }));
  const link=portalClientUrl();link.searchParams.set('gift',token);
  const root=$('ownerGiftLink');root.replaceChildren();root.classList.remove('hidden');
@@ -707,6 +713,11 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
 function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard')refreshOrders(true)},6500);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
 function bind(){
+ if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onReset:async()=>{
+  stopPolling();state.cart.clear();state.pendingSubmit=null;state.draftSummary=null;
+  for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('yt-pos-'))sessionStorage.removeItem(key);}
+  showNotice('系统已恢复新机状态',false,true);location.reload();
+ }});
  $('signinForm').addEventListener('submit',e=>login(e).catch(()=>{}));
   $('firstPasswordForm').onsubmit=changeCashierFirstPassword;$('firstPasswordBack').onclick=()=>{db.auth.signOut().finally(resetLogin);};
  $('logout').onclick=async()=>{saveDraft();stopRedeemCamera();stopPolling();if(db)await db.auth.signOut();resetLogin();};
