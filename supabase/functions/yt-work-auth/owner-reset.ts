@@ -21,8 +21,8 @@ export function createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send}:a
   await rate(key,true);
  }
  async function rpc(account:any,session:string,action:string,body:any={}){
-  const {data,error}=await admin.rpc('yt_owner_reset_v7',{p_actor:account.auth_user_id,p_session:session,p_action:action,
-   p_challenge:body.challenge||null,p_request:body.request||null,p_done:body.done||[]});
+  const {data,error}=await admin.rpc('yt_owner_reset_v8',{p_actor:account.auth_user_id,p_session:session,p_action:action,
+   p_challenge:body.challenge||null,p_request:body.request||null,p_done:body.done||[],p_scopes:action==='prepare'?body.scopes:null});
   if(error)throw Error(error.message||'reset_failed');return data;
  }
  return async function ownerReset(action:string,body:any,req:Request){
@@ -30,6 +30,7 @@ export function createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send}:a
   if(action==='reset_status')return send({ok:true,...await rpc(account,session,'status')});
   if(action==='reset_prepare'){
    if(!uuid.test(body.request||''))throw Error('invalid_reset_request');
+   if(!Array.isArray(body.scopes)||!body.scopes.length||body.scopes.length>6||body.scopes.some((x:any)=>!['records','members','catalog','campaigns','team','banners'].includes(x)))throw Error('invalid_reset_scope');
    await checkPassword(account,body.password,'first');
    return send({ok:true,...await rpc(account,session,'prepare',body)});
   }
@@ -39,7 +40,7 @@ export function createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send}:a
    return send({ok:true,...await rpc(account,session,'commit',body)});
   }
   if(action!=='reset_finish')throw Error('invalid_reset_request');
-  const job=await rpc(account,session,'batch',body);if(job.complete)return send({ok:true,challenge:job.challenge,complete:true,remaining:0});
+  const job=await rpc(account,session,'batch',body);if(job.complete)return send({ok:true,challenge:job.challenge,complete:true,remaining:0,scopes:job.scopes});
   const done:number[]=[];const assets=job.batch.filter((x:any)=>x.kind==='asset');
   if(assets.length){
    const {error}=await admin.storage.from('yetipsy-home-banners').remove(assets.map((x:any)=>x.target));
@@ -57,6 +58,6 @@ export function createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send}:a
    if(outcomes.some((x:any)=>x.failed)){if(done.length)await rpc(account,session,'ack',{...body,done});throw Error('reset_cleanup_failed');}
   }
   const result=await rpc(account,session,'ack',{...body,done});
-  return send({ok:true,challenge:result.challenge,complete:result.complete,remaining:result.remaining});
+  return send({ok:true,challenge:result.challenge,complete:result.complete,remaining:result.remaining,scopes:result.scopes});
  };
 }

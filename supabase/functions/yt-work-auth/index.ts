@@ -301,7 +301,7 @@ Deno.serve(async(req:Request)=>{
   const publicErrors:Record<string,number>={
     invalid_username:400,weak_password:400,invalid_credentials:401,too_many_attempts:429,
     username_taken:409,not_authenticated:401,owner_only:403,staff_not_found:404,cashier_not_found:404,
-    invalid_reset_request:400,reset_confirmation_expired:409,reset_not_committed:409,reset_cleanup_pending:409,reset_cleanup_failed:503,reset_verification_failed:503,password_reused:400,invalid_setup:403,invalid_setup_or_already_used:403,owner_already_exists:409
+    invalid_reset_scope:400,reset_scope_conflict:409,invalid_reset_request:400,reset_confirmation_expired:409,reset_not_committed:409,reset_cleanup_pending:409,reset_cleanup_failed:503,reset_verification_failed:503,password_reused:400,invalid_setup:403,invalid_setup_or_already_used:403,owner_already_exists:409
   };
   if(publicErrors[code])return err(code,publicErrors[code]);
   console.error('yt-work-auth',code);

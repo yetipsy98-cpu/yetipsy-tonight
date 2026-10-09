@@ -1,7 +1,7 @@
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261009-client-v5-1';
-import {createConsole} from './console.js?v=20261009-console-v8-1';
+import {createConsole} from './console.js?v=20261009-console-v8-2';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -19,7 +19,7 @@ const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
    series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0};
-const msgMap={active_order_bundle_exists:'这张订单已有整单 QR，请从原设备找回，或等待到期',no_eligible_bundle_units:'这张订单没有尚可分配的 Game Pass',bundle_request_conflict:'发码请求不一致，请刷新后核对',reset_confirmation_expired:'本次重置确认已过期，请从第一次密码确认重新开始',reset_cleanup_pending:'上一次重置的账号清理尚未完成，请继续清理',reset_cleanup_failed:'旧账号或广告文件清理暂未完成，请稍后重试',invalid_reset_request:'重置确认无效，请重新开始',short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
+const msgMap={invalid_reset_scope:'请先选择有效的清空范围，旧页面请刷新后再试',reset_scope_conflict:'本次确认的范围已经锁定，请取消后重新选择',active_order_bundle_exists:'这张订单已有整单 QR，请从原设备找回，或等待到期',no_eligible_bundle_units:'这张订单没有尚可分配的 Game Pass',bundle_request_conflict:'发码请求不一致，请刷新后核对',reset_confirmation_expired:'本次重置确认已过期，请从第一次密码确认重新开始',reset_cleanup_pending:'上一次重置的账号清理尚未完成，请继续清理',reset_cleanup_failed:'旧账号或广告文件清理暂未完成，请稍后重试',invalid_reset_request:'重置确认无效，请重新开始',short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
   order_not_pending:'订单不在待接受状态',order_not_accepted:'订单必须先由 Cashier 接受',order_not_served:'请先完成出品，之后才能收款',
   product_unavailable:'这款产品已停止销售，请重新选择',order_too_large:'单笔订单金额或数量过大',
   invalid_line:'订单产品无效',invalid_order:'订单资料不正确',invalid_channel:'下单渠道无效',invalid_filter:'订单筛选条件无效',
@@ -359,23 +359,26 @@ const friendlyDate=d=>d?stamp(d):'—';
 const portalClientUrl=()=>new URL('../',import.meta.url);
 function receiptInner(r){
  const paid=r.payment_status==='paid';
- const items=(r.items||[]).map(i=>`<div class="receipt-row"><div><strong>${esc(i.item_name||'Drink')}</strong><small>${Number(i.quantity)} × ${money(i.unit_price_rm)}${Number(i.discount_rm)>0?' · Reward 已抵扣 '+money(i.discount_rm):''}</small></div><b>${money(i.line_total_rm)}</b></div>`).join('');
+ const items=(r.items||[]).map(i=>`<div class="receipt-row"><div><strong>${esc(i.item_name||'Drink')}</strong><small>${Number(i.quantity)} × ${money(i.unit_price_rm)}${Number(i.discount_rm)>0?' · 优惠 −'+money(i.discount_rm):''}</small></div><b>${money(i.line_total_rm)}</b></div>`).join('');
  const discount=Number(r.discount_total_rm||0);
  return `<div class="receipt-paper" id="receiptPaper"><div class="receipt-logo">YE<span>·</span>TIPSY</div><div class="receipt-subhead">KLUANG · POINT OF SALE</div>
- <div class="receipt-document">${paid?'✓ PAYMENT RECEIPT · 已收款':'UNPAID BILL · 尚未结账'}</div>
+ <div class="receipt-document">${['cancelled','rejected'].includes(r.status)?'已取消 · 非付款凭证':paid?'✓ PAYMENT RECEIPT · 已收款':'UNPAID BILL · 尚未结账'}</div>
  <div class="receipt-facts"><p><strong>#${esc(r.order_no||'—')}</strong></p><p>Table · ${esc(r.table_label||'Walk-in')}</p><p>Created · ${esc(friendlyDate(r.created_at))}</p><p>By · ${esc(r.created_by||'—')}</p>
  ${paid?`<p>Paid · ${esc(friendlyDate(r.paid_at))}</p><p>Payment · ${esc((r.payment_method||'foodcourt').toUpperCase())}</p>`:''}
  ${r.notes?`<p>Note · ${esc(r.notes)}</p>`:''}</div>
  <div class="receipt-items-head"><span>ITEM</span><span>AMOUNT</span></div>${items}
- ${discount>0?`<div class="receipt-discount"><span>产品奖励抵扣</span><b>−${money(discount)}</b></div>`:''}
- <div class="receipt-sum"><span>${paid?'TOTAL PAID':'AMOUNT DUE'}</span><strong>${money(r.amount_rm)}</strong></div>
+ <div class="receipt-subtotal"><span>商品原价</span><b>${money(r.gross_total_rm)}</b></div>
+ ${(r.discounts||[]).map(d=>`<div class="receipt-discount"><div><span>${esc(d.reward_name||'奖励优惠')}</span>${d.item_name?`<small>${esc(d.item_name)}</small>`:''}</div><b>−${money(d.discount_rm)}</b></div>`).join('')}
+ ${discount>0?`<div class="receipt-subtotal"><span>优惠合计</span><b>−${money(discount)}</b></div>`:''}
+ <div class="receipt-sum"><span>${paid?'已收款 TOTAL PAID':'应付 AMOUNT DUE'}</span><strong>${money(r.amount_rm)}</strong></div>
+ ${r.discount_pending?'<p class="receipt-hold-note">上述优惠已预留，完成结账后正式核销。</p>':''}
+ ${r.unresolved_count>0||r.minimum_met===false?'<p class="receipt-hold-note">优惠需要店员重新核对，当前账单尚不能结账。</p>':''}
  <p class="receipt-bottom">Thank you for visiting Yetipsy.<br>Internal POS record · Not a tax invoice.<br>Foodcourt payment is manually recorded.</p>
  </div>`;
 }
 async function viewReceipt(orderId){
- const [receiptResult,quoteResult]=await Promise.all([db.rpc('yt_pos_receipt',{p_order:orderId}),db.rpc('yt_pos_cart_summary',{p_order:orderId})]);
- const data=unpack(receiptResult),quote=unpack(quoteResult);
- $('receiptContent').innerHTML=receiptInner(data)+(data.payment_status==='paid'?'':`<div class="receipt-pending-note">预留优惠（结账后正式核销） −${money(quote.reserved_discount_rm)}<br><b>预计应收 ${money(quote.payable_rm)}</b></div>`);
+ const data=unpack(await db.rpc('yt_pos_bill_v8',{p_order:orderId}));
+ $('receiptContent').innerHTML=receiptInner(data);
  $('receiptTitle').textContent='#'+(data.order_no||'ORDER')+' · '+(data.payment_status==='paid'?'Receipt':'未付款账单');
  $('receiptOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');
@@ -744,10 +747,9 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
 function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard')refreshOrders(true)},6500);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
 function bind(){
- if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onReset:async()=>{
-  stopPolling();state.cart.clear();state.pendingSubmit=null;state.draftSummary=null;
-  for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('yt-pos-'))sessionStorage.removeItem(key);}
-  showNotice('系统已恢复新机状态',false,true);location.reload();
+ if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onReset:async(scopes)=>{
+  stopPolling();if(scopes?.includes('records')){state.cart.clear();state.pendingSubmit=null;state.draftSummary=null;for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('yt-pos-'))sessionStorage.removeItem(key);}}
+  showNotice('所选范围已重置',false,true);location.reload();
  }});
  $('signinForm').addEventListener('submit',e=>login(e).catch(()=>{}));
   $('firstPasswordForm').onsubmit=changeCashierFirstPassword;$('firstPasswordBack').onclick=()=>{db.auth.signOut().finally(resetLogin);};

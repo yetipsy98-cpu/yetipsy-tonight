@@ -1,4 +1,4 @@
-import {createFactoryReset} from './factory-reset.js?v=20261009-console-v8-1';
+import {createFactoryReset} from './factory-reset.js?v=20261009-console-v8-2';
 const $=id=>document.getElementById(id);
 const titles={catalog:'商品与系列',rewards:'奖励',team:'团队与权限',campaign:'活动与奖池',loyalty:'会员与积分',banners:'轮播广告',insights:'运营概览',factory:'系统重置',pin:'顾客 PIN 重设'};
 export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,loadRights,notice,onReset}){
@@ -18,7 +18,7 @@ export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,lo
    if(['catalog','rewards','team','banners'].includes(key))await loadAdmin();
    if(epoch!==loadEpoch)return;if(key==='rewards')await loadOffers();
    if(['team','campaign','loyalty','insights'].includes(key)){
-    ownerTools||=await import('../shared/owner-tools.js?v=20261009-console-v8-1');if(epoch!==loadEpoch)return;
+    ownerTools||=await import('../shared/owner-tools.js?v=20261009-console-v8-2');if(epoch!==loadEpoch)return;
     const identityResult=await db.rpc('yt_pos_identity');if(identityResult.error)throw identityResult.error;
     if(!identityResult.data?.can_owner)throw Error('owner_only');ownerTools.initOwnerTools(db,identityResult.data);await ownerTools.loadOwnerTool(key);
     if(key==='team')await loadRights();
