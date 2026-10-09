@@ -1,3 +1,4 @@
+import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
 import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from './owner-banners.js?v=20261009-client-v5-1';
@@ -115,12 +116,41 @@ function drawProfile(){const p=state.profile||{};$('profileName').textContent=p.
 function updateHome(){const valid=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());$('openExistingPass').classList.toggle('hide',!valid.length);$('homeGreetingSub').textContent=state.profile?.display_name?'嗨，'+state.profile.display_name+' · 今晚玩点新的？':'YETIPSY PLAY · 轻松享受此刻';}
 async function refreshPasses(){if(!state.user)return;state.passes=unpack(await db.from('game_passes').select('id,status,claimed_at,expires_at,campaign_id,created_at,spend_amount_rm,spend_ref,selection').eq('customer_id',state.user.id).order('created_at',{ascending:false}).limit(50));updateHome();}
 async function loadGames(){state.games=unpack(await db.from('games').select('id,slug,title,mode,active').eq('active',true).order('slug'));}
-async function wallet(silent=false){if(!state.user)return;const items=unpack(await db.from('user_rewards').select('id,status,created_at,redeem_after,expires_at,redeemed_at,rewards(name,description,category,daily_start_local,daily_end_local)').eq('customer_id',state.user.id).order('created_at',{ascending:false}).limit(100));state.wallet=items;renderWallet();if(!silent)updateHome();}
+async function wallet(silent=false){
+ if(!state.user)return;
+ const items=[],customer=state.user.id;
+ const columns='id,reward_id,status,created_at,redeem_after,expires_at,redeemed_at,rewards(name,description,category,active,redeem_start_at,redeem_end_at,daily_start_local,daily_end_local)';
+ for(let offset=0;;offset+=200){const page=unpack(await db.from('user_rewards').select(columns).eq('customer_id',customer).order('expires_at',{ascending:true}).order('id',{ascending:true}).range(offset,offset+199));if(state.user?.id!==customer)return;items.push(...page);if(page.length<200)break;}
+ state.wallet=items;renderWallet();if(!silent)updateHome();
+}
 const iconFor=category=>({drink:'♧',voucher:'◇',gift:'✳',event:'✦',custom:'◈'})[category]||'✦';
-function renderWallet(){const root=$('walletItems');root.replaceChildren();
- if(!state.wallet.length){root.innerHTML='<div class="empty-state"><span class="empty-symbol">✦</span>这里还没有奖励。<br/>扫码玩游戏，或领取店主送出的好礼。</div>';return;}
- for(const r of state.wallet){const expires=millis(r.expires_at)<=Date.now(),early=millis(r.redeem_after)>Date.now(),redeemed=r.status==='redeemed';const available=r.status==='available'&&!expires&&!early;const card=document.createElement('div');card.className='reward-item';const status=redeemed?'已核销':expires?'已过期':r.status==='revoked'?'已作废':early?'未到使用时间':'可兑换';card.innerHTML=`<div class="reward-icon">${iconFor(r.rewards?.category)}</div><div><span class="chip ${available?'ok':redeemed?'off':''}">${status}</span><h3>${esc(r.rewards?.name||'Reward')}</h3><p>${esc(r.rewards?.description||'到店出示凭证由员工核销')}</p><p>开始：${esc(fmt(r.redeem_after))}<br/>截止：${esc(fmt(r.expires_at))}</p>${r.rewards?.daily_start_local?`<p>每日可用：${esc(r.rewards.daily_start_local.slice(0,5))} – ${esc(r.rewards.daily_end_local.slice(0,5))}</p>`:''}</div>`;
- if(available){const btn=document.createElement('button');btn.className='button button-outline';btn.textContent='▣ 出示兑奖二维码 / 兑换码';btn.onclick=()=>pending(btn,()=>showRewardQR(r));card.append(btn);}root.append(card);}
+function rewardDate(value){return new Intl.DateTimeFormat('zh-MY',{timeZone:MY_TZ,month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value));}
+async function useNextReward(key){
+ await wallet(true);
+ const stack=buildRewardStacks(state.wallet).live.find(s=>s.key===key);
+ if(!stack?.ready.length)throw Error('当前没有可使用的奖励，请查看使用日期或时段');
+ await showRewardQR(stack.ready[0]);
+}
+function renderRewardStack(stack,recommended=false,archive=false){
+ const next=stack.next,status=rewardAvailability(next),window=rewardWindow(next),card=document.createElement('article');card.className='reward-stack'+(recommended?' recommended':'');
+ card.innerHTML=`<div class="reward-stack-head"><span class="reward-icon">${iconFor(next.rewards?.category)}</span><div><h3>${esc(next.rewards?.name||'Reward')}</h3><p>${recommended?'优先使用 · ':''}${archive?esc(status.label):status.ready?'到期 '+esc(rewardDate(window.end)):status.label==='未到使用日期'?'开始 '+esc(rewardDate(window.start)):esc(status.label)}</p></div><span class="reward-quantity">×${stack.items.length}</span></div>`;
+ const actions=document.createElement('div');actions.className='reward-stack-actions';
+ if(stack.ready.length){const use=document.createElement('button');use.type='button';use.className='button button-outline';use.textContent=stack.ready.length>1?'使用最早到期的一份':'出示兑换码';use.onclick=()=>pending(use,()=>useNextReward(stack.key)).catch(()=>{});actions.append(use);}
+ const detail=document.createElement('button');detail.type='button';detail.className='reward-detail-button';detail.textContent=stack.items.length>1?'查看 '+stack.items.length+' 份 ›':'详情 ›';detail.onclick=()=>showRewardStackDetails(stack.key,archive);actions.append(detail);card.append(actions);return card;
+}
+function renderWallet(){
+ const root=$('walletItems');root.replaceChildren();const stacks=buildRewardStacks(state.wallet);
+ if(!state.wallet.length){root.innerHTML='<div class="empty-state"><span class="empty-symbol">✦</span>这里还没有奖励。<br/>扫码玩游戏，或输入奖励领取码。</div>';return;}
+ for(const [i,stack] of stacks.live.entries())root.append(renderRewardStack(stack,i===0&&!!stack.ready.length));
+ if(stacks.history.length){const history=document.createElement('details');history.className='reward-archive';const summary=document.createElement('summary');summary.textContent='已使用／已失效';history.append(summary);const list=document.createElement('div');list.className='reward-archive-list';for(const stack of stacks.history)list.append(renderRewardStack(stack,false,true));history.append(list);root.append(history);}
+}
+function showRewardStackDetails(key,archive=false){
+ const stacks=buildRewardStacks(state.wallet),stack=(archive?stacks.history:stacks.live).find(s=>s.key===key);if(!stack)return;
+ showSheet(stack.next.rewards?.name||'奖励详情','REWARD DETAILS');const root=document.createElement('div');root.className='sheet-content reward-details';
+ const description=document.createElement('p');description.textContent=stack.next.rewards?.description||'到店出示兑换码，由店员在点单购物车中使用。';root.append(description);
+ const daily=stack.next.rewards;if(daily?.daily_start_local&&daily?.daily_end_local){const line=document.createElement('p');line.textContent='每日可用：'+daily.daily_start_local.slice(0,5)+' – '+daily.daily_end_local.slice(0,5);root.append(line);}
+ for(const award of stack.items){const status=rewardAvailability(award),window=rewardWindow(award),row=document.createElement('div');row.className='reward-copy-row';const info=document.createElement('div');info.innerHTML=`<strong>${esc(status.label)}${award.id===stack.ready[0]?.id?' · 建议先用':''}</strong><small>开始 ${esc(fmt(window.start))}<br/>截止 ${esc(fmt(window.end))}</small>`;row.append(info);if(status.ready){const use=document.createElement('button');use.type='button';use.className='button button-outline';use.textContent='使用';use.onclick=()=>pending(use,()=>showRewardQR(award)).catch(()=>{});row.append(use);}root.append(row);}
+ $('sheetBody').append(root);
 }
 function showSheet(title,eyebrow='YETIPSY PLAY'){if(scannerRunning)stopScanner();$('sheetTitle').textContent=title;$('sheetEyebrow').textContent=eyebrow;$('sheetBody').replaceChildren();$('sheetBackdrop').classList.remove('hide');document.body.style.overflow='hidden';}
 async function closeSheet(){await stopScanner();$('sheetBackdrop').classList.add('hide');document.body.style.overflow='';}
@@ -447,14 +477,14 @@ function renderMyLoyalty(){
   const code=document.createElement('b');code.textContent=l.referral_code||'—';row.append(code);target.append(row);
   const desc=document.createElement('p');desc.className='tiny-help';desc.textContent=l.referral_enabled?'邀请好友注册可领取活动好礼；实际奖励与兑换规则以活动设置为准。':'好友推荐活动尚未开放，好友码已经为你保留。';target.append(desc);
   if(l.referral_enabled){const b=document.createElement('button');b.type='button';b.className='button button-outline wide';b.textContent='复制我的好友邀请链接 ↗';b.onclick=()=>{const u=new URL('./',location.href);u.search='';u.searchParams.set('invite',l.referral_code);copy(u.href);};target.append(b);}
-  if(id==='ytLoyaltyWallet'){
-    const history=document.createElement('div');history.className='yt-loyalty-history';const hh=document.createElement('strong');hh.textContent='最近积分记录';history.append(hh);
-    const items=l.points_history||[];
-    if(!items.length){const e=document.createElement('p');e.className='tiny-help';e.textContent='目前尚未获得积分。';history.append(e);}
-    for(const item of items.slice(0,15)){const line=document.createElement('p');line.textContent=(item.direction==='earn'?'+':'−')+Number(item.points).toLocaleString('en-MY')+' P · '+fmt(item.created_at);history.append(line);}
-    target.append(history);
-  }
+  const history=document.createElement('button');history.type='button';history.className='loyalty-history-button';history.textContent='最近积分记录 ›';history.onclick=showPointsHistory;target.append(history);
  }
+}
+function showPointsHistory(){
+ showSheet('最近积分记录','POINTS HISTORY');const root=document.createElement('div');root.className='sheet-content points-history-drawer';const items=state.loyalty?.points_history||[];
+ if(!items.length){const empty=document.createElement('p');empty.textContent='目前尚未获得积分。';root.append(empty);}
+ for(const item of items.slice(0,15)){const row=document.createElement('div');row.className='points-history-row';const date=document.createElement('span');date.textContent=fmt(item.created_at);const value=document.createElement('strong');value.textContent=(item.direction==='earn'?'+':'−')+Number(item.points).toLocaleString('en-MY')+' P';row.append(date,value);root.append(row);}
+ $('sheetBody').append(root);
 }
 async function choosePassReward(pass){
  if(!state.user)throw Error('请先登录会员账号');
