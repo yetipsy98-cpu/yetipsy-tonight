@@ -1,3 +1,4 @@
+import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from './owner-banners.js?v=20261009-client-v5-1';
 import {createHomeCarousel} from './home-carousel.js?v=20261009-client-v5-1';
@@ -8,6 +9,7 @@ const configured=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(urlConfig.url||'')&
 const db=configured?createClient(urlConfig.url,urlConfig.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
 const EDGE_URL=(urlConfig.url||'')+'/functions/v1/yt-pin-auth';
 const MY_TZ='Asia/Kuala_Lumpur';
+const rewardBindingEditor=createRewardBindingEditor({db,root:$('rewardBindingRoot')});
 const state={user:null,role:null,profile:null,view:'home',games:[],passes:[],wallet:[],rewards:[],campaigns:[],ownerGames:[],pool:[],assigned:[],busy:false,refreshing:false,activeSession:null,currentRedemption:null,currentOffer:null,board:[],staffRoles:[],handleToken:null,loginMode:'phone',checkedPhone:null,pendingClaim:null,gamePlaying:false,referralDraft:'',loyalty:null};
 let scanner=null,scannerRunning=false,qrLibPromise=null,barcodeLibPromise=null;
 const uuid=()=>crypto.randomUUID();
@@ -539,7 +541,7 @@ async function loadOwner(){if(!isOwner())return;const [profiles,rewards,campaign
  db.from('staff_roles').select('user_id,role,active')
  ]);
  state.rewards=unpack(rewards);state.campaigns=unpack(campaigns);state.ownerGames=unpack(games);state.customers=unpack(profiles);state.staffRoles=unpack(staffRoles);const names=x=>x.name;
- selectRestore($('issueReward'),state.rewards,names);selectRestore($('directCustomer'),state.customers,x=>(x.display_name||x.phone||'Customer')+(x.phone?' · '+x.phone:''));selectRestore($('ownerCampaign'),state.campaigns,x=>(x.active?'● ':'○ ')+x.name);renderStaffAccess();await loadCampaignDetail();}
+ const rules=await rewardBindingEditor.load();selectRestore($('issueReward'),state.rewards.filter(r=>rules.some(b=>b.reward_id===r.id&&isBoundReward(b))),names);selectRestore($('directCustomer'),state.customers,x=>(x.display_name||x.phone||'Customer')+(x.phone?' · '+x.phone:''));selectRestore($('ownerCampaign'),state.campaigns,x=>(x.active?'● ':'○ ')+x.name);renderStaffAccess();await loadCampaignDetail();}
 function renderStaffAccess(){
  const ownerIds=new Set(state.staffRoles.filter(s=>s.role==='owner').map(s=>s.user_id));
  selectRestore($('staffMember'),state.customers.filter(p=>p.id!==state.user?.id&&!ownerIds.has(p.id)),x=>(x.display_name||'Yetipsy Member')+' · '+(x.phone||x.id.slice(0,8)));
@@ -563,11 +565,11 @@ function datetimeMY(value){return value?value+':00+08:00':null;}
 function inputDatetime(date){return new Intl.DateTimeFormat('sv-SE',{timeZone:MY_TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(date).replace(' ','T');}
 function initialiseOfferDates(){if(!$('offerUntil').value){$('offerFrom').value=inputDatetime(new Date());$('offerUntil').value=inputDatetime(new Date(Date.now()+7*86400000));}}
 async function createCustomReward(ev){ev.preventDefault();const btn=ev.submitter;
- await pending(btn,async()=>{const from=$('rewardStart').value,until=$('rewardEnd').value,df=$('rewardDailyFrom').value,du=$('rewardDailyUntil').value;if(Boolean(df)!==Boolean(du))throw Error('每日时段必须同时输入开始和结束');const name=$('rewardTitle').value.trim();if(!name)throw Error('请输入奖品名称');const id=unpack(await db.rpc('yt_create_reward_v11',{
+ await pending(btn,async()=>{const from=$('rewardStart').value,until=$('rewardEnd').value,df=$('rewardDailyFrom').value,du=$('rewardDailyUntil').value;if(Boolean(df)!==Boolean(du))throw Error('每日时段必须同时输入开始和结束');const name=$('rewardTitle').value.trim();if(!name)throw Error('请输入奖品名称');const id=await rewardBindingEditor.create({
  p_name:name,p_description:$('rewardDesc').value.trim(),p_category:$('rewardCategory').value,
  p_validity:Number($('rewardValidity').value),p_next_day:$('rewardNextDay').checked,
- p_use_from:datetimeMY(from),p_use_until:datetimeMY(until),p_daily_from:df||null,p_daily_until:du||null}));
- $('newRewardForm').reset();$('rewardNextDay').checked=true;await loadOwner();$('issueReward').value=id;toast('奖品已建立，可立即发给顾客或生成领取码');});}
+ p_use_from:datetimeMY(from),p_use_until:datetimeMY(until),p_daily_from:df||null,p_daily_until:du||null});
+ $('newRewardForm').reset();$('rewardNextDay').checked=true;await loadOwner();$('issueReward').value=id;rewardBindingEditor.reset();toast('奖励与兑奖权益已一起保存，可立即发放或生成领取码');});}
 async function ownerOffer(){const reward=$('issueReward').value;if(!reward)throw Error('请先创建或选择奖品');const start=datetimeMY($('offerFrom').value),end=datetimeMY($('offerUntil').value);if(!end)throw Error('请设置领取截止时间');const n=Number($('offerTotal').value),per=Number($('offerPerUser').value);const raw=uuid();const offer=unpack(await db.rpc('yt_create_offer_v5',{p_reward:reward,p_token:raw,p_from:start,p_until:end,p_max:n,p_per_user:per}));const name=state.rewards.find(r=>r.id===reward)?.name||'Yetipsy Reward';await showCodeSheet('领取这份专属好礼',`${name} · 每账户最多 ${per} 次 · 总共 ${n} 份；截止 ${fmt(end)}。`,newLink('gift',raw),true,offer.expires_at,offer.display_code,'gift');}
 async function ownerDirectIssue(){const reward=$('issueReward').value,customer=$('directCustomer').value;if(!reward||!customer)throw Error('请先选择奖励与顾客');if(!confirm('确定将这份奖励直接发到顾客钱包？'))return;const req=retryId('direct:'+customer+':'+reward);const id=unpack(await db.rpc('yt_send_reward',{p_customer:customer,p_reward:reward,p_request:req}));if(!id)throw Error('发奖失败');requestStore.remove('v11:direct:'+customer+':'+reward);toast('发放成功，顾客钱包已入账');}
 async function loadCampaignDetail(){if(!isOwner())return;const campaignId=$('ownerCampaign').value;const item=state.campaigns.find(x=>x.id===campaignId);if(!item){$('gameToggles').replaceChildren();$('poolEditor').replaceChildren();return;}$('ownerCampaignActive').checked=item.active;

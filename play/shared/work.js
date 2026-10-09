@@ -1,3 +1,4 @@
+import {createRewardBindingEditor,isBoundReward} from '../reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 
 const $=id=>document.getElementById(id);
@@ -7,6 +8,7 @@ const configured=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(config.url||'')&&/^
 const workURL=(config.url||'')+'/functions/v1/yt-work-auth';
 const pinURL=(config.url||'')+'/functions/v1/yt-pin-auth';
 const db=configured?createClient(config.url,config.publishableKey,{auth:{storageKey:'yt-work-session-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
+const rewardBindingEditor=$('rewardBindingRoot')?createRewardBindingEditor({db,root:$('rewardBindingRoot')}):null;
 const state={identity:null,campaigns:[],games:[],rewards:[],customers:[],pool:[],assigned:[],activePanel:'issue',pendingRedeem:null,scanStream:null,scanBusy:false,scanAnimation:0};
 const esc=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
 const uuid=()=>crypto.randomUUID();
@@ -55,12 +57,13 @@ async function ensureQRLibrary(){
  })().catch(e=>{qrcodePromise=null;throw e;});}
  return qrcodePromise;
 }
-async function showQR(target,title,link,expiry=null){
+async function showQR(target,title,link,expiry=null,shortCode=null){
  const el=$(target);el.classList.remove('hide');el.replaceChildren();
  const heading=document.createElement('h3');heading.textContent=title;el.append(heading);
  const square=document.createElement('div');square.className='qr-canvas';el.append(square);
- const href=document.createElement('a');href.className='qr-link';href.href=link;href.textContent=link;href.target='_blank';href.rel='noreferrer';el.append(href);
- const btn=document.createElement('button');btn.className='btn outline small';btn.type='button';btn.textContent='复制二维码链接';btn.onclick=()=>copy(link);el.append(btn);
+ if(shortCode){const code=document.createElement('strong');code.className='claim-short-code';code.textContent=shortCode;el.append(code);}else{const href=document.createElement('a');href.className='qr-link';href.href=link;href.textContent=link;href.target='_blank';href.rel='noreferrer';el.append(href);}
+ const btn=document.createElement('button');btn.className='btn outline small';btn.type='button';btn.textContent=shortCode?'复制领取短码':'复制二维码链接';btn.onclick=()=>copy(shortCode||link);el.append(btn);
+ if(shortCode){const hint=document.createElement('p');hint.className='field-note';hint.textContent='扫不到时，在客户端「领取奖励」输入这组短码。';el.append(hint);}
  if(expiry){const exp=document.createElement('div');exp.className='qr-exp';exp.textContent='领取码有效至：'+fmt(expiry);el.append(exp);}
  const verification=document.createElement('div');verification.className='notice';verification.textContent='正在验证二维码可领取状态…';el.append(verification);
  let rendered=false;
@@ -68,8 +71,8 @@ async function showQR(target,title,link,expiry=null){
   await ensureQRLibrary();
   new window.QRCode(square,{text:link,width:212,height:212,colorDark:'#202820',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});
   rendered=true;
- }catch(e){square.textContent='无法显示 QR 图片，请使用下方链接直接打开或复制';console.warn('QR render',e);}
- return {rendered,verification};
+ }catch(e){square.textContent=shortCode?'无法显示 QR 图片，请使用下方领取短码':'无法显示 QR 图片，请使用下方链接直接打开或复制';console.warn('QR render',e);}
+ return {rendered,verification,shortCode};
 }
 async function verifyIssuedCode(kind,raw,render){
  try{
@@ -78,8 +81,8 @@ async function verifyIssuedCode(kind,raw,render){
    render.verification.textContent='⚠ 服务器未确认这个领取码可用：'+(result.preview?.message||'码可能已到期或活动尚未开放')+'。先不要发给顾客。';
    status('二维码尚未通过服务器核验，请勿分享',true);return false;
   }
-  render.verification.textContent=render.rendered?'✓ 服务器已验证：此 QR 当前可领取':'✓ 服务器已验证领取码：QR 图片加载失败，可复制链接领取';
-  status(render.rendered?'已创建并验证 QR，可让顾客扫码':'领取码已创建并验证，请使用复制链接',!render.rendered);
+  render.verification.textContent=render.shortCode?'✓ 服务器已验证：顾客可扫码或输入领取短码':render.rendered?'✓ 服务器已验证：此 QR 当前可领取':'✓ 服务器已验证领取码：QR 图片加载失败，可复制链接领取';
+  status(render.shortCode?'已创建领取 QR 与短码':render.rendered?'已创建并验证 QR，可让顾客扫码':'领取码已创建并验证，请使用复制链接',!render.rendered&&!render.shortCode);
   return true;
  }catch(e){
   render.verification.textContent='⚠ 领取码已写入服务器，但实时验证失败：'+err(e)+'。请暂时不要分享。';
@@ -125,11 +128,12 @@ async function loadRewards(){
  if(!$('offerUntil').value){$('offerFrom').value=fromMyDate(new Date());$('offerUntil').value=fromMyDate(new Date(Date.now()+7*86400000));}
  const [rs,customers]=await Promise.all([db.from('rewards').select('id,name,description,active,category').eq('active',true).order('created_at',{ascending:false}).limit(400),db.from('profiles').select('id,display_name,phone').not('phone','is',null).order('created_at',{ascending:false}).limit(300)]);
  state.rewards=unpack(rs)||[];state.customers=unpack(customers)||[];
- optionSet($('issueReward'),state.rewards,x=>x.id,x=>x.name);
+ const rules=await rewardBindingEditor.load();
+ optionSet($('issueReward'),state.rewards.filter(r=>rules.some(b=>b.reward_id===r.id&&isBoundReward(b))),x=>x.id,x=>x.name);
  optionSet($('directMember'),state.customers,x=>x.id,x=>(x.display_name||'Member')+' · '+(x.phone||'——'));
  if(!state.rewards.length)status('当前没有开放奖品，请先在本页创建一个奖品',true);
 }
-async function createReward(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{const df=$('rewardClockFrom').value,du=$('rewardClockUntil').value;if(Boolean(df)!==Boolean(du))throw Error('每日使用时间必须同时输入开始和结束');const r=unpack(await db.rpc('yt_create_reward_v11',{p_name:$('rewardName').value.trim(),p_description:$('rewardDesc').value.trim(),p_category:$('rewardCategory').value,p_validity:Number($('rewardDays').value),p_next_day:$('rewardNextDay').checked,p_use_from:toMyTimestamp($('rewardStart').value),p_use_until:toMyTimestamp($('rewardEnd').value),p_daily_from:df||null,p_daily_until:du||null}));$('rewardForm').reset();$('rewardNextDay').checked=true;await loadRewards();$('issueReward').value=r;status('自定义奖品创建成功，可以直接发放或生成 QR');});}
+async function createReward(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{const df=$('rewardClockFrom').value,du=$('rewardClockUntil').value;if(Boolean(df)!==Boolean(du))throw Error('每日使用时间必须同时输入开始和结束');const r=await rewardBindingEditor.create({p_name:$('rewardName').value.trim(),p_description:$('rewardDesc').value.trim(),p_category:$('rewardCategory').value,p_validity:Number($('rewardDays').value),p_next_day:$('rewardNextDay').checked,p_use_from:toMyTimestamp($('rewardStart').value),p_use_until:toMyTimestamp($('rewardEnd').value),p_daily_from:df||null,p_daily_until:du||null});$('rewardForm').reset();$('rewardNextDay').checked=true;await loadRewards();$('issueReward').value=r;rewardBindingEditor.reset();status('奖励与兑奖权益已一起保存，可以发放或生成领取短码');});}
 async function createOffer(e){const btn=e.currentTarget;await busy(btn,async()=>{
  const reward=$('issueReward').value;if(!reward)throw Error('请先创建并选择奖品');
  const startRaw=$('offerFrom').value,endRaw=$('offerUntil').value;
@@ -140,8 +144,8 @@ async function createOffer(e){const btn=e.currentTarget;await busy(btn,async()=>
  const total=Number($('offerTotal').value),per=Number($('offerPerPerson').value);
  if(!Number.isInteger(total)||total<1||total>10000||!Number.isInteger(per)||per<1||per>10)throw Error('总份数应为1–10000，每人可领次数应为1–10');
  const token=uuid();
- unpack(await db.rpc('yt_create_offer',{p_reward:reward,p_token:token,p_from:from,p_until:until,p_max:total,p_per_user:per}));
- const card=await showQR('giftQR','Reward Claim · 顾客扫码领取',codeLink('gift',token),until);
+ const offer=unpack(await db.rpc('yt_create_offer_v5',{p_reward:reward,p_token:token,p_from:from,p_until:until,p_max:total,p_per_user:per}));
+ const card=await showQR('giftQR','Reward Claim · 顾客扫码领取',codeLink('gift',token),offer.expires_at,offer.display_code);
  await verifyIssuedCode('gift',token,card);
 });}
 async function directReward(e){const btn=e.currentTarget;await busy(btn,async()=>{const member=$('directMember').value,reward=$('issueReward').value;if(!member||!reward)throw Error('请选择会员与奖品');if(!confirm('确认把这份奖励直接放入所选顾客钱包？'))return;unpack(await db.rpc('yt_send_reward',{p_customer:member,p_reward:reward,p_request:uuid()}));status('奖励已入账顾客钱包');});}
@@ -226,3 +230,4 @@ async function loadCashiers(){if(!roleIsOwner())return;
 
 function bind(){ $('loginForm').onsubmit=e=>login(e).catch(report);$('setupForm').onsubmit=e=>activate(e).catch(report);$('changeForm').onsubmit=e=>changePassword(e).catch(report);$('openSetup').onclick=()=>renderGate('setup');$('setupBack').onclick=signinView;$('logoutBtn').onclick=()=>signout().catch(report);$('passReceiptAuto').onclick=()=>{$('passReceipt').value=nextInternalReceipt();};if(!$('passReceipt').value)$('passReceipt').value=nextInternalReceipt();$('passForm').onsubmit=e=>issuePass(e).catch(()=>{});$('lookupForm').onsubmit=e=>lookupRedeem(e).catch(()=>{});$('scanBtn').onclick=e=>busy(e.currentTarget,startCamera).catch(()=>{});$('scanStop').onclick=stopCamera;$('resetForm').onsubmit=e=>makeReset(e).catch(()=>{});$('staffForm').onsubmit=e=>createStaff(e).catch(()=>{});$('cashierCreateForm').onsubmit=e=>createCashierForm(e).catch(()=>{});$('cashierPasswordGenerate').onclick=()=>{$('cashierPassword').value=randomPassword();};$('refreshCashiers').onclick=e=>busy(e.currentTarget,loadCashiers).catch(()=>{});$('staffTempGenerate').onclick=()=>{$('staffTemp').value=randomPassword();};$('refreshStaff').onclick=e=>busy(e.currentTarget,loadStaff).catch(()=>{});$('rewardForm').onsubmit=e=>createReward(e).catch(()=>{});$('issueOfferBtn').onclick=e=>createOffer(e).catch(()=>{});$('directSendBtn').onclick=e=>directReward(e).catch(()=>{});$('ownerCampaign').onchange=()=>loadCampaignSettings().catch(report);$('poolGame').onchange=renderPool;$('saveCampaignBtn').onclick=e=>updateCampaign(e).catch(()=>{});$('cloneBtn').onclick=e=>cloneCampaign(e).catch(()=>{});$('refreshInsights').onclick=e=>busy(e.currentTarget,loadInsights).catch(()=>{});$('saveLoyaltyOwner').onclick=saveLoyaltyOwner;$('addLoyaltyTier').onclick=addLoyaltyTier;$('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();stopCamera();}});}
 boot().catch(report);
+

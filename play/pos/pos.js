@@ -1,3 +1,4 @@
+import {createRewardBindingEditor} from '../reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261009-client-v5-1';
 
@@ -9,6 +10,7 @@ const portal=document.body.dataset.entry==='cashier'?'cashier':'work';
 const usable=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(conf.url||'')&&/^sb_publishable_/.test(conf.publishableKey||'');
 const db=usable?createClient(conf.url,conf.publishableKey,{auth:{storageKey:portal==='cashier'?'yt-cashier-session-v2':'yt-work-session-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
 const workURL=(conf.url||'')+'/functions/v1/yt-work-auth';
+const rewardBindingEditor=$('rewardBindingRoot')?createRewardBindingEditor({db,root:$('rewardBindingRoot')}):null;
 const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   active:[],paid:[],pending:[],seenPending:new Set(),seenInitialized:false,
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
@@ -245,7 +247,7 @@ async function loadRights(){if(!isOwner())return;const staff=unpack(await db.rpc
  $('staffRights').innerHTML=staff.length?staff.map(x=>`<div class="admin-entry"><div><strong>${esc(x.username)}</strong><small>${x.active?'Active':'Disabled'} · ${x.role==='cashier'?'Cashier 独立账号':'Staff'}</small></div>${x.role==='cashier'?'<span>独立 Cashier 账号</span>':`<label class="checkline"><input type="checkbox" data-cashier="${esc(x.id)}" ${x.can_cashier?'checked':''} ${!x.active?'disabled':''}><span>收银权限</span></label><label class="checkline"><input type="checkbox" data-edit-staff="${esc(x.id)}" ${x.can_edit_orders?'checked':''} ${!x.active?'disabled':''}><span>改单权限</span></label>`}</div>`).join(''):'<div class="empty">还没有 Staff 账户。</div>';}
 async function loadRewardRules(){
  if(!isOwner())return;
- state.rewardRules=unpack(await db.rpc('yt_pos_owner_reward_rules'))||[];
+ state.rewardRules=await rewardBindingEditor.load();
  const select=$('mapReward');const old=select.value;select.replaceChildren(new Option('请选择奖品',''));
  for(const r of state.rewardRules)select.add(new Option(`${r.reward_name}${!r.active?'（已停用）':''}`,r.reward_id));
  if(state.rewardRules.some(r=>r.reward_id===old))select.value=old;
@@ -666,15 +668,14 @@ async function ownerCreateNewReward(event){event.preventDefault();const button=e
  if(!isOwner())throw Error('owner_only');
  const name=$('ownerNewRewardName').value.trim(),days=Number($('ownerNewRewardDays').value);
  if(name.length<2||!Number.isInteger(days)||days<1||days>365)throw Error('请输入奖励名称及正确有效天数');
- const reward=unpack(await db.rpc('yt_create_reward_v11',{
+ const reward=await rewardBindingEditor.create({
   p_name:name,p_description:$('ownerNewRewardDesc').value.trim(),p_category:$('ownerNewRewardCategory').value,
   p_validity:days,p_next_day:$('ownerNewRewardNextDay').checked,
   p_use_from:null,p_use_until:null,p_daily_from:null,p_daily_until:null
- }));
- $('ownerNewRewardForm').reset();await loadRewardRules();
- $('mapReward').value=String(reward);updateRewardMapForm();
- $('mapReward').scrollIntoView({block:'center',behavior:'smooth'});
- showNotice('奖励已创建，请在上面的奖品绑定栏设置 POS 商品／系列，否则无法领取和核销。');
+ });
+ $('ownerNewRewardForm').reset();await loadRewardRules();await loadOwnerRewardOffers();
+ $('mapReward').value=String(reward);updateRewardMapForm();$('ownerGiveReward').value=String(reward);
+ rewardBindingEditor.reset();showNotice('奖励与兑奖权益已一起保存，现在可以直接发放或生成领取短码。');
  }).catch(()=>{});}
 async function ownerDirectGift(){const btn=$('ownerSendGift');await busy(btn,async()=>{
  const member=$('ownerGiveMember').value,reward=$('ownerGiveReward').value;
