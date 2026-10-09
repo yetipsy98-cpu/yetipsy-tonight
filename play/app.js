@@ -24,7 +24,7 @@ const isOwner=()=>state.role==='owner';
 const newLink=(kind,token)=>{const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set(kind,token);return u.toString();};
 const failerr=(message)=>{throw new Error(message);};
 function toast(message,bad=false){const el=$('toast');el.textContent=message;el.style.borderColor=bad?'#c77d70':'#ccaa76';el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),4600);}
-function errorText(e){const s=String(e?.message||e||'操作失败');const map={claim_code_invalid:'领取码不正确，请核对 8 位短码',claim_code_rate_limited:'输入次数过多，请一分钟后再试',owner_only:'仅限 Owner 操作',staff_only:'仅限员工操作',not_authenticated:'登录已失效，请重新登录',pass_invalid_or_claimed:'游戏码无效、已领取或已过期',offer_unavailable:'奖励已领完、尚未开放或已到期',offer_not_found:'找不到这个奖励领取码',account_claim_limit:'你已经达到这个活动的领取次数',reward_no_valid_window:'奖品的可用时间设置有冲突',reward_not_redeemable:'奖励尚未到可兑换时间，或已经过期',outside_redeem_hours:'不在奖品允许兑换的营业时段',reward_pool_empty_or_sold_out:'奖池库存已用完',invalid_credentials:'手机号或 PIN 不正确',too_many_attempts:'尝试次数过多，请 15 分钟后再试',already_registered:'该号码已注册，请直接登录',invalid_pin:'请输入 6 位数字 PIN',weak_pin:'PIN 太容易猜，请换一个',invalid_phone:'请输入正确的手机号码',request_conflict:'请刷新后重试'};return map[s]||s.replaceAll('_',' ');}
+function errorText(e){const s=String(e?.message||e||'操作失败');const map={pass_revoked:'这份游戏权益已被撤销',pass_expired_or_used:'这份游戏已完成或超过3天有效期',game_round_locked:'该回合已记录，请从「我的游戏」继续',game_rounds_incomplete:'请先完成剩余回合',game_choice_locked:'本局选择已经锁定，请继续原本的游戏',claim_code_invalid:'领取码不正确，请核对 8 位短码',claim_code_rate_limited:'输入次数过多，请一分钟后再试',owner_only:'仅限 Owner 操作',staff_only:'仅限员工操作',not_authenticated:'登录已失效，请重新登录',pass_invalid_or_claimed:'游戏码无效、已领取或已过期',offer_unavailable:'奖励已领完、尚未开放或已到期',offer_not_found:'找不到这个奖励领取码',account_claim_limit:'你已经达到这个活动的领取次数',reward_no_valid_window:'奖品的可用时间设置有冲突',reward_not_redeemable:'奖励尚未到可兑换时间，或已经过期',outside_redeem_hours:'不在奖品允许兑换的营业时段',reward_pool_empty_or_sold_out:'奖池库存已用完',invalid_credentials:'手机号或 PIN 不正确',too_many_attempts:'尝试次数过多，请 15 分钟后再试',already_registered:'该号码已注册，请直接登录',invalid_pin:'请输入 6 位数字 PIN',weak_pin:'PIN 太容易猜，请换一个',invalid_phone:'请输入正确的手机号码',request_conflict:'请刷新后重试'};return map[s]||s.replaceAll('_',' ');}
 function shell(showMain){$('authView').classList.toggle('hide',showMain);$('mainView').classList.toggle('hide',!showMain);$('workspaceView').classList.add('hide');}
 function navigate(page='home'){state.view=page;shell(true);for(const e of document.querySelectorAll('.page'))e.classList.toggle('hide',e.id!==page+'Page');for(const e of document.querySelectorAll('[data-page]'))e.classList.toggle('active',e.dataset.page===page);window.scrollTo({top:0,behavior:'smooth'});if(page==='wallet'){wallet().catch(e=>toast(errorText(e),true));loadMyLoyalty().catch(()=>{});}if(page==='home'){updateHome();homeCarousel?.refresh().catch(()=>{});}if(page==='account'){drawProfile();loadMyLoyalty().catch(()=>{});}}
 async function pinRequest(action,phone='',pin='',nickname='',extras={}){
@@ -97,7 +97,7 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
   await initialize();toast(signup?'欢迎加入 Yetipsy Play ✳':'欢迎回来 ✳');
    if(signup){state.referralDraft='';const next=new URL(location.href);next.searchParams.delete('invite');history.replaceState(null,'',next.href);}
    loadMyLoyalty().catch(()=>{});
-   if(state.pendingClaim){const claim=state.pendingClaim;state.pendingClaim=null;try{await redeemScanValue(claim.token,claim.kind);}catch(e){toast(errorText(e),true);}}
+   if(state.pendingClaim){const claim=state.pendingClaim;state.pendingClaim=null;try{await (['claim','bundle'].includes(claim.kind)?previewClaim(claim.token,claim.kind):redeemScanValue(claim.token,claim.kind));}catch(e){toast(errorText(e),true);}}
  });
 }catch(err){$('authError').textContent=errorText(err);}}
 async function initialize(){if(!db)return;const {data:{user},error}=await db.auth.getUser();if(error&&!/Auth session missing/i.test(error.message||''))console.warn('Session:',error.message);state.user=user||null;
@@ -113,8 +113,8 @@ async function initialize(){if(!db)return;const {data:{user},error}=await db.aut
  if(new URL(location.href).searchParams.has('redeem')&&isStaff()){openWorkspace('staff');$('staffRedeemInput').value=new URL(location.href).searchParams.get('redeem');showStaffRedeem();}
 }
 function drawProfile(){const p=state.profile||{};$('profileName').textContent=p.display_name||'Yetipsy Member';$('profilePhone').textContent=p.phone||'PLAY CLUB MEMBER';$('profileLevel').textContent=isOwner()?'OWNER MEMBER':isStaff()?'STAFF MEMBER':'PLAY CLUB MEMBER';}
-function updateHome(){const valid=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());$('openExistingPass').classList.toggle('hide',!valid.length);$('homeGreetingSub').textContent=state.profile?.display_name?'嗨，'+state.profile.display_name+' · 今晚玩点新的？':'YETIPSY PLAY · 轻松享受此刻';}
-async function refreshPasses(){if(!state.user)return;state.passes=unpack(await db.from('game_passes').select('id,status,claimed_at,expires_at,campaign_id,created_at,spend_amount_rm,spend_ref,selection').eq('customer_id',state.user.id).order('created_at',{ascending:false}).limit(50));updateHome();}
+function updateHome(){const valid=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());$('openExistingPass').classList.toggle('hide',!valid.length);$('openExistingPass').textContent='我的游戏 · '+valid.length+' →';$('homeGreetingSub').textContent=state.profile?.display_name?'嗨，'+state.profile.display_name+' · 今晚玩点新的？':'YETIPSY PLAY · 轻松享受此刻';}
+async function refreshPasses(){if(!state.user)return;const actor=state.user.id;const rows=unpack(await db.rpc('yt_my_game_passes'));if(state.user?.id!==actor)return;state.passes=rows||[];updateHome();}
 async function loadGames(){state.games=unpack(await db.from('games').select('id,slug,title,mode,active').eq('active',true).order('slug'));}
 async function wallet(silent=false){
  if(!state.user)return;
@@ -184,17 +184,17 @@ async function previewClaim(raw,assumed=null){
  const info=tokenDetails(raw);if(assumed&&info.kind!=='gift_code')info.kind=assumed;
  if(info.kind==='gift_code')return redeemScanValue(info.token);
  if(info.kind==='redeem'){if(!state.user||!isStaff())throw Error('请由店员扫码核销奖励');return redeemScanValue(info.token,'redeem');}
- const data=info.kind==='bundle'?{...unpack(await db.rpc('yt_pos_bundle_preview',{p_token:info.token})),title:'整单 Game Pass',description:'一次领取这张订单分配给你的游戏权益。',rules:'整单权益由同一名会员领取。'}:(await pinRequest('preview','','','',{kind:info.kind,token:info.token})).preview;
+ const data=info.kind==='bundle'?{...unpack(await db.rpc('yt_pos_bundle_preview',{p_token:info.token})),title:'整单 Game Pass',description:'一次领取这张订单分配给你的游戏权益。',rules:'同一会员一次领取；领取后3天内有效，可稍后玩，POS 不能重复发放。'}:(await pinRequest('preview','','','',{kind:info.kind,token:info.token})).preview;
  if(!data)throw Error('暂时无法查看这份领取码');
  showSheet(data.valid?'Almost yours.':'领取状态','YETIPSY · JUST ONE MORE STEP');
- const title=data.title||'Yetipsy Reward',limit=data.expires_at?`有效至 ${fmt(data.expires_at)}`:'';
+ const title=data.title||'Yetipsy Reward',gameClaim=['claim','bundle'].includes(info.kind),limit=data.expires_at?`有效至 ${fmt(data.expires_at)}`:'';
  const count=info.kind==='bundle'?`${Number(data.pass_count||0)} 份 Game Pass`:info.kind==='gift'&&data.remaining!=null?`剩余 ${Number(data.remaining)} 份`:info.kind==='claim'?`${data.game_count||0} 款游戏可选`:'';
- sheetHtml(`<div class="sheet-content claim-preview"><div class="preview-glyph">${info.kind==='gift'?'✦':'◇'}</div><div class="overline">${esc(data.subtitle||'YETIPSY PLAY')}</div><h2>${esc(title)}</h2><p>${esc(data.description||'你的专属惊喜')}</p><div class="preview-infos"><span>${esc(limit)}</span><span>${esc(count)}</span></div>${data.rules?`<p class="tiny-help">${esc(data.rules)}</p>`:''}<div id="previewAction"></div></div>`);
+ sheetHtml(`<div class="sheet-content claim-preview"><div class="preview-glyph">${info.kind==='gift'?'✦':'◇'}</div><div class="overline">${esc(data.subtitle||'YETIPSY PLAY')}</div><h2>${esc(title)}</h2><p>${esc(data.description||'你的专属惊喜')}</p><div class="preview-infos"><span>${esc(limit)}</span><span>${esc(count)}</span></div>${gameClaim?'<p class="tiny-help">确认领取后3天内有效，可稍后玩；店员将不能再次发放。未确认前，二维码两分钟到期，店员可取消。</p>':data.rules?`<p class="tiny-help">${esc(data.rules)}</p>`:''}<div id="previewAction"></div></div>`);
  const target=$('previewAction');
  if(!data.valid){target.innerHTML='<div class="preview-unavailable">这份领取码暂不可用，可能尚未开始、已被领取、已过期或已领完。</div>';return;}
  const button=document.createElement('button');button.className='button button-primary wide';button.textContent=state.user?'确认领取 '+(['claim','bundle'].includes(info.kind)?'Game Pass':'奖励')+' ↗':'领取 '+(['claim','bundle'].includes(info.kind)?'Game Pass':'奖励')+' · 只差一步 ↗';
  button.onclick=()=>pending(button,async()=>{
-  if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='只差一步！输入手机号码，领取会在登录或注册后自动完成。';window.scrollTo(0,0);return;}
+  if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='只差一步！输入手机号码，登录或注册后可继续确认领取。';window.scrollTo(0,0);return;}
   await redeemScanValue(info.token,info.kind);
  }).catch(()=>{});target.append(button);
 }
@@ -204,7 +204,7 @@ async function redeemScanValue(raw,assumed){const info=tokenDetails(raw);if(assu
  if(info.kind==='redeem'){if(!isStaff())throw Error('兑奖二维码需由 Staff 扫描');openWorkspace('staff');showStaffRedeem();$('staffRedeemInput').value=info.token;await lookupRedeem();return;}
  if(info.kind==='bundle'){
   const result=unpack(await db.rpc('yt_pos_bundle_claim',{p_token:info.token}));stripLink('bundle');await refreshPasses();
-  showSheet('领取成功','GAME PASS');sheetHtml(`<div class="sheet-content"><h2>${Number(result.count||0)} 份 Game Pass 已入账</h2><p>回首页逐次选择游戏。</p><button id="bundleGoHome" class="button button-primary wide">回首页选择游戏 ↗</button></div>`);$('bundleGoHome').onclick=()=>{closeSheet();navigate('home');};return;
+  showSheet('领取成功','GAME PASS');sheetHtml(`<div class="sheet-content"><h2>${Number(result.count||0)} 份 Game Pass 已入账</h2><p>3天内有效，可逐次选择游戏或稍后玩。</p><button id="bundleGoHome" class="button button-primary wide">查看我的游戏 ↗</button></div>`);$('bundleGoHome').onclick=()=>{closeSheet();existingGamePass().catch(e=>toast(errorText(e),true));};return;
  }
  if(info.kind==='gift'||info.kind==='gift_code'){
   const key=info.kind+':'+info.token,req=retryId(key);let rows;
@@ -219,7 +219,7 @@ function openRewardClaim(){
  sheetHtml('<div class="sheet-content"><p>输入店员提供的 8 位 Reward Claim 短码，奖励会存入你的 Wallet。</p><form id="rewardClaimForm"><label for="rewardClaimCode">奖励领取码</label><input id="rewardClaimCode" class="claim-code-input" placeholder="例如 7K3M-9X2P" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" required/><button id="rewardClaimSubmit" class="button button-primary wide" type="submit">领取奖励 ↗</button></form><p class="tiny-help">请按活动设置的开始与截止时间领取，每账户限额保持有效。</p></div>');
  $('rewardClaimForm').onsubmit=e=>{e.preventDefault();return pending($('rewardClaimSubmit'),()=>redeemScanValue($('rewardClaimCode').value)).catch(()=>{});};
 }
-async function manualClaimSubmit(){const raw=$('scanManual').value.trim();await redeemScanValue(raw);}
+async function manualClaimSubmit(){const raw=$('scanManual').value.trim();await previewClaim(raw);}
 async function openScanner(mode='claim'){
  showSheet(mode==='redeem'?'扫描兑奖凭证':'扫一扫，开启惊喜','SCAN CODE');
  sheetHtml(`<div class="sheet-content"><div class="scan-frame" id="cameraFrame"><div class="scan-placeholder"><span>▣</span>准备启动相机…</div></div><p class="scan-helper">可扫描 Yetipsy QR / CODE128 条形码。首次使用请允许相机访问。</p><div class="sheet-sep"></div><label for="scanManual">扫描不方便？输入奖励领取短码</label><input id="scanManual" placeholder="输入 8 位 Reward Claim 短码"/><button type="button" id="scanSubmit" class="button button-outline wide">确认领取 / 核销查询</button></div>`);
@@ -271,9 +271,9 @@ async function chooseGame(pass){
  await loadGames();const ids=unpack(await db.from('campaign_games').select('game_id').eq('campaign_id',pass.campaign_id)).map(x=>x.game_id);
  const available=state.games.filter(g=>ids.includes(g.id));if(!available.length)throw Error('该活动暂时没有开放的游戏');
  showSheet('选一场今晚的小游戏','ONE PASS · YOUR CHOICE');
- const root=document.createElement('div');root.className='sheet-content yt-game-selection';root.innerHTML='<div class="yt-selection-header"><div class="yt-mini-symbol">✳</div><h2>挑一个，玩出今晚的故事。</h2><p>每张 Game Pass 只有一次机会。查看玩法不消耗机会，点击「开始游戏」才使用。</p></div><div class="choice-grid yt-choice-grid" id="gameChoices"></div>';
+ const root=document.createElement('div');root.className='sheet-content yt-game-selection';root.innerHTML='<div class="yt-selection-header"><div class="yt-mini-symbol">✳</div><h2>挑一个，玩出今晚的故事。</h2><p>领取已占用本次权益，有效至 '+esc(fmt(pass.expires_at))+'。查看玩法不会开始游戏。</p></div><div class="choice-grid yt-choice-grid" id="gameChoices"></div>';
  for(const g of available){const b=document.createElement('button');b.className='choice-card yt-choice-card';b.innerHTML=`<span class="yt-choice-number">${String(available.indexOf(g)+1).padStart(2,'0')}</span><span class="symbol">${symbols[g.slug]||'✦'}</span><strong>${esc(titles[g.slug]?.[0]||g.title)}</strong><small>${esc(titles[g.slug]?.[1]||'YETIPSY PLAY')}</small><p>${esc(gameTips[g.slug]||'开启一份属于你的惊喜。')}</p>`;b.onclick=()=>showGameIntro(pass,g);root.querySelector('#gameChoices').append(b);}
- $('sheetBody').append(root);
+ const later=document.createElement('button');later.type='button';later.className='button button-outline wide';later.textContent='稍后再玩 · 存到我的游戏';later.onclick=()=>{closeSheet();navigate('home');toast('已存好，可从「我的游戏」继续，3天内有效');};root.append(later);$('sheetBody').append(root);
 }
 function showGameIntro(pass,g){
  showSheet(titles[g.slug]?.[0]||g.title,'READY TO PLAY');
@@ -301,21 +301,24 @@ async function playDice(tier,sessionId){
  foot('骰子正在滚动…');await sleep(1800);shaker.classList.add('is-lifted');await sleep(650);
  const row=v.querySelector('.dice-collection');row.innerHTML=faces.map(diceElement).join('');row.classList.add('yt-dice-landed');
  const count=faces.filter(n=>n===1).length;foot(`摇出 ${count} 颗「1」 · 已记录本局点数`);gameHaptic(50);gameSound('stop');await sleep(950);
+ return diceLocalResult(tier,sessionId);
+}
+function diceLocalResult(tier,sessionId){const faces=diceResult(tier,sessionId),count=faces.filter(n=>n===1).length;
  return {headline:`${count} 颗「1」`,kicker:'LUCKY DICE RESULT',detail:`五颗骰子已停稳 · ${count} / 5 颗「1」`,visual:`<div class="yt-result-dice">${faces.map(diceElement).join('')}</div>`,rule:'每颗骰子的结果对应公开的奖励档位，中奖概率只由本游戏的独立奖池决定。',score:count};
 }
 const cardFortunes=['好运，是你敢选的那一刻。','今晚，惊喜留给勇敢的你。','一张好牌，送给此刻的你。','缘分已经为你翻开一页。'];
-async function playPick(isCard){
+async function playPick(isCard,session,progress={}){
  const count=isCard?4:3;
  const markup=Array.from({length:count},(_,i)=>isCard?`<button class="foil-card yt-pick-card" data-pick="${i}" aria-label="选择第${i+1}张牌"><span>✳</span><small>YETIPSY</small><em>0${i+1}</em></button>`:`<button class="gift-box yt-pick-box" data-pick="${i}" aria-label="选择第${i+1}个礼盒"><span>✦</span><em>0${i+1}</em></button>`).join('');
  const v=arena(isCard?'MYSTERY CARD · 命运翻牌':'MYSTERY BOX · 惊喜盲盒',`<div class="yt-pick-intro">${isCard?'你会选中哪一张命运牌？':'挑选今晚属于你的神秘礼盒。'}</div><div class="game-picks yt-game-picks">${markup}</div><div id="ytPickSignature" class="yt-pick-signature"></div>`,'只有一次选择 · 点击其中一个');
  const buttons=[...v.querySelectorAll('[data-pick]')];
- const selected=await new Promise(resolve=>{
+ const selected=progress.choice!=null?Number(progress.choice)-1:await new Promise((resolve,reject)=>{
   let done=false;const timeout=setTimeout(()=>onPick(Math.floor(Math.random()*count),true),50000);
-  function onPick(n,auto=false){if(done)return;done=true;clearTimeout(timeout);buttons.forEach((b,i)=>{b.disabled=true;if(i===n)b.classList.add('selected');else b.classList.add('dimmed');});foot(auto?'已为你自动打开一个选择':'你的选择已经锁定');gameHaptic(40);gameSound('tick');resolve(n);}
+  function onPick(n,auto=false){if(done)return;done=true;clearTimeout(timeout);buttons.forEach((b,i)=>{b.disabled=true;if(i===n)b.classList.add('selected');else b.classList.add('dimmed');});foot(auto?'已为你自动打开一个选择':'你的选择已经锁定');gameHaptic(40);gameSound('tick');gameCheckpoint(session,'pick',n+1).then(()=>resolve(n)).catch(reject);}
   buttons.forEach((b,i)=>b.onclick=()=>onPick(i));
  });
  await sleep(600);
- const selectedButton=buttons[selected];
+ buttons.forEach((b,i)=>{b.disabled=true;b.classList.add(i===selected?'selected':'dimmed');});const selectedButton=buttons[selected];
  if(isCard){selectedButton.classList.add('yt-flipped');v.querySelector('#ytPickSignature').innerHTML=`<span>✳</span><b>${esc(cardFortunes[selected])}</b>`;foot('命运卡片已翻开 · 解读今日签语');}
  else {selectedButton.classList.add('yt-open-box');v.querySelector('#ytPickSignature').innerHTML='<span>✧</span><b>一份惊喜，已经被你唤醒。</b>';foot('礼盒开启 · 星光已经点亮');}
  await sleep(1500);
@@ -329,13 +332,14 @@ async function reactionRound(v,round){
   const timer=setTimeout(()=>{if(done)return;greenAt=performance.now();button.classList.add('go');button.textContent='TAP NOW!';gameSound('tick');},1050+Math.random()*1550);
   const expire=setTimeout(()=>finish(null,'TIME OUT'),7800);
   function finish(value,label){if(done)return;done=true;clearTimeout(timer);clearTimeout(expire);button.disabled=true;button.classList.add('yt-result-tapped');button.textContent=label;foot(label==='FALSE START'?'抢跑！下一回合再试':label==='TIME OUT'?'超时！下一回合再试':`本回合反应 ${value} ms`);gameHaptic(30);gameSound('stop');resolve(value);}
-  button.onclick=()=>greenAt?finish(Math.max(1,Math.round(performance.now()-greenAt)),`${Math.round(performance.now()-greenAt)} ms`):finish(null,'FALSE START');
+  button.onclick=()=>{if(!greenAt)return finish(null,'FALSE START');const elapsed=Math.max(1,Math.round(performance.now()-greenAt));finish(elapsed,`${elapsed} ms`);};
  });
 }
-async function playReaction(){
+async function playReaction(session,progress={}){
  const v=arena('REACTION LAB · 三回合',`<div id="ytReactionRound" class="yt-round-count">READY / 3</div><div class="yt-reaction-ring"><button id="reactionTap" class="reaction-button" type="button" disabled>READY?</button></div><div class="yt-round-history" id="ytReactionScores"><span>01 —</span><span>02 —</span><span>03 —</span></div><button id="ytBeginReaction" class="button button-primary wide yt-play-main-button">开始挑战</button>`,'三回合中取最佳成绩 · 按钮变绿才点击');
- await actionOnce(v.querySelector('#ytBeginReaction'),()=>null);v.querySelector('#ytBeginReaction').remove();const results=[];
- for(let i=1;i<=3;i++){const score=await reactionRound(v,i);results.push(score);v.querySelector('#ytReactionScores').children[i-1].textContent=`0${i} ${score==null?'—':score+'ms'}`;if(i<3)await sleep(1100);}
+ const results=[...(progress.rounds||[])];for(let i=0;i<results.length;i++)v.querySelector('#ytReactionScores').children[i].textContent=`0${i+1} ${results[i]==null?'—':results[i]+'ms'}`;
+ if(results.length<3){v.querySelector('#ytBeginReaction').textContent=results.length?'继续剩余 '+(3-results.length)+' 回合':'开始挑战';await actionOnce(v.querySelector('#ytBeginReaction'),()=>null);}v.querySelector('#ytBeginReaction').remove();
+ for(let i=results.length+1;i<=3;i++){await gameCheckpoint(session,'begin',i);const score=await reactionRound(v,i);await gameCheckpoint(session,'finish',i,score);results.push(score);v.querySelector('#ytReactionScores').children[i-1].textContent=`0${i} ${score==null?'—':score+'ms'}`;if(i<3)await sleep(1100);}
  const valid=results.filter(x=>x!==null),best=valid.length?Math.min(...valid):null;
  return {headline:best===null?'挑战完成':`${best} ms`,kicker:'YOUR BEST REACTION',detail:best===null?'三回合完成 · 继续练习会更准':best<=220?'极限反应，漂亮！':best<=380?'出手很快，继续保持！':'稳稳发挥，完成三回合。',visual:`<div class="yt-result-ranks">${results.map((s,i)=>`<div><span>ROUND 0${i+1}</span><strong>${s==null?'—':s+' ms'}</strong></div>`).join('')}</div>`,rule:'反应时间仅用于个人最佳纪录与娱乐排行榜；实际奖励由服务器随机抽取，与速度无关。',score:best};
 }
@@ -349,10 +353,11 @@ async function stopRound(v,round){
   raf=requestAnimationFrame(tick);btn.onclick=finish;const timeout=setTimeout(finish,6500);
  });
 }
-async function playStopBar(){
+async function playStopBar(session,progress={}){
  const v=arena('STOP THE BAR · 三回合',`<div class="yt-round-count" id="ytBarRound">READY / 3</div><div class="yt-bar-container"><div class="bar-track"><div class="bar-target"></div><div class="bar-marker" id="marker"></div></div><div class="yt-bar-ticks"><span>0</span><span>PERFECT</span><span>100</span></div></div><button class="button button-primary wide yt-play-main-button" id="stopBtn" type="button" disabled>READY</button><button class="button button-outline wide" id="ytBeginBar">开始三次挑战</button><div class="yt-round-history" id="ytBarScores"><span>01 —</span><span>02 —</span><span>03 —</span></div>`,'按 STOP 停在中央金色目标区');
- await actionOnce(v.querySelector('#ytBeginBar'),()=>null);v.querySelector('#ytBeginBar').remove();const scores=[];
- for(let i=1;i<=3;i++){const s=await stopRound(v,i);scores.push(s);v.querySelector('#ytBarScores').children[i-1].textContent=`0${i} ${s}%`;if(i<3){await sleep(1050);v.querySelector('.bar-track').classList.remove('yt-perfect');}}
+ const scores=[...(progress.rounds||[])].map(x=>Number(x||0));for(let i=0;i<scores.length;i++)v.querySelector('#ytBarScores').children[i].textContent=`0${i+1} ${scores[i]}%`;
+ if(scores.length<3){v.querySelector('#ytBeginBar').textContent=scores.length?'继续剩余 '+(3-scores.length)+' 回合':'开始三次挑战';await actionOnce(v.querySelector('#ytBeginBar'),()=>null);}v.querySelector('#ytBeginBar').remove();
+ for(let i=scores.length+1;i<=3;i++){await gameCheckpoint(session,'begin',i);const score=await stopRound(v,i);await gameCheckpoint(session,'finish',i,score);scores.push(score);v.querySelector('#ytBarScores').children[i-1].textContent=`0${i} ${score}%`;if(i<3){await sleep(1050);v.querySelector('.bar-track').classList.remove('yt-perfect');}}
  const best=Math.max(...scores);
  return {headline:`${best}%`,kicker:'BEST ACCURACY',detail:best>=95?'PERFECT STOP！稳得漂亮。':best>=75?'离中心非常接近！':'三次挑战完成，下次再来刷新记录。',visual:`<div class="yt-result-ranks">${scores.map((s,i)=>`<div><span>ROUND 0${i+1}</span><strong>${s}%</strong></div>`).join('')}</div>`,rule:'精准度仅用于个人最佳纪录与娱乐排行榜；实际奖励由服务器随机抽取，与精准度无关。',score:best};
 }
@@ -426,21 +431,21 @@ async function showGameWon(name,record=null,slug=null){
  const gift=$('ytRevealGift');requestAnimationFrame(()=>{gift.classList.add('yt-reward-revealed');gift.append(fireworks());});gameSound('win');gameHaptic([40,70,70]);
  $('goWalletFromGame').onclick=()=>{closeSheet();navigate('wallet');};if(record&&slug){const label=$('ytRewardRecord');label.classList.remove('hide');label.textContent=personalResultLine(slug,record);const board=$('ytRewardBoard');board.classList.remove('hide');board.onclick=()=>showLeaderboard(slug).catch(e=>toast(errorText(e),true));}
 }
-async function startGame(pass,g){
+async function startGame(pass,g,existingSession=null){
  if(state.gamePlaying)throw Error('游戏进行中，请勿重复点击');
  state.gamePlaying=true;let session=null,localResult=null,startedAt=0,unlocked=false;
  try{
-  const rows=unpack(await db.rpc('yt_start_game',{p_pass:pass.id,p_game:g.id}));if(!rows?.length)throw Error('无法开启游戏');
-  session=rows[0];state.activeSession=session;startedAt=performance.now();
+  const rows=existingSession?[existingSession]:unpack(await db.rpc('yt_start_game',{p_pass:pass.id,p_game:g.id}));if(!rows?.length)throw Error('无法开启游戏');
+  session=rows[0];state.activeSession=session;startedAt=performance.now();const resumed=session.status==='resumed';const progress=resumed?await gameCheckpoint(session,'resume'):{};
   showSheet(titles[g.slug]?.[0]||g.title,'LET THE GAME BEGIN');
-  if(g.slug==='moon-dice')localResult=await playDice(session.result_key,session.session_id);
-  else if(g.slug==='mystery-card')localResult=await playPick(true);
-  else if(g.slug==='mystery-box')localResult=await playPick(false);
-  else if(g.slug==='reaction-test')localResult=await playReaction();
-  else if(g.slug==='stop-the-bar')localResult=await playStopBar();
+  if(g.slug==='moon-dice')localResult=resumed?diceLocalResult(session.result_key,session.session_id):await playDice(session.result_key,session.session_id);
+  else if(g.slug==='mystery-card')localResult=await playPick(true,session,progress);
+  else if(g.slug==='mystery-box')localResult=await playPick(false,session,progress);
+  else if(g.slug==='reaction-test')localResult=await playReaction(session,progress);
+  else if(g.slug==='stop-the-bar')localResult=await playStopBar(session,progress);
   else throw Error('游戏暂时不可用');
   const revealButton=showGameResult(g,localResult);
-  // A game pass is consumed only once, after the server confirms settlement.
+  // Claim consumes POS eligibility; settlement awards the same session only once.
   // A visible result always precedes the prize reveal; no automatic winner popup.
   const settle=async()=>{
    if(unlocked)return;
@@ -458,7 +463,8 @@ async function startGame(pass,g){
    toast(errorText(e),true);
   }
  }catch(e){
-  if(session){showSheet('网络连接不稳定','RESUME PLAY');sheetHtml('<div class="sheet-content"><p>这张 Game Pass 的游戏会话已经保存在服务器。请稍等片刻，再确认领奖；重复请求不会重复发奖。</p><button id="resumeGame" class="button button-primary wide">恢复并确认奖励</button></div>');$('resumeGame').onclick=()=>pending($('resumeGame'),async()=>{const done=unpack(await db.rpc('yt_finish_game',{p_session:session.session_id}));if(!done?.length)throw Error('还无法结算，请稍后重试');state.activeSession=null;try{await Promise.all([wallet(true),refreshPasses()]);}catch{}await showGameWon(done[0].reward_name);}).catch(()=>{});}
+  if(session){showSheet('继续本局游戏','RESUME PLAY');sheetHtml('<div class="sheet-content"><p>本局已保存在服务器，恢复会保留结果及已完成回合，不会重新抽奖。请在有效期内继续。</p><button id="resumeGame" class="button button-primary wide">继续本局</button></div>');$('resumeGame').onclick=()=>pending($('resumeGame'),()=>resumeGamePass(pass)).catch(()=>{});}
+
   throw e;
  }finally{state.gamePlaying=false;}
 }
@@ -492,7 +498,7 @@ function showPointsHistory(){
 }
 async function choosePassReward(pass){
  if(!state.user)throw Error('请先登录会员账号');
- if(!pass||pass.status!=='claimed')throw Error('这张 Game Pass 已失效或使用过');
+ if(!pass||pass.status!=='claimed'||millis(pass.expires_at)<=Date.now())throw Error('这张 Game Pass 已失效或使用过');if(pass.session_id)return resumeGamePass(pass);
  let quote=null;
  try{quote=unpack(await db.rpc('yt_point_pass_quote',{p_pass:pass.id}));}catch(e){console.warn('Points quote unavailable',e);}
  if(!quote?.eligible){return chooseGame(pass);}
@@ -510,7 +516,12 @@ async function choosePassReward(pass){
  }).catch(()=>{});
 }
 
-async function existingGamePass(){await refreshPasses();const p=state.passes.find(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());if(!p)throw Error('还没有游戏机会，请先扫描员工二维码');await choosePassReward(p);}
+async function existingGamePass(){await refreshPasses();const passes=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());if(!passes.length)throw Error('还没有可用游戏，请先扫描员工二维码');
+ showSheet('我的游戏','GAME PASS');sheetHtml('<div class="sheet-content"><p class="tiny-help">优先使用快到期的；每份领取后3天内有效。</p><div id="savedGamePasses" class="saved-game-passes"></div></div>');
+ for(const pass of passes){const row=document.createElement('button');row.type='button';row.className='saved-game-pass';row.innerHTML='<span><strong>'+esc(pass.session_id?(pass.game_title||'继续本局游戏'):'选择游戏')+'</strong><small>到期 '+esc(fmt(pass.expires_at))+'</small></span><b>'+(pass.session_id?'继续本局':'开始选择')+' ↗</b>';row.onclick=()=>pending(row,()=>choosePassReward(pass)).catch(()=>{});$('savedGamePasses').append(row);}
+}
+async function resumeGamePass(pass){await refreshPasses();const current=state.passes.find(p=>p.id===pass.id);if(!current?.session_id)throw Error('这次游戏已完成或到期，请查看奖励钱包');const g={id:current.game_id,slug:current.game_slug,title:current.game_title};return startGame(current,g,{session_id:current.session_id,result_key:current.result_key,status:'resumed'});}
+async function gameCheckpoint(session,action,round=null,score=null){return unpack(await db.rpc('yt_game_checkpoint',{p_session:session.session_id,p_action:action,p_round:round,p_score:score}));}
 async function prizeBoard(){
   // This public endpoint returns only titles,玩法 and award terms; not prize weights or odds.
   const response=await pinRequest('prizes');

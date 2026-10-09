@@ -1,8 +1,8 @@
-import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261009-owner-edit-v10-1';
+import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261009-gamepass-v11-1';
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261009-client-v5-1';
-import {createConsole} from './console.js?v=20261009-owner-edit-v10-1';
+import {createConsole} from './console.js?v=20261009-gamepass-v11-1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -20,7 +20,7 @@ const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
    series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0};
-const msgMap={order_not_editable:'该订单已取消或退款，不能再次改单',invalid_revision_price:'单价需为0至5000，最多两位小数',issued_reward_already_redeemed:'关联奖励已经核销，不能撤销；可关闭撤销选项保留权益',issued_reward_locked:'关联奖励已锁在其他订单，请先释放后再撤销',issued_points_balance_insufficient:'会员积分余额不足，不能撤回；可保留权益并记录人工处理',invalid_adjustment_payment:'请填写有效金额、收退款方式及说明',adjustment_exceeds_balance:'金额超过当前待补收／退款余额，请刷新核对',order_payment_adjustment_pending:'本单还有补收／退款未完成，暂不能发 GamePass',pass_revoked:'这次游戏权益已由 Owner 撤销',aged_order_owner_required:'这张订单已超过72小时，需要 Owner 批准处理',aged_orders_block_day_close:'有超过72小时未完成的订单，Owner 处理后才能日结',invalid_cutoff:'请选择有效的截止时间',invalid_business_day:'营业日日期不正确',day_close_changed_reload:'收款或订单状态已变化，请刷新日结后再确认',business_day_already_closed:'本营业日已经完成日结',day_close_note_required:'有未付款单、现金差额或取出现金，请填写备注',cash_out_exceeds_expected:'取出现金不能超过应有现金',invalid_day_close:'请填写正确的现金金额',business_day_not_closed:'本营业日尚未日结',order_not_unpaid:'该订单已经处理，请刷新',invalid_reset_scope:'请先选择有效的清空范围，旧页面请刷新后再试',reset_scope_conflict:'本次确认的范围已经锁定，请取消后重新选择',active_order_bundle_exists:'这张订单已有整单 QR，请从原设备找回，或等待到期',no_eligible_bundle_units:'这张订单没有尚可分配的 Game Pass',bundle_request_conflict:'发码请求不一致，请刷新后核对',reset_confirmation_expired:'本次重置确认已过期，请从第一次密码确认重新开始',reset_cleanup_pending:'上一次重置的账号清理尚未完成，请继续清理',reset_cleanup_failed:'旧账号或广告文件清理暂未完成，请稍后重试',invalid_reset_request:'重置确认无效，请重新开始',short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
+const msgMap={benefits_current_day_only:'只能分配当前营业日订单的 GamePass',pass_already_claimed:'顾客已领取，不能取消或再次发码',pass_changed_reload:'二维码已更新，请刷新后再取消',invalid_pass_cancellation:'请填写至少两个字的取消原因',default_campaign_not_available:'默认活动需已开放并包含可用游戏',order_not_editable:'该订单已取消或退款，不能再次改单',invalid_revision_price:'单价需为0至5000，最多两位小数',issued_reward_already_redeemed:'关联奖励已经核销，不能撤销；可关闭撤销选项保留权益',issued_reward_locked:'关联奖励已锁在其他订单，请先释放后再撤销',issued_points_balance_insufficient:'会员积分余额不足，不能撤回；可保留权益并记录人工处理',invalid_adjustment_payment:'请填写有效金额、收退款方式及说明',adjustment_exceeds_balance:'金额超过当前待补收／退款余额，请刷新核对',order_payment_adjustment_pending:'本单还有补收／退款未完成，暂不能发 GamePass',pass_revoked:'这次游戏权益已由 Owner 撤销',aged_order_owner_required:'这张订单已超过72小时，需要 Owner 批准处理',aged_orders_block_day_close:'有超过72小时未完成的订单，Owner 处理后才能日结',invalid_cutoff:'请选择有效的截止时间',invalid_business_day:'营业日日期不正确',day_close_changed_reload:'收款或订单状态已变化，请刷新日结后再确认',business_day_already_closed:'本营业日已经完成日结',day_close_note_required:'有未付款单、现金差额或取出现金，请填写备注',cash_out_exceeds_expected:'取出现金不能超过应有现金',invalid_day_close:'请填写正确的现金金额',business_day_not_closed:'本营业日尚未日结',order_not_unpaid:'该订单已经处理，请刷新',invalid_reset_scope:'请先选择有效的清空范围，旧页面请刷新后再试',reset_scope_conflict:'本次确认的范围已经锁定，请取消后重新选择',active_order_bundle_exists:'这张订单已有整单 QR，请从原设备找回，或等待到期',no_eligible_bundle_units:'这张订单没有尚可分配的 Game Pass',bundle_request_conflict:'发码请求不一致，请刷新后核对',reset_confirmation_expired:'本次重置确认已过期，请从第一次密码确认重新开始',reset_cleanup_pending:'上一次重置的账号清理尚未完成，请继续清理',reset_cleanup_failed:'旧账号或广告文件清理暂未完成，请稍后重试',invalid_reset_request:'重置确认无效，请重新开始',short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
   order_not_pending:'订单不在待接受状态',order_not_accepted:'订单必须先由 Cashier 接受',order_not_served:'请先完成出品，之后才能收款',
   product_unavailable:'这款产品已停止销售，请重新选择',order_too_large:'单笔订单金额或数量过大',
   invalid_line:'订单产品无效',invalid_order:'订单资料不正确',invalid_channel:'下单渠道无效',invalid_filter:'订单筛选条件无效',
@@ -61,7 +61,7 @@ function showNotice(message,bad=false,persist=false){const n=$('notice');n.textC
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
 async function work(action,data={},signed=false){const headers={'Content-Type':'application/json',apikey:conf.publishableKey};if(signed)headers.Authorization='Bearer '+await getBearer();const resp=await fetch(workURL,{method:'POST',headers,cache:'no-store',body:JSON.stringify({action,...data})});const res=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));if(!resp.ok||!res.ok)throw Error(res.error||'server_unavailable');return res;}
-function resetLogin(){state.editBusy=false;closeEditDialog();state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.activeView='login';state.identity=null;consoleUI?.roleChanged();$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
+function resetLogin(){clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.activeView='login';state.identity=null;consoleUI?.roleChanged();$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
 async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
  const username=$('username').value.trim().toLowerCase(),password=$('password').value;
  const result=await work('login',{username,password});
@@ -415,59 +415,57 @@ async function saveSeries(event){event.preventDefault();const btn=$('seriesForm'
  }));$('seriesForm').reset();$('seriesId').value='';await loadCatalog();showNotice('系列规则已保存');
 }).catch(()=>{});}
 
-async function loadBenefits(preferred=null){
+async function loadBenefits(preferred=null,poll=false){
  if(!state.identity)return;
- const existing=preferred||$('benefitOrderSelect').value;
- const list=unpack(await db.rpc('yt_pos_orders',{p_scope:'paid',p_limit:120}))||[];
- state.paid=list;
- const select=$('benefitOrderSelect');select.replaceChildren(new Option('请选择已付款订单',''));
+ const ticket=state.benefitListEpoch=(state.benefitListEpoch||0)+1;const existing=preferred||$('benefitOrderSelect').value;
+ const actor=state.identity?.username;const response=unpack(await db.rpc('yt_pos_benefit_orders'));if(state.identity?.username!==actor||ticket!==state.benefitListEpoch)return;state.businessDay=response.business_day;const list=response.orders||[];
+ const select=$('benefitOrderSelect');select.replaceChildren(new Option('请选择当天仍可分配的订单',''));
  for(const r of list)select.add(new Option(`#${r.order_no} · ${r.table_label||'Walk-in'} · ${money(r.amount_rm)}`,r.id));
  if(list.some(x=>x.id===existing))select.value=existing;
  await loadBenefitCampaigns();
- await loadSelectedPaidUnits();
+ await loadSelectedPaidUnits(poll);
 }
 async function loadBenefitCampaigns(){
- const selected=$('benefitCampaign').value;
- const r=unpack(await db.from('campaigns').select('id,name,active').eq('active',true).order('created_at',{ascending:false}))||[];
- const sel=$('benefitCampaign');sel.replaceChildren(new Option('请选择活动',''));
- for(const c of r)sel.add(new Option(c.name,c.id));
- if(r.some(x=>x.id===selected))sel.value=selected;
- else if(r.length===1)sel.value=r[0].id;
+ const selected=$('benefitCampaign').value,actor=state.identity?.username;
+ const r=unpack(await db.from('campaigns').select('id,name,active,is_default,starts_at,ends_at').eq('active',true).order('created_at',{ascending:false}))||[];
+ if(state.identity?.username!==actor)return;const sel=$('benefitCampaign');sel.replaceChildren(new Option('请选择活动',''));
+ const available=r.filter(c=>(!c.starts_at||Date.parse(c.starts_at)<=Date.now())&&(!c.ends_at||Date.parse(c.ends_at)>Date.now()));for(const c of available)sel.add(new Option(c.name+(c.is_default?' · 默认':''),c.id));
+ if(available.some(x=>x.id===selected))sel.value=selected;else if(available.some(x=>x.is_default))sel.value=available.find(x=>x.is_default).id;else if(available.length===1)sel.value=available[0].id;
 }
 let benefitEpoch=0;
 const bundleKey=id=>`yt-pos-v8-bundle:${state.identity?.username||''}:${id}`;
 function cachedBundle(id){try{return JSON.parse(sessionStorage.getItem(bundleKey(id))||'null')}catch{return null}}
 function benefitMode(mode){state.benefitMode=mode;$('benefitWhole').classList.toggle('hidden',mode!=='whole');$('benefitUnits').classList.toggle('hidden',mode!=='single');for(const [id,m] of [['benefitWholeMode','whole'],['benefitSingleMode','single']]){$(id).classList.toggle('active',mode===m);$(id).setAttribute('aria-pressed',String(mode===m));}$('benefitQR').classList.add('hidden');}
-function renderBundleQuote(id,quote){
+function renderBundleQuote(id,quote){$('cancelWholePass').classList.toggle('hidden',!quote.active_bundle);
  const pair=cachedBundle(id),active=quote.active_bundle;
  const recover=active&&pair?.raw&&pair.request===active.request_id;
  $('benefitWholeInfo').textContent=active?(recover?`已生成 ${active.pass_count} 份 Game Pass，可找回原码。`:'已有整单 QR 待领取，请在原设备找回，或等到期后重新生成。'):`${quote.eligible_units} / ${quote.total_units} 份可分配。整单 QR 由一名会员一次领取。`;
  $('issueWholePass').textContent=recover?'重新显示整单 QR':`生成整单 QR${quote.eligible_units?' · '+quote.eligible_units+' 份':''}`;
  $('issueWholePass').disabled=!(recover||quote.can_issue);
 }
-async function loadSelectedPaidUnits(){
- const epoch=++benefitEpoch,id=$('benefitOrderSelect').value,root=$('benefitUnits');root.replaceChildren();state.benefitOrder=null;state.bundleQuote=null;$('benefitQR').classList.add('hidden');$('issueWholePass').disabled=true;
+async function loadSelectedPaidUnits(preserveQR=false){
+ const epoch=++benefitEpoch,id=$('benefitOrderSelect').value,root=$('benefitUnits');root.replaceChildren();state.benefitOrder=null;state.bundleQuote=null;if(!preserveQR)$('benefitQR').classList.add('hidden');$('issueWholePass').disabled=true;
  $('benefitWholeInfo').textContent=id?'正在核对可分配权益…':'请选择已付款订单。';
- if(!id){root.innerHTML='<div class="empty">请选择已付款订单。</div>';return;}
+ if(!id){$('benefitQR').classList.add('hidden');$('cancelWholePass').classList.add('hidden');root.innerHTML='<div class="empty">请选择已付款订单。</div>';return;}
  const [units,quote]=await Promise.all([db.rpc('yt_pos_paid_units',{p_order:id}),db.rpc('yt_pos_bundle_quote',{p_order:id})]);
  if(epoch!==benefitEpoch||id!==$('benefitOrderSelect').value)return;
- const result=unpack(units);state.benefitOrder=result;state.bundleQuote=unpack(quote);renderBundleQuote(id,state.bundleQuote);
+ const result=unpack(units);state.benefitOrder=result;state.bundleQuote=unpack(quote);renderBundleQuote(id,state.bundleQuote);const shown=state.shownBenefit;if(preserveQR&&shown){const stillValid=shown.orderId===id&&Date.parse(shown.deadline)>Date.now()&&(shown.bundleId?state.bundleQuote.active_bundle?.id===shown.bundleId:result.units?.some(u=>u.game_pass_id===shown.passId&&u.pass_status==='issued'&&Date.parse(u.pass_expires_at)>Date.now()));if(!stillValid){$('benefitQR').classList.add('hidden');state.shownBenefit=null;}}
  if(!result.units?.length){root.innerHTML='<div class="empty">这个订单没有可以处理的单杯权益。</div>';return;}
  for(const unit of result.units){
   const ready=!unit.reward_redeemed&&unit.series_active&&['games','choose'].includes(unit.benefit_mode)&&Number(unit.game_plays)===1;
   const issued=!!unit.game_pass_id;
-  const expired=issued&&unit.pass_status==='issued'&&!!unit.pass_expires_at&&Date.parse(unit.pass_expires_at)<=Date.now();
+  const expired=issued&&(unit.pass_status==='expired'||(unit.pass_status==='issued'&&!!unit.pass_expires_at&&Date.parse(unit.pass_expires_at)<=Date.now()));
   const claimed=!!unit.reward_redeemed||(issued&&(unit.pass_status==='claimed'||unit.pass_status==='used'||unit.assigned));
   const key='yt-pos-v2-unit:'+unit.order_item_id+':'+unit.unit_number;
   let original=null;try{original=JSON.parse(sessionStorage.getItem(key)||'null')}catch{}
-  const recover=issued&&!expired&&!claimed&&original;
+  const recover=issued&&unit.pass_status==='issued'&&!expired&&!claimed&&original;
   const card=document.createElement('div');card.className='order-note';
   const summary=document.createElement('div');summary.innerHTML=`<strong>${esc(unit.product_name)} · 第 ${unit.unit_number} 份</strong><small>单杯 ${money(unit.unit_price_rm)} · ${esc(unit.series_name||'未分配系列')}</small><small>${issued?'✓ 已生成 QR':ready?'可生成':'Owner 尚未配置可用权益规则'}</small>`;
   const btn=document.createElement('button');btn.type='button';btn.className='primary';
   btn.dataset.issueUnit='1';btn.dataset.item=unit.order_item_id;btn.dataset.unit=String(unit.unit_number);
   btn.textContent=unit.reward_redeemed?'已用于兑换奖励':claimed?'已领取':recover?'重新显示 QR':expired?'过期重发 QR':issued?'已发出':ready?'生成专属 QR':'不可发';
   btn.disabled=claimed||(issued&&!recover&&!expired)||(!issued&&!ready);
-  card.append(summary,btn);root.append(card);
+  card.append(summary,btn);if(issued&&!expired&&!claimed&&unit.pass_status==='issued'){const cancel=document.createElement('button');cancel.type='button';cancel.className='quiet';cancel.textContent='取消未领取码';cancel.onclick=()=>cancelBenefitCode({pass:unit.game_pass_id,expiry:unit.pass_expires_at},cancel);card.append(cancel);}root.append(card);
  }
 }
 let qrLibraryWait=null;
@@ -482,10 +480,10 @@ async function qrLibrary(){
  })();return qrLibraryWait;
 }
 async function showUnitQR(token,pass,unit,kind='claim'){
- const root=$('benefitQR');root.classList.remove('hidden');root.replaceChildren();
+ const root=$('benefitQR');root.classList.remove('hidden');root.replaceChildren();clearInterval(state.benefitTimer);const deadline=pass?.expires_at||unit?.pass_expires_at;state.shownBenefit={orderId:$('benefitOrderSelect').value,passId:pass?.pass_id||unit?.game_pass_id,bundleId:kind==='bundle'?pass.id:null,deadline};
  const url=portalClientUrl();url.searchParams.set(kind,token);
  const title=document.createElement('h3');title.textContent=kind==='bundle'?`整单 · ${pass.pass_count} 份 Game Pass`:`${unit.product_name} · 第 ${unit.unit_number} 份 QR`;
- const text=document.createElement('p');text.className='muted';text.textContent=kind==='bundle'?'由一名会员扫码一次领取。':`${money(unit.unit_price_rm)} · 每份独立领取，扫码后进入 Yetipsy Play。`;
+ const text=document.createElement('p');text.className='muted';text.textContent=kind==='bundle'?'由一名会员确认领取；领取后3天内有效。':`${money(unit.unit_price_rm)} · 每份独立领取，扫码后进入 Yetipsy Play。`;
  const square=document.createElement('div');square.className='qr-screen';
  const link=document.createElement('a');link.href=url.href;link.className='qr-link';link.textContent=url.href;link.target='_blank';link.rel='noreferrer';
  const copyBtn=document.createElement('button');copyBtn.type='button';copyBtn.className='quiet';copyBtn.textContent='复制领取链接';copyBtn.onclick=()=>navigator.clipboard?.writeText(url.href).then(()=>showNotice('已复制'));
@@ -500,16 +498,17 @@ async function showUnitQR(token,pass,unit,kind='claim'){
   badge.textContent=valid?'✓ 服务器已确认二维码当前可以领取':
    '⚠ 服务器暂未确认此码可领取。请勿发给顾客，可能已领取或失效。';
  }catch{badge.textContent='⚠ 领取码尚未通过实时网络核验，请先检查网络连接。';}
- root.scrollIntoView({behavior:'smooth',block:'center'});
+ const validText=badge.textContent;const tick=()=>{if(!root.isConnected)return clearInterval(state.benefitTimer);const seconds=Math.max(0,Math.ceil((Date.parse(deadline)-Date.now())/1000));badge.textContent=seconds?validText+' · '+seconds+' 秒内确认领取':'二维码已过期，请刷新后重新发放';if(!seconds){square.classList.add('code-expired');clearInterval(state.benefitTimer);}};state.benefitTimer=setInterval(tick,1000);tick();root.scrollIntoView({behavior:'smooth',block:'center'});
 }
+async function cancelBenefitCode(code,button){await busy(button,async()=>{const reason=prompt('取消未领取二维码的原因','重新分配');if(reason===null)return;const id=$('benefitOrderSelect').value;unpack(await db.rpc('yt_pos_cancel_code',{p_pass:code.pass||null,p_bundle:code.bundle||null,p_reason:reason.trim(),p_expected_expiry:code.expiry||null}));if(code.bundle){try{sessionStorage.removeItem(bundleKey(id));}catch{}}clearInterval(state.benefitTimer);state.shownBenefit=null;$('benefitQR').classList.add('hidden');await loadBenefits(id);showNotice('未领取码已取消，当天可重新分配');}).catch(()=>{});}
 async function issueWholePass(button){
  const orderId=$('benefitOrderSelect').value;if(!orderId||state.benefitOrder?.order_id!==orderId)throw Error('请先选择已付款订单');
  await busy(button,async()=>{
   const quote=unpack(await db.rpc('yt_pos_bundle_quote',{p_order:orderId}));let pair=cachedBundle(orderId);
   if(quote.active_bundle){if(pair?.raw&&pair.request===quote.active_bundle.request_id){await showUnitQR(pair.raw,quote.active_bundle,null,'bundle');return;}throw Error('active_order_bundle_exists');}
-  if(!quote.can_issue)throw Error('no_eligible_bundle_units');
+  if(!quote.can_issue)throw Error('no_eligible_bundle_units');if(pair?.id&&!quote.active_bundle){sessionStorage.removeItem(bundleKey(orderId));pair=null;}
   if(pair?.expires_at&&Date.parse(pair.expires_at)<=Date.now()){sessionStorage.removeItem(bundleKey(orderId));pair=null;}
-  if(!pair){const mins=Number($('benefitExpiry').value),campaign=$('benefitCampaign').value;if(!campaign)throw Error('请先选择活动');if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('QR 有效分钟为 1–60');pair={raw:crypto.randomUUID(),request:crypto.randomUUID(),campaign,mins};sessionStorage.setItem(bundleKey(orderId),JSON.stringify(pair));}
+  if(!pair){const mins=2,campaign=$('benefitCampaign').value;if(!campaign)throw Error('请先选择活动');if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('QR 有效分钟为 1–60');pair={raw:crypto.randomUUID(),request:crypto.randomUUID(),campaign,mins};sessionStorage.setItem(bundleKey(orderId),JSON.stringify(pair));}
   const pass=unpack(await db.rpc('yt_pos_bundle_issue',{p_order:orderId,p_campaign:pair.campaign,p_token:pair.raw,p_request:pair.request,p_minutes:pair.mins}));
   pair={...pair,...pass};sessionStorage.setItem(bundleKey(orderId),JSON.stringify(pair));
   if(pass.status!=='issued'||Date.parse(pass.expires_at)<=Date.now()){sessionStorage.removeItem(bundleKey(orderId));throw Error('原码已领取或过期，请刷新后重新分配');}
@@ -524,13 +523,13 @@ async function issuePaidUnit(itemId,unitNumber,button){const orderId=$('benefitO
  const key='yt-pos-v2-unit:'+itemId+':'+unitNumber;
  let pair=null;try{pair=JSON.parse(sessionStorage.getItem(key)||'null')}catch{}
  if(unit.game_pass_id&&pair?.raw&&unit.pass_status==='issued'&&unit.pass_expires_at&&Date.parse(unit.pass_expires_at)>Date.now()){await showUnitQR(pair.raw,null,unit);return;}
- if(unit.game_pass_id&&unit.pass_status==='issued'&&unit.pass_expires_at&&Date.parse(unit.pass_expires_at)<=Date.now()){pair=null;try{sessionStorage.removeItem(key)}catch{}}
+ if(unit.game_pass_id&&(unit.pass_status==='expired'||(unit.pass_status==='issued'&&unit.pass_expires_at&&Date.parse(unit.pass_expires_at)<=Date.now()))){pair=null;try{sessionStorage.removeItem(key)}catch{}}
  await busy(button,async()=>{
-  const campaign=$('benefitCampaign').value;
-  const mins=Number($('benefitExpiry').value);
+  const campaign=pair?.campaign||$('benefitCampaign').value;
+  const mins=2;
   if(!campaign)throw Error('请先选择活动');
   if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('QR 有效分钟为 1–60');
-  if(!pair){pair={raw:crypto.randomUUID(),request:crypto.randomUUID()};sessionStorage.setItem(key,JSON.stringify(pair));}
+  if(!pair){pair={raw:crypto.randomUUID(),request:crypto.randomUUID(),campaign};sessionStorage.setItem(key,JSON.stringify(pair));}
   const rows=unpack(await db.rpc('yt_pos_issue_unit_pass',{
    p_order:orderId,p_item:itemId,p_unit:unitNumber,p_campaign:campaign,
    p_token:pair.raw,p_request:pair.request,p_minutes:mins
@@ -773,7 +772,7 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
  else qr.textContent='二维码图片暂时无法加载，请使用下方领取短码。';
  showNotice('已创建 Reward Claim，奖励绑定规则将在 POS 结账时验证');
  }).catch(()=>{});}
-function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard')refreshOrders(true)},6500);}
+function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}}},6500);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
 function bind(){
  $('paidDateForm').onsubmit=e=>{e.preventDefault();refreshOrders(false);};$('paidToday').onclick=async()=>{try{const c=unpack(await db.rpc('yt_business_context'));state.businessDay=c.day;$('paidDate').value=c.day;await refreshOrders(false);}catch(e){showNotice(errorText(e),true);}};
@@ -800,7 +799,7 @@ function bind(){
   $('seriesForm').onsubmit=saveSeries;
   $('seriesList').onclick=e=>{const b=e.target.closest('[data-series]');if(b)editSeries(b.dataset.series);};
   $('benefitOrderSelect').onchange=()=>loadSelectedPaidUnits().catch(e=>showNotice(errorText(e),true));
-  $('refreshBenefits').onclick=()=>loadBenefits().catch(e=>showNotice(errorText(e),true));
+  $('cancelWholePass').onclick=e=>{if(state.bundleQuote?.active_bundle)cancelBenefitCode({bundle:state.bundleQuote.active_bundle.id},e.currentTarget);};$('refreshBenefits').onclick=()=>loadBenefits().catch(e=>showNotice(errorText(e),true));
   $('benefitUnits').onclick=e=>{const b=e.target.closest('[data-issue-unit]');if(b)issuePaidUnit(b.dataset.item,Number(b.dataset.unit),b).catch(()=>{});};
   $('benefitWholeMode').onclick=()=>benefitMode('whole');$('benefitSingleMode').onclick=()=>benefitMode('single');$('issueWholePass').onclick=()=>issueWholePass($('issueWholePass')).catch(e=>showNotice(errorText(e),true));
   $('redeemLookup').onclick=()=>lookupPOSRedeem().catch(e=>showNotice(errorText(e),true));
