@@ -1,10 +1,10 @@
-import {createFactoryReset} from './factory-reset.js?v=20261009-operations-v9-1';
+import {createFactoryReset} from './factory-reset.js?v=20261009-owner-edit-v10-1';
 const $=id=>document.getElementById(id);
 const titles={catalog:'商品与系列',rewards:'奖励',team:'团队与权限',campaign:'活动与奖池',loyalty:'会员与积分',banners:'轮播广告',insights:'报表中心',factory:'系统重置',pin:'顾客 PIN 重设',dayclose:'营业日结'};
-export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,loadRights,notice,onReset,onOrdersChanged,getBusinessDay}){
+export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,loadRights,notice,onReset,onOrdersChanged,getBusinessDay,onOwnerEdit}){
  let previousFocus=null,activeKey=null,loadEpoch=0,ownerTools=null,ownerReports=null,dayClose=null;
  const overlay=$('toolDrawerOverlay'),drawer=$('toolDrawer'),main=document.querySelector('main'),head=document.querySelector('.site-head');
- const reset=createFactoryReset({work,notice,onReset,onOrdersChanged,getBusinessDay});
+ const reset=createFactoryReset({work,notice,onReset,onOrdersChanged,getBusinessDay,onOwnerEdit});
  function setSub(key){const pane=drawer.querySelector('[data-pane="'+activeKey+'"]');if(!pane)return;for(const sub of pane.querySelectorAll('[data-subpane]'))sub.classList.toggle('hidden',sub.dataset.subpane!==key);for(const b of pane.querySelectorAll('[data-sub]'))b.classList.toggle('active',b.dataset.sub===key);}
  function close(){if(reset.busy)return;ownerReports?.cancel();dayClose?.cancel();loadEpoch++;reset.cancel();overlay.classList.add('hidden');document.body.classList.remove('tool-open');main.inert=false;head.inert=false;activeKey=null;previousFocus?.focus();}
  async function open(key,sub){
@@ -19,13 +19,13 @@ export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,lo
    if(['catalog','rewards','team','banners'].includes(key))await loadAdmin();
    if(epoch!==loadEpoch)return;if(key==='rewards')await loadOffers();
    if(['team','campaign','loyalty'].includes(key)){
-    ownerTools||=await import('../shared/owner-tools.js?v=20261009-operations-v9-1');if(epoch!==loadEpoch)return;
+    ownerTools||=await import('../shared/owner-tools.js?v=20261009-owner-edit-v10-1');if(epoch!==loadEpoch)return;
     const identityResult=await db.rpc('yt_pos_identity');if(identityResult.error)throw identityResult.error;
     if(!identityResult.data?.can_owner)throw Error('owner_only');ownerTools.initOwnerTools(db,identityResult.data);await ownerTools.loadOwnerTool(key);
     if(key==='team')await loadRights();
    }
-   if(key==='insights'){const module=await import('./owner-reports.js?v=20261009-operations-v9-1');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner,notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
-   if(key==='dayclose'){const module=await import('./day-close.js?v=20261009-operations-v9-1');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged});await dayClose.load();}
+   if(key==='insights'){const module=await import('./owner-reports.js?v=20261009-owner-edit-v10-1');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner,notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
+   if(key==='dayclose'){const module=await import('./day-close.js?v=20261009-owner-edit-v10-1');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
    if(key==='factory')await reset.resume();
   }catch(e){notice(e.message||'加载失败，请重试',true);}
  }

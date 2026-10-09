@@ -1,0 +1,102 @@
+-- Execute inside BEGIN / ROLLBACK only. No customer changes survive validation.
+do $$
+declare actor uuid;cashier uuid;member uuid;product uuid;series uuid;campaign uuid;game uuid;o uuid;item uuid;removed uuid;pass uuid;session uuid;reward uuid;award uuid;
+ r jsonb;preview jsonb;payload jsonb;old_updated timestamptz;req uuid;payreq uuid;other_order uuid;locked_hold uuid;before_money numeric;before_points bigint;report_before numeric;
+begin
+ select auth_user_id into actor from public.work_accounts where role='owner' and active and not must_change_password limit 1;
+ select auth_user_id into cashier from public.work_accounts where role='cashier' and active and not must_change_password limit 1;
+ select auth_user_id into member from public.pin_accounts where not exists(select 1 from public.work_accounts where auth_user_id=pin_accounts.auth_user_id) limit 1;
+ select id into game from public.games where active limit 1;
+ if actor is null or cashier is null or member is null or game is null then raise exception 'fixture_missing';end if;
+ if has_function_privilege('anon','public.yt_pos_owner_revision_apply(uuid,jsonb,text,text,text,timestamptz,uuid,boolean,boolean)','execute') or has_table_privilege('authenticated','public.yt_pos_order_revisions','insert') then raise exception 'revision_exposed';end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',actor)::text,true);
+ insert into public.yt_pos_series(name,benefit_mode,game_plays,active) values('rollback revision','games',1,true) returning id into series;
+ insert into public.yt_shop_products(title,price_rm,series_id,active,is_drink) values('rollback revision drink',20,series,true,true) returning id into product;
+ insert into public.campaigns(name,active) values('rollback revision campaign',true) returning id into campaign;
+ insert into public.yt_member_orders(source,status,amount_rm,created_by) values('future_pos','fulfilled',40,actor) returning id into o;
+ insert into public.yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm) values(o,product,'historical name',1,20) returning id into item;
+ insert into public.yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm) values(o,product,'removed name',1,20) returning id into removed;
+ insert into public.yt_pos_item_units(order_item_id,unit_number) values(item,1),(removed,1) on conflict do nothing;
+ update public.yt_member_orders set payment_status='paid',paid_at=clock_timestamp(),paid_by=actor,payment_method='cash' where id=o;
+ if private.yt_pos_received(o)<>40 then raise exception 'original_sale_capture_wrong';end if;
+ -- Issued benefit attached to the line that will be removed. Historical IDs must survive.
+ insert into public.game_passes(customer_id,campaign_id,issued_by,status,expires_at,claimed_at) values(member,campaign,actor,'claimed',now()+interval '3 days',now()) returning id into pass;
+ update public.yt_pos_item_units set game_pass_id=pass,assigned_customer_id=member,assigned_at=now(),benefit_status='issued' where order_item_id=removed;
+ insert into public.game_sessions(pass_id,customer_id,game_id,status) values(pass,member,game,'started') returning id into session;
+ insert into public.rewards(name,category,validity_days,active) values('rollback revision prize','voucher',30,true) returning id into reward;
+ insert into public.user_rewards(customer_id,reward_id,session_id,issued_by,expires_at) values(member,reward,session,actor,now()+interval '1 day') returning id into award;
+ insert into public.yt_point_wallets(customer_id,balance,lifetime_earned) values(member,10,10) on conflict(customer_id) do update set balance=yt_point_wallets.balance+10,lifetime_earned=yt_point_wallets.lifetime_earned+10;
+ select balance into before_points from public.yt_point_wallets where customer_id=member;
+ insert into public.yt_point_entries(customer_id,game_pass_id,direction,points,reference) values(member,pass,'earn',10,'rollback revision earn');
+ select updated_at into old_updated from public.yt_member_orders where id=o;
+ payload:=jsonb_build_array(jsonb_build_object('item_id',item,'product_id',product,'quantity',3,'unit_price_rm',20));req:=gen_random_uuid();
+ foreach member in array array[cashier,member] loop
+  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',member)::text,true);
+  begin perform public.yt_pos_owner_order_context(o);raise exception 'expected_failure';exception when others then if sqlerrm<>'owner_only' then raise;end if;end;
+  begin perform public.yt_pos_owner_revision_apply(o,payload,'increase quantity',null,null,old_updated,req);raise exception 'expected_failure';exception when others then if sqlerrm<>'owner_only' then raise;end if;end;
+ end loop;
+ select customer_id into member from public.game_passes where id=pass;
+ perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',actor)::text,true);
+ report_before:=(public.yt_owner_report_v8(private.yt_business_day(now()),private.yt_business_day(now()))#>>'{stats,today_amount}')::numeric;
+ preview:=public.yt_pos_owner_revision_preview(o,payload);
+ if (preview->>'net')::numeric<>60 or (preview->>'received_rm')::numeric<>40 or (preview->>'balance_rm')::numeric<>20 then raise exception 'revision_preview_wrong';end if;
+ r:=public.yt_pos_owner_revision_apply(o,payload,'increase quantity',null,null,old_updated,req);
+ if (r->>'balance_rm')::numeric<>20 or private.yt_pos_received(o)<>40 or (select count(*) from public.yt_pos_order_revisions where order_id=o)<>1 then raise exception 'bill_must_not_invent_payment';end if;
+ if (public.yt_owner_report_v8(private.yt_business_day(now()),private.yt_business_day(now()))#>>'{stats,today_amount}')::numeric<>report_before then raise exception 'report_invented_payment';end if;
+ if not exists(select 1 from public.yt_member_order_items where id=removed and quantity=0) or not exists(select 1 from public.yt_pos_item_units where order_item_id=removed and retired and game_pass_id=pass) then raise exception 'historical_benefit_link_lost';end if;
+ if (select status from public.user_rewards where id=award)<>'available' or (select balance from public.yt_point_wallets where customer_id=member)<>before_points then raise exception 'default_must_preserve_benefits';end if;
+ r:=public.yt_pos_owner_revision_apply(o,payload,'increase quantity',null,null,old_updated,req);
+ if not(r->>'retried')::boolean or (select count(*) from public.yt_pos_order_revisions where order_id=o)<>1 then raise exception 'revision_retry_duplicate';end if;
+ begin perform public.yt_pos_owner_revision_apply(o,payload,'different reason',null,null,old_updated,req);raise exception 'expected_failure';exception when others then if sqlerrm<>'request_conflict' then raise;end if;end;
+ begin perform public.yt_pos_owner_revision_apply(o,payload,'stale write',null,null,old_updated,gen_random_uuid());raise exception 'expected_failure';exception when others then if sqlerrm<>'order_changed_reload' then raise;end if;end;
+ begin perform public.yt_pos_paid_units(o);raise exception 'expected_failure';exception when others then if sqlerrm<>'order_payment_adjustment_pending' then raise;end if;end;
+ begin perform public.yt_pos_adjustment_pay(o,-1,'cash','wrong sign',gen_random_uuid());raise exception 'expected_failure';exception when others then if sqlerrm<>'adjustment_exceeds_balance' then raise;end if;end;
+ begin perform public.yt_pos_adjustment_pay(o,21,'cash','over balance',gen_random_uuid());raise exception 'expected_failure';exception when others then if sqlerrm<>'adjustment_exceeds_balance' then raise;end if;end;
+ payreq:=gen_random_uuid();r:=public.yt_pos_adjustment_pay(o,5,'cash','received first part',payreq);
+ if (r->>'balance_rm')::numeric<>15 then raise exception 'partial_payment_wrong';end if;
+ perform public.yt_pos_adjustment_pay(o,5,'cash','received first part',payreq);
+ if private.yt_pos_received(o)<>45 then raise exception 'payment_retry_duplicate';end if;
+ begin perform public.yt_pos_adjustment_pay(o,6,'cash','received first part',payreq);raise exception 'expected_failure';exception when others then if sqlerrm<>'request_conflict' then raise;end if;end;
+ perform public.yt_pos_adjustment_pay(o,15,'duitnow','received remainder',gen_random_uuid());
+ if private.yt_pos_received(o)<>60 or (select settlement_due_since from public.yt_member_orders where id=o) is not null then raise exception 'settlement_not_cleared';end if;
+ if (public.yt_owner_report_v8(private.yt_business_day(now()),private.yt_business_day(now()))#>>'{stats,today_amount}')::numeric<>report_before+20 then raise exception 'supplement_report_wrong';end if;
+ if jsonb_array_length(public.yt_pos_paid_units(o)->'units')<>3 then raise exception 'retired_unit_eligible';end if;
+ -- Used prizes must block revocation atomically, before changing the bill/points.
+ update public.user_rewards set status='redeemed' where id=award;
+ select updated_at into old_updated from public.yt_member_orders where id=o;
+ begin perform public.yt_pos_owner_revision_apply(o,payload,'revoke used reward',null,null,old_updated,gen_random_uuid(),true);raise exception 'expected_failure';exception when others then if sqlerrm<>'issued_reward_already_redeemed' then raise;end if;end;
+ if (select revision from public.yt_member_orders where id=o)<>1 or (select balance from public.yt_point_wallets where customer_id=member)<>before_points then raise exception 'failed_revoke_partially_committed';end if;
+ update public.user_rewards set status='available' where id=award;
+ insert into public.yt_member_orders(source,status,amount_rm,created_by) values('future_pos','confirmed',20,actor) returning id into other_order;
+ insert into public.yt_pos_reward_holds(order_id,user_reward_id,reward_id,operator_id,request_id,state,rule_mode,discount_type,discount_value,expires_at)
+ values(other_order,award,reward,actor,gen_random_uuid(),'reserved','any_drink','fixed',5,now()+interval '10 minutes') returning id into locked_hold;
+ begin perform public.yt_pos_owner_revision_apply(o,payload,'revoke locked award',null,null,old_updated,gen_random_uuid(),true);raise exception 'expected_failure';exception when others then if sqlerrm<>'issued_reward_locked' then raise;end if;end;
+ update public.yt_pos_reward_holds set state='released' where id=locked_hold;
+ update public.yt_point_wallets set balance=0 where customer_id=member;
+ begin perform public.yt_pos_owner_revision_apply(o,payload,'revoke spent points',null,null,old_updated,gen_random_uuid(),true);raise exception 'expected_failure';exception when others then if sqlerrm<>'issued_points_balance_insufficient' then raise;end if;end;
+ update public.yt_point_wallets set balance=before_points where customer_id=member;
+ -- Explicit revocation remains possible even when the original item is retired.
+ req:=gen_random_uuid();perform public.yt_pos_owner_revision_apply(o,payload,'revoke available benefits',null,null,old_updated,req,true);
+ if (select status from public.user_rewards where id=award)<>'revoked' or (select status from public.game_passes where id=pass)<>'revoked' or (select balance from public.yt_point_wallets where customer_id=member)<>before_points-10 then raise exception 'revoke_incomplete';end if;
+ perform public.yt_pos_owner_revision_apply(o,payload,'revoke available benefits',null,null,old_updated,req,true);
+ if (select count(*) from public.yt_point_entries where reference='OWNER-REVOKE:'||pass::text)<>1 then raise exception 'duplicate_point_revoke';end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',member)::text,true);
+ begin perform public.yt_finish_game(session);raise exception 'expected_failure';exception when others then if sqlerrm<>'pass_revoked' then raise;end if;end;
+ perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',actor)::text,true);
+ -- Lower invoice creates a refund, rather than silently changing original cash receipts.
+ select updated_at into old_updated from public.yt_member_orders where id=o;
+ payload:=jsonb_build_array(jsonb_build_object('item_id',item,'product_id',product,'quantity',1,'unit_price_rm',20));
+ r:=public.yt_pos_owner_revision_apply(o,payload,'reduce quantity',null,null,old_updated,gen_random_uuid());
+ if (r->>'balance_rm')::numeric<>-40 or private.yt_pos_received(o)<>60 then raise exception 'refund_balance_wrong';end if;
+ update public.yt_member_orders set settlement_due_since=now()-interval '73 hours' where id=o;
+ r:=public.yt_pos_day_preview();
+ if not exists(select 1 from jsonb_array_elements(r->'pending') x where x->>'id'=o::text and (x->>'overdue')::boolean and x->>'payment_status'='paid') then raise exception 'aged_adjustment_not_day_close_blocker';end if;
+ perform public.yt_pos_adjustment_pay(o,-40,'cash','actual refund completed',gen_random_uuid());
+ if private.yt_pos_received(o)<>20 or (public.yt_owner_report_v8(private.yt_business_day(now()),private.yt_business_day(now()))#>>'{stats,today_amount}')::numeric<>report_before-20 then raise exception 'refund_report_wrong';end if;
+ select updated_at into old_updated from public.yt_member_orders where id=o;
+ r:=public.yt_pos_owner_revision_apply(o,'[]','cancel paid order',null,null,old_updated,gen_random_uuid(),false,true);
+ if (r->>'balance_rm')::numeric<>-20 or r->>'payment_status'<>'paid' then raise exception 'cancel_must_wait_for_refund';end if;
+ perform public.yt_pos_adjustment_pay(o,-20,'cash','refund cancelled order',gen_random_uuid());
+ r:=public.yt_pos_bill_v8(o);
+ if r->>'payment_status'<>'refunded' or (r->>'received_rm')::numeric<>0 or jsonb_array_length(r->'items')<>0 or (select count(*) from public.yt_pos_order_revisions where order_id=o)<>4 then raise exception 'cancel_refund_not_final';end if;
+end $$;
