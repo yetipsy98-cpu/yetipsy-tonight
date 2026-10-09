@@ -13,7 +13,7 @@ const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
    series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0};
-const msgMap={minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
+const msgMap={short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
   order_not_pending:'订单不在待接受状态',order_not_accepted:'订单必须先由 Cashier 接受',order_not_served:'请先完成出品，之后才能收款',
   product_unavailable:'这款产品已停止销售，请重新选择',order_too_large:'单笔订单金额或数量过大',
   invalid_line:'订单产品无效',invalid_order:'订单资料不正确',invalid_channel:'下单渠道无效',invalid_filter:'订单筛选条件无效',
@@ -150,8 +150,11 @@ async function refreshDraftSummary(){const epoch=++state.draftEpoch;
 }
 async function draftOperation(fn){if(state.draftSaving||state.pendingSubmit||state.draftMutating)return;state.draftMutating=true;updateDraftControls();try{await fn();}catch(e){showNotice(errorText(e),true);throw e;}finally{state.draftMutating=false;updateDraftControls();}}
 async function scanDraftReward(){return draftOperation(async()=>{
- if(!state.cart.size)throw Error('cart_requires_paid_drink');const token=parseRedeemToken($('draftRedeemToken').value);
- const h=unpack(await db.rpc('yt_pos_preorder_scan',{p_draft:state.draftId,p_token:token,p_request:crypto.randomUUID(),p_cart:draftItems()}));
+ if(!state.cart.size)throw Error('cart_requires_paid_drink');const raw=$('draftRedeemToken').value.trim(),short=raw.replace(/[\s-]/g,'').toUpperCase();
+ const manual=/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short);
+ const args={p_draft:state.draftId,p_request:crypto.randomUUID(),p_cart:draftItems(),...(manual?{p_code:short}:{p_token:parseRedeemToken(raw)})};
+ const h=unpack(await db.rpc(manual?'yt_pos_preorder_scan_code':'yt_pos_preorder_scan',args));
+ if(h?.error_code)throw Error(h.error_code);
  $('draftRedeemToken').value='';state.draftSelection=h;saveDraft();await refreshDraftSummary();renderDraftChoices(h);
 });}
 function renderDraftChoices(h){const root=$('draftRewardChoices');root.replaceChildren();
@@ -253,14 +256,17 @@ async function loadRewardRules(){
 }
 function updateRewardMapForm(){
  const r=state.rewardRules?.find(x=>x.reward_id===$('mapReward').value);
- $('mapMode').value=r?.mode==='series'?'series':r?.mode==='disabled'?'disabled':'product';
+ $('mapMode').value=['product','series','any_drink','disabled'].includes(r?.mode)?r.mode:'product';
  $('mapProduct').value=r?.product_id||'';
  $('mapSeries').value=r?.series_id||'';
  $('mapDiscountType').value=r?.discount_type||'free';$('mapDiscountValue').value=r?.discount_value||5;
+ $('mapMinDrinks').value=r?.min_paid_drinks??1;$('mapMinSpend').value=r?.min_spend_rm??0;
  toggleMapInputs();
 }
 function toggleMapInputs(){
  const mode=$('mapMode').value;
+ const free=$('mapDiscountType').options[0];if(free)free.disabled=mode==='any_drink';
+ if(mode==='any_drink'&&$('mapDiscountType').value==='free')$('mapDiscountType').value='fixed';
  $('mapProductLabel').classList.toggle('hidden',mode!=='product');
  $('mapSeriesLabel').classList.toggle('hidden',mode!=='series');
  $('mapDiscountValueLabel').classList.toggle('hidden',$('mapDiscountType').value==='free');
@@ -270,12 +276,12 @@ function renderRewardMappings(){
  el.innerHTML=(state.rewardRules||[]).slice(0,120).map(r=>{
   const product=state.catalog.find(p=>p.id===r.product_id)?.name;
   const series=state.series.find(p=>p.id===r.series_id)?.name;
-  const info=r.mode==='product'?'✓ 指定商品：'+(product||'已停售商品'):r.mode==='series'?'✓ 指定系列：'+(series||'历史系列'):r.mode==='disabled'?'暂停兑奖':'未绑定 · 禁止发放和核销';
-  const discount=['product','series'].includes(r.mode)?' · '+(r.discount_type==='fixed'?'RM'+r.discount_value+' 抵扣':r.discount_type==='percent'?r.discount_value+'% 折扣':'免费一杯'):'';
-  return `<button class="reward-map-item" type="button" data-reward-map="${esc(r.reward_id)}"><strong>${esc(r.reward_name)}</strong><small>${esc(info+discount)}</small></button>`;
+  const info=r.mode==='product'?'✓ 指定商品：'+(product||'已停售商品'):r.mode==='series'?'✓ 指定系列：'+(series||'历史系列'):r.mode==='any_drink'?'✓ 任意饮品抵扣':r.mode==='disabled'?'暂停兑奖':'未绑定 · 禁止发放和核销';
+  const discount=['product','series','any_drink'].includes(r.mode)?' · '+(r.discount_type==='fixed'?'RM'+r.discount_value+' 抵扣':r.discount_type==='percent'?r.discount_value+'% 折扣':'免费一杯'):'';
+  return `<button class="reward-map-item" type="button" data-reward-map="${esc(r.reward_id)}"><strong>${esc(r.reward_name)}</strong><small>${esc(info+discount+` · 最少 ${r.min_paid_drinks??1} 杯付费饮品`+(Number(r.min_spend_rm)>0?' · 净消费 ≥ RM'+r.min_spend_rm:''))}</small></button>`;
  }).join('');
- const pending=(state.rewardRules||[]).filter(r=>!['product','series'].includes(r.mode)).length;
- $('rewardBindingSummary').textContent=pending?`⚠ 还有 ${pending} 种奖品未绑定商品／系列（或处于暂停），不允许新发放或核销。请逐一设置。`:'✓ 所有现有奖品均已绑定 POS，可按指定产品／系列核销。';
+ const pending=(state.rewardRules||[]).filter(r=>!['product','series','any_drink'].includes(r.mode)).length;
+ $('rewardBindingSummary').textContent=pending?`⚠ 还有 ${pending} 种奖品未绑定商品／系列（或处于暂停），不允许新发放或核销。请逐一设置。`:'✓ 所有现有奖品均已配置 POS 兑奖规则，至少保留一杯付费饮品。';
  $('rewardBindingSummary').classList.toggle('all-bound',pending===0);
 }
 async function saveRewardMap(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{
@@ -284,13 +290,21 @@ async function saveRewardMap(e){e.preventDefault();const btn=e.submitter;await b
  const product=mode==='product'?$('mapProduct').value:null;
  const series=mode==='series'?$('mapSeries').value:null;
  if(mode==='product'&&!product||mode==='series'&&!series)throw Error('必须选择对应的产品或系列');
- if(!['product','series','disabled'].includes(mode))throw Error('所有奖品必须绑定 POS 商品／系列，或设为暂停');
+ if(!['product','series','any_drink','disabled'].includes(mode))throw Error('所有奖品必须绑定 POS 商品／系列，或设为暂停');
  const discountType=$('mapDiscountType').value,discountValue=discountType==='free'?0:Number($('mapDiscountValue').value);
  if(discountType!=='free'&&(!Number.isFinite(discountValue)||discountValue<=0))throw Error('必须填写正确的 RM 或百分比折扣');
- unpack(await db.rpc('yt_pos_owner_reward_rule_save_v2',{
+ const minDrinks=Number($('mapMinDrinks').value),minSpend=Number($('mapMinSpend').value);
+ if(!Number.isInteger(minDrinks)||minDrinks<1||minDrinks>20||!Number.isFinite(minSpend)||minSpend<0||minSpend>10000)throw Error('minimum_paid_drink_required');
+ unpack(await db.rpc('yt_pos_owner_save_reward_v43',{
   p_reward:id,p_mode:mode,p_product:product||null,p_series:series||null,
-  p_type:discountType,p_value:discountValue
+  p_type:discountType,p_value:discountValue,p_min_drinks:minDrinks,p_min_spend:minSpend
  }));await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();showNotice('奖品兑换限制已保存到服务器');
+ }).catch(()=>{});}
+
+async function saveRM5Preset(){return busy($('mapRM5Preset'),async()=>{
+ const id=$('mapReward').value;if(!id)throw Error('请先选择奖品');
+ unpack(await db.rpc('yt_pos_owner_save_reward_v43',{p_reward:id,p_mode:'any_drink',p_product:null,p_series:null,p_type:'fixed',p_value:5,p_min_drinks:1,p_min_spend:0}));
+ await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();await loadOwnerRewardOffers();showNotice('已保存：任意饮品抵扣 RM5，至少一杯优惠后仍需付费的饮品');
  }).catch(()=>{});}
 
 async function preparePinReset(e){e.preventDefault();await busy(e.submitter,async()=>{
@@ -633,7 +647,7 @@ async function checkoutOrderCart(){const btn=$('cartCheckoutBtn');await busy(btn
 // Compact Owner issuance: only rewards with an active SKU/series binding are selectable.
 async function loadOwnerRewardOffers(){
  if(!isOwner())return;
- const eligible=(state.rewardRules||[]).filter(r=>r.active&&['product','series'].includes(r.mode));
+ const eligible=(state.rewardRules||[]).filter(r=>r.active&&['product','series','any_drink'].includes(r.mode));
  const rewards=$('ownerGiveReward');if(!rewards)return;
  const old=rewards.value;rewards.replaceChildren(new Option('选择已绑定 POS 的奖品',''));
  eligible.forEach(r=>rewards.add(new Option(r.reward_name,r.reward_id)));
@@ -717,7 +731,7 @@ function bind(){
    const benefit=e.target.closest('[data-benefits]');if(benefit){showTab('benefits');$('benefitOrderSelect').value=benefit.dataset.benefits;loadSelectedPaidUnits().catch(err=>showNotice(errorText(err),true));}});
   $('editClose').onclick=closeEditDialog;$('editForm').onsubmit=submitEditOrder;
  $('receiptClose').onclick=closeReceipt;$('receiptPrint').onclick=()=>window.print();$('receiptOverlay').onclick=e=>{if(e.target===$('receiptOverlay'))closeReceipt();};
- $('mapReward').onchange=updateRewardMapForm;$('mapMode').onchange=toggleMapInputs;$('mapDiscountType').onchange=toggleMapInputs;$('rewardMapForm').onsubmit=saveRewardMap;
+ $('mapReward').onchange=updateRewardMapForm;$('mapMode').onchange=toggleMapInputs;$('mapDiscountType').onchange=toggleMapInputs;$('rewardMapForm').onsubmit=saveRewardMap;$('mapRM5Preset').onclick=saveRM5Preset;
  $('rewardMappingList').onclick=e=>{const b=e.target.closest('[data-reward-map]');if(b){$('mapReward').value=b.dataset.rewardMap;updateRewardMapForm();$('mapReward').scrollIntoView({behavior:'smooth',block:'center'});}};
  $('resetPinForm').onsubmit=preparePinReset;document.querySelectorAll('[data-go-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.goTab));
  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.body.classList.contains('cart-open'))closeCartDrawer();else if(!$('orderCartOverlay').classList.contains('hidden'))escapeOrderCart();else if(!$('receiptOverlay').classList.contains('hidden'))closeReceipt();}});
@@ -738,4 +752,5 @@ async function boot(){bind();if(!usable){resetLogin();showNotice('请检查 /pla
  const {data,error}=await db.auth.getSession();if(!error&&data?.session){try{await launch();return;}catch(e){showNotice('请重新登录工作账号：'+errorText(e),true);}}
  resetLogin();}
 boot().catch(e=>{resetLogin();showNotice(errorText(e),true,true);});
+
 

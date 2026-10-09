@@ -80,3 +80,8 @@
 /* Yetipsy Play V1.5 Loyalty cards - no overlay and responsive to narrow mobile widths */
 .yt-loyalty-card{margin:16px 0 22px;padding:20px 18px;border:1px solid rgba(188,147,92,.32);border-radius:18px;background:linear-gradient(130deg,rgba(228,195,143,.09),rgba(19,24,23,.02));max-width:100%;overflow-wrap:anywhere}
 .yt-loyalty-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;letter-spacing:.13em}.yt-loyalty-head span{opacity:.66;font-size:10px}.yt-loyalty-points{display:flex;align-items:baseline;justify-content:space-between;gap:15px;padding:18px 0 13px}.yt-loyalty-points span{font-size:13px;opacity:.75}.yt-loyalty-points b{font-size:27px;font-variant-numeric:tabular-nums}.yt-loyalty-code{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid rgba(187,157,100,.25);padding-top:11px}.yt-loyalty-code span{font-size:13px;opacity:.75}.yt-loyalty-code b{letter-spacing:.11em;font-size:15px}.yt-loyalty-history{margin-top:17px;padding-top:12px;border-top:1px solid rgba(187,157,100,.25)}.yt-loyalty-history p{margin:8px 0;font-size:12px}.yt-loyalty-choice .yt-choice-cap{margin:16px 0;padding:18px;border-radius:12px;background:rgba(203,169,106,.1);display:flex;flex-direction:column;gap:5px}.yt-choice-cap b{font-size:24px}.yt-choice-cap small{opacity:.7;font-size:11px}.yt-loyalty-choice button{margin:8px 0}.yt-loyalty-choice h2{margin-top:0}
+
+
+/* Wallet manual redemption fallback. */
+.token-text.redeem-short-code{font:700 clamp(25px,7vw,38px)/1.5 ui-monospace,monospace;letter-spacing:.1em;text-align:center;overflow-wrap:normal;word-break:normal;padding:14px 0;color:#1c231e}
+.redeem-short-code.code-expired{opacity:.45;text-decoration:line-through}
