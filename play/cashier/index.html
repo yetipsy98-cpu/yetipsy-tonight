@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hans">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · POS V4.1</title><link rel="stylesheet" href="../pos/pos.css?v=20261009-short-v5-1"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · POS V4.1</title><link rel="stylesheet" href="../pos/pos.css?v=20261009-client-v5-1"></head>
 <body data-entry="cashier">
 <header class="site-head"><div class="logo">YE<span>·</span>TIPSY<small>POINT OF SALE · KLUANG</small></div><div class="site-head-actions"><span id="accountName" class="account-tag">WORK ACCOUNT</span><button type="button" id="logout" class="quiet hidden">退出</button></div></header>
 <main class="root">
@@ -88,18 +88,19 @@
  <div class="pair"><label>类别<select id="ownerNewRewardCategory"><option value="drink">饮品</option><option value="voucher">折扣</option><option value="gift">礼品</option><option value="event">活动</option><option value="custom">其他</option></select></label><label>有效天数<input id="ownerNewRewardDays" type="number" min="1" max="365" value="30" required></label></div>
  <label class="checkline"><input id="ownerNewRewardNextDay" type="checkbox" checked>领取次日才能核销</label>
  <button class="primary" type="submit">创建奖励 → 然后绑定 POS 产品</button></form></details>
+<hr><details class="owner-gifts"><summary>Owner · 轮播广告上传</summary><div id="ownerBannersPanel"></div></details>
 <hr><details class="owner-gifts"><summary>Owner · 发放奖励 / Reward Claim（POS 内完成）</summary>
    <p class="muted">只提供已绑定 POS 商品／系列的奖品。顾客先领到 Wallet，真正扫码并结账时才会标记为已使用。</p>
    <div class="stack"><label>奖品<select id="ownerGiveReward"><option value="">选择已绑定的奖品</option></select></label>
    <label>直接发放给会员<select id="ownerGiveMember"><option value="">请选择顾客</option></select></label><button id="ownerSendGift" class="primary" type="button">发送至顾客 Wallet</button>
    <div class="pair"><label>Reward Claim 领取份数<input id="ownerGiftTotal" type="number" min="1" max="10000" value="20"></label><label>领取截止时间<input id="ownerGiftUntil" type="datetime-local"></label></div>
-   <button id="ownerIssueGiftQR" type="button" class="quiet">生成 Reward Claim 领取 QR</button><div id="ownerGiftLink" class="hidden"></div>
+   <button id="ownerIssueGiftQR" type="button" class="quiet">生成 Reward Claim QR / 短码</button><div id="ownerGiftLink" class="hidden"></div>
    </div></details><hr><p class="kicker">FUTURE ENTITLEMENTS</p><h3>按产品系列发权益</h3><p class="muted">数据库已预留每杯／每份产品的独立领取单位。游戏次数、Tower 分享规则及积分返还要由 Owner 后续设定；此版本不会擅自发放权益。</p></article></div>
  </section>
 </section>
 </main>
 <div id="notice" class="toast hidden" role="status" aria-live="polite"></div>
-<script src="../config.js"></script><script type="module" src="../pos/pos.js?v=20261009-short-v5-1"></script>
+<script src="../config.js"></script><script type="module" src="../pos/pos.js?v=20261009-client-v5-1"></script>
 </body></html>
 
 

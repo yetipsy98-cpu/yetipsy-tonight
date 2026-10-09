@@ -1,4 +1,5 @@
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
+import {createBannerManager} from '../owner-banners.js?v=20261009-client-v5-1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -229,7 +230,9 @@ async function orderAction(orderId,action,container){const btn=container;await b
  showNotice(({accept:'已接受，订单进入制作队列',reject:'订单已拒绝',fulfilled:'已完成出品，等待结账',paid:'已经记录收款',cancel:'订单已取消'})[action]||'状态已更新');
  await refreshOrders(false);
  }).catch(()=>{});}
-async function loadAdmin(){if(!isOwner())return;await loadCatalog();await Promise.all([loadRights(),loadRewardRules()]);}
+let bannerManager=null;
+async function loadPOSBanners(){if(!isOwner())return;if(!bannerManager)bannerManager=createBannerManager({db,root:$('ownerBannersPanel'),notify:showNotice});await bannerManager.load();}
+async function loadAdmin(){if(!isOwner())return;await loadPOSBanners();await loadCatalog();await Promise.all([loadRights(),loadRewardRules()]);}
 function renderProductAdmin(){if(!isOwner())return;const root=$('productAdminList');root.innerHTML=state.catalog.length?state.catalog.map(p=>`<div class="admin-entry"><div><strong>${esc(p.name)}</strong><small>${esc(p.category)} · ${money(p.price_rm)} · ${p.active?'可点单':'已停用'} · ${esc(p.series_name||'没有系列权益')}</small></div><button data-product="${esc(p.id)}" type="button">编辑</button></div>`).join(''):'<div class="empty">当前没有产品。请先新增菜单。</div>';}
 async function saveProduct(e){e.preventDefault();await busy($('productForm').querySelector('[type=submit]'),async()=>{
  const id=$('productId').value||null;const price=Number($('productPrice').value);if(!Number.isFinite(price)||price<0||price>5000)throw Error('请输入正确产品价格');
@@ -686,17 +689,18 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
  if(!until||new Date(until).getTime()<=Date.now()+60000)throw Error('设置有效的领取截止时间');
  const token=crypto.randomUUID();
  const cap=Number($('ownerGiftTotal').value);if(!Number.isInteger(cap)||cap<1||cap>10000)throw Error('数量需为 1–10000');
- unpack(await db.rpc('yt_create_offer',{
+ const offer=unpack(await db.rpc('yt_create_offer_v5',{
   p_reward:reward,p_token:token,p_from:new Date().toISOString(),p_until:new Date(until).toISOString(),
   p_max:cap,p_per_user:1
  }));
  const link=portalClientUrl();link.searchParams.set('gift',token);
  const root=$('ownerGiftLink');root.replaceChildren();root.classList.remove('hidden');
- const t=document.createElement('strong');t.textContent='已生成领取链接 · 顾客领入 Wallet 后须 POS 结账才核销';
- const qr=document.createElement('div');qr.className='qr-screen';const a=document.createElement('a');a.href=link.href;a.textContent=link.href;a.className='qr-link';a.target='_blank';a.rel='noreferrer';
- root.append(t,qr,a);
+ const t=document.createElement('strong');t.textContent='Reward Claim · 顾客可扫码，或在客户端输入领取短码';
+ const qr=document.createElement('div');qr.className='qr-screen';const code=document.createElement('strong');code.textContent=offer.display_code;code.className='claim-short-code';
+ const copy=document.createElement('button');copy.type='button';copy.className='quiet';copy.textContent='复制领取码';copy.onclick=()=>navigator.clipboard.writeText(offer.display_code).then(()=>showNotice('领取短码已复制')).catch(()=>showNotice('请手动复制上方领取码',true));
+ const expiry=document.createElement('p');expiry.className='muted';expiry.textContent='领取截止：'+stamp(offer.expires_at);root.append(t,qr,code,copy,expiry);
  if(await qrLibrary())new window.QRCode(qr,{text:link.href,width:204,height:204});
- else qr.textContent='二维码图片暂时无法加载，仍可复制领取链接。';
+ else qr.textContent='二维码图片暂时无法加载，请使用下方领取短码。';
  showNotice('已创建 Reward Claim，奖励绑定规则将在 POS 结账时验证');
  }).catch(()=>{});}
 function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard')refreshOrders(true)},6500);}
