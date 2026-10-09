@@ -242,7 +242,7 @@ export function initOwnerTools(client,identity){
  $('refreshCashiers').onclick=e=>busy(e.currentTarget,loadCashiers).catch(()=>{});$('refreshStaff').onclick=e=>busy(e.currentTarget,loadStaff).catch(()=>{});
  $('ownerCampaign').onchange=()=>loadCampaignSettings().catch(report);$('poolGame').onchange=renderPool;
  $('saveCampaignBtn').onclick=e=>updateCampaign(e).catch(()=>{});$('cloneBtn').onclick=e=>cloneCampaign(e).catch(()=>{});
- $('refreshInsights').onclick=e=>busy(e.currentTarget,loadInsights).catch(()=>{});$('saveLoyaltyOwner').onclick=saveLoyaltyOwner;$('addLoyaltyTier').onclick=addLoyaltyTier;
+ $('saveLoyaltyOwner').onclick=saveLoyaltyOwner;$('addLoyaltyTier').onclick=addLoyaltyTier;
  $('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 }
 export async function loadOwnerTool(key){if(!roleIsOwner())throw Error('owner_only');

@@ -15,6 +15,7 @@ begin
  begin perform public.yt_owner_reset_v8(a,sid,'prepare',null,gen_random_uuid(),'{}',array['invalid']);raise exception 'expected_failure';exception when others then if sqlerrm<>'invalid_reset_scope' then raise;end if;end;
  foreach scope in array array['banners','records','members','catalog','campaigns','team','all'] loop
   begin
+   update public.reward_pool_entries set issued_total=1,issued_today=1,issued_day=current_date;
    req=gen_random_uuid();
    r=public.yt_owner_reset_v8(a,sid,'prepare',null,req,'{}',case when scope='all' then array['records','members','catalog','campaigns','team','banners'] else array[scope] end);c=(r->>'challenge')::uuid;
    if (select count(*) from public.yt_member_orders)<>orders then raise exception 'prepare_deleted_records';end if;
@@ -35,6 +36,7 @@ begin
     if scope not in ('team','all') and (select count(*) from public.work_accounts)<>team then raise exception 'team_not_preserved';end if;
     if scope<>'all' and (select count(*) from public.yt_home_banners)<>banners then raise exception 'banners_not_preserved';end if;
    end if;
+   if scope<>'banners' and exists(select 1 from public.reward_pool_entries where issued_total<>0 or issued_today<>0) then raise exception 'issuance_counters_not_reset';end if;
    if scope in ('members','all') and exists(select 1 from public.pin_accounts) then raise exception 'members_not_deleted';end if;
    if scope in ('catalog','all') and (exists(select 1 from public.yt_shop_products) or exists(select 1 from public.yt_pos_series)) then raise exception 'catalog_not_deleted';end if;
    if scope in ('team','all') and (select count(*) from public.work_accounts)<>1 then raise exception 'team_not_deleted';end if;

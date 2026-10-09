@@ -1,7 +1,7 @@
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261009-rewards-v6-1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261009-client-v5-1';
-import {createConsole} from './console.js?v=20261009-console-v8-2';
+import {createConsole} from './console.js?v=20261009-console-v8-3';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -60,7 +60,7 @@ function showNotice(message,bad=false,persist=false){const n=$('notice');n.textC
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
 async function work(action,data={},signed=false){const headers={'Content-Type':'application/json',apikey:conf.publishableKey};if(signed)headers.Authorization='Bearer '+await getBearer();const resp=await fetch(workURL,{method:'POST',headers,cache:'no-store',body:JSON.stringify({action,...data})});const res=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));if(!resp.ok||!res.ok)throw Error(res.error||'server_unavailable');return res;}
-function resetLogin(){stopRedeemCamera();stopPolling();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.activeView='login';state.identity=null;$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
+function resetLogin(){stopRedeemCamera();stopPolling();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.activeView='login';state.identity=null;consoleUI?.roleChanged();$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
 async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
  const username=$('username').value.trim().toLowerCase(),password=$('password').value;
  const result=await work('login',{username,password});
@@ -366,14 +366,14 @@ function receiptInner(r){
  <div class="receipt-facts"><p><strong>#${esc(r.order_no||'—')}</strong></p><p>Table · ${esc(r.table_label||'Walk-in')}</p><p>Created · ${esc(friendlyDate(r.created_at))}</p><p>By · ${esc(r.created_by||'—')}</p>
  ${paid?`<p>Paid · ${esc(friendlyDate(r.paid_at))}</p><p>Payment · ${esc((r.payment_method||'foodcourt').toUpperCase())}</p>`:''}
  ${r.notes?`<p>Note · ${esc(r.notes)}</p>`:''}</div>
- <div class="receipt-items-head"><span>ITEM</span><span>AMOUNT</span></div>${items}
+ <div class="receipt-items-head"><span>商品 / ITEM</span><span>金额 / AMOUNT</span></div>${items}
  <div class="receipt-subtotal"><span>商品原价</span><b>${money(r.gross_total_rm)}</b></div>
  ${(r.discounts||[]).map(d=>`<div class="receipt-discount"><div><span>${esc(d.reward_name||'奖励优惠')}</span>${d.item_name?`<small>${esc(d.item_name)}</small>`:''}</div><b>−${money(d.discount_rm)}</b></div>`).join('')}
  ${discount>0?`<div class="receipt-subtotal"><span>优惠合计</span><b>−${money(discount)}</b></div>`:''}
  <div class="receipt-sum"><span>${paid?'已收款 TOTAL PAID':'应付 AMOUNT DUE'}</span><strong>${money(r.amount_rm)}</strong></div>
  ${r.discount_pending?'<p class="receipt-hold-note">上述优惠已预留，完成结账后正式核销。</p>':''}
  ${r.unresolved_count>0||r.minimum_met===false?'<p class="receipt-hold-note">优惠需要店员重新核对，当前账单尚不能结账。</p>':''}
- <p class="receipt-bottom">Thank you for visiting Yetipsy.<br>Internal POS record · Not a tax invoice.<br>Foodcourt payment is manually recorded.</p>
+ <p class="receipt-bottom">Thank you for visiting Yetipsy.<br>店内账单记录 · 非税务发票</p>
  </div>`;
 }
 async function viewReceipt(orderId){
