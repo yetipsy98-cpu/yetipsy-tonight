@@ -20,14 +20,14 @@ begin
  begin perform public.yt_owner_report_v8(start_date,finish_date,0);raise exception 'expected_failure';exception when others then if sqlerrm<>'invalid_report_range' then raise;end if;end;
  before_report=public.yt_owner_report_v8(start_date,finish_date);
  insert into public.yt_shop_products(title,price_rm,active) values('rollback report drink',10,true) returning id into product;
- -- Created in December, paid on Malaysia Jan 1: reporting must follow paid_at.
+ -- Created in December, paid in Jan 1 business day: reporting must follow paid_at.
  insert into public.yt_member_orders(source,status,amount_rm,created_by,created_at) values('future_pos','fulfilled',30,actor,timestamptz '2025-12-20 10:00:00+08') returning id into o;
  insert into public.yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm) values(o,product,'rollback report drink',3,10);
- update public.yt_member_orders set payment_status='paid',paid_by=actor,payment_method='cash',paid_at=timestamptz '2025-12-31 16:30:00+00' where id=o;
- -- One second before the Malaysia start boundary: excluded.
+ update public.yt_member_orders set payment_status='paid',paid_by=actor,payment_method='cash',paid_at=timestamptz '2026-01-01 06:30:00+08' where id=o;
+ -- One second before the business-day 06:00 boundary: excluded.
  insert into public.yt_member_orders(source,status,amount_rm,created_by) values('future_pos','fulfilled',70,actor) returning id into o;
  insert into public.yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm) values(o,product,'rollback report drink',7,10);
- update public.yt_member_orders set payment_status='paid',paid_by=actor,payment_method='cash',paid_at=timestamptz '2025-12-31 15:59:59+00' where id=o;
+ update public.yt_member_orders set payment_status='paid',paid_by=actor,payment_method='cash',paid_at=timestamptz '2026-01-01 05:59:59+08' where id=o;
  -- Unpaid order inside the period: excluded from revenue.
  insert into public.yt_member_orders(source,status,amount_rm,created_by,created_at) values('future_pos','fulfilled',999,actor,timestamptz '2026-01-01 01:00:00+08');
  r=public.yt_owner_report_v8(start_date,finish_date);
