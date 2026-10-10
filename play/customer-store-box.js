@@ -1,0 +1,39 @@
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const rpc=async(db,name,args)=>{const result=await db.rpc(name,args);if(result.error)throw Error(result.error.message||result.error.code||'server_unavailable');return result.data};
+const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const label=status=>({active:'使用中',paused:'已暂停',exhausted:'已全部出杯',completed:'已完成',expired:'已到期',cancelled:'已取消',pending:'等待接单',accepted:'员工已接单',preparing:'准备中'}[status]||status);
+const formatDate=value=>value?new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(value)):'—';
+
+export function freezeStoreBoxRequest(storage,key,draft,makeId=()=>crypto.randomUUID()){
+ try{const saved=JSON.parse(storage.getItem(key)||'null');if(saved?.request&&saved.box===draft.box&&saved.user===draft.user)return saved;}catch{}
+ const frozen={...draft,request:makeId()};storage.setItem(key,JSON.stringify(frozen));return frozen;
+}
+
+export function createCustomerStoreBox({db,root,getUser,showSheet,sheetHtml,closeSheet,navigate,toast,stripLink,storage=sessionStorage}){
+ const state={boxes:[],epoch:0,timer:null,active:false};
+ const requestExpired=row=>row.active_request_status==='pending'&&Date.parse(row.requested_at)+180000<=Date.now();
+ const activeRequest=row=>row.active_request_id&&!requestExpired(row);
+ const canRequest=row=>['active'].includes(row.status)&&Number(row.remaining_units)>0&&!activeRequest(row);
+ const mode=row=>row.mode==='challenge'?'挑战':'套餐';
+ const keyFor=row=>`store-box-request:${getUser()?.id||'guest'}:${row.id}`;
+ const busy=async(button,work)=>{if(button?.disabled)return;if(button)button.disabled=true;try{return await work();}finally{if(button)button.disabled=false;}};
+
+ function card(row){const remaining=Number(row.remaining_units||0),total=Number(row.total_units||0),served=Number(row.served_units||0),completed=Number(row.completed_units||0),percent=Math.min(100,served*100/Math.max(1,total));
+  const request=activeRequest(row)?`<div class="customer-box-request"><span>${label(row.active_request_status)} · ${Number(row.active_request_quantity)}${esc(row.unit_label)}</span>${row.active_request_status==='pending'?`<button type="button" data-store-box-cancel="${esc(row.active_request_id)}">取消</button>`:''}</div>`:'';
+  const action=canRequest(row)?`<button type="button" class="button button-primary wide" data-store-box-call="${esc(row.id)}">叫酒</button>`:row.status==='paused'?'<p class="customer-box-note">此存酒箱暂时停用，请联系店员。</p>':row.status==='exhausted'?'<p class="customer-box-note">已全部出杯，喝完后由店员完成记录。</p>':'';
+  return `<article class="customer-box-card"><header><div><small>${mode(row)} · ${esc(row.table_label||'Yetipsy')}</small><h3>${esc(row.name)}</h3></div><span class="customer-box-status">${label(row.status)}</span></header><div class="customer-box-balance"><strong>${remaining}</strong><span>/ ${total} ${esc(row.unit_label)} 剩余</span></div><div class="customer-box-meter"><i style="width:${percent}%"></i></div><div class="customer-box-counts"><span>已出 ${served}</span><span>已喝完 ${completed}</span><span>${formatDate(row.storage_expires_at)} 到期</span></div>${request}${action}</article>`;
+ }
+ function render(){if(!root)return;const live=state.boxes.filter(row=>!['completed','expired','cancelled'].includes(row.status)),history=state.boxes.filter(row=>['completed','expired','cancelled'].includes(row.status));root.innerHTML=`<div class="customer-box-toolbar"><span>${live.length} 个使用中</span><button type="button" data-store-box-refresh>刷新</button></div><div class="customer-box-stack">${live.length?live.map(card).join(''):'<div class="empty-state"><span class="empty-symbol">▤</span>还没有可使用的存酒箱。</div>'}</div>${history.length?`<details class="customer-box-history"><summary>过去的存酒箱 · ${history.length}</summary><div class="customer-box-stack">${history.map(card).join('')}</div></details>`:''}`;}
+ async function load(silent=false){if(!root||!getUser())return[];const epoch=++state.epoch;if(!silent)root.innerHTML='<div class="empty-state">正在读取存酒箱…</div>';const rows=await rpc(db,'yt_my_store_boxes');if(epoch!==state.epoch)return state.boxes;state.boxes=rows||[];render();return state.boxes;}
+
+ function requestSheet(row){const max=Math.min(Number(row.request_limit||1),Number(row.remaining_units||0));showSheet('叫酒','STORE BOX');sheetHtml(`<div class="sheet-content customer-box-call"><div class="customer-box-call-head"><strong>${esc(row.name)}</strong><span>剩余 ${Number(row.remaining_units)}${esc(row.unit_label)}</span></div><form id="storeBoxCallForm"><label>这次要几${esc(row.unit_label)}</label><select id="storeBoxQuantity">${Array.from({length:max},(_,i)=>`<option value="${i+1}">${i+1}${esc(row.unit_label)}</option>`).join('')}</select><label>桌号／位置</label><input id="storeBoxTable" maxlength="40" value="${esc(row.table_label||'')}" placeholder="例如 T8" required><button id="storeBoxCallSubmit" class="button button-primary wide" type="submit">确认叫酒</button></form><p class="tiny-help">同一时间只保留一个请求；员工接单前可以取消。</p></div>`);
+  document.getElementById('storeBoxCallForm').onsubmit=event=>{event.preventDefault();return busy(document.getElementById('storeBoxCallSubmit'),async()=>{const user=getUser(),draft={box:row.id,user:user.id,quantity:Number(document.getElementById('storeBoxQuantity').value),table:document.getElementById('storeBoxTable').value.trim()},key=keyFor(row),frozen=freezeStoreBoxRequest(storage,key,draft);await rpc(db,'yt_store_box_request',{p_box:frozen.box,p_quantity:frozen.quantity,p_request:frozen.request,p_table_label:frozen.table});storage.removeItem(key);await closeSheet();toast('叫酒请求已送出');await load();}).catch(error=>toast(error.message||'叫酒失败',true));};
+ }
+ async function cancelRequest(id,button){await busy(button,async()=>{await rpc(db,'yt_store_box_request_cancel',{p_request:id});toast('叫酒请求已取消');await load(true);});}
+ async function openClaim(token){const clean=String(token||'').trim();if(!uuidPattern.test(clean))throw Error('store_box_claim_invalid');const preview=await rpc(db,'yt_store_box_claim_preview',{p_token:clean});showSheet('领取存酒箱','STORE BOX');sheetHtml(`<div class="sheet-content claim-preview customer-box-claim"><div class="preview-glyph">▤</div><div class="overline">YOUR STORE BOX</div><h2>${esc(preview.name)}</h2><p>${preview.mode==='challenge'?'挑战':'套餐'} · ${Number(preview.total_units)}${esc(preview.unit_label)}</p><div class="preview-infos"><span>领取后存入你的账户</span><span>${formatDate(preview.expires_at)} 前确认</span></div><button id="storeBoxClaimConfirm" class="button button-primary wide" type="button">确认领取存酒箱</button></div>`);const button=document.getElementById('storeBoxClaimConfirm');button.onclick=()=>busy(button,async()=>{await rpc(db,'yt_store_box_claim',{p_token:clean});stripLink('box');await closeSheet();navigate('storebox');toast('存酒箱已领取');}).catch(error=>toast(error.message||'领取失败',true));}
+ function setActive(active){state.active=active;clearInterval(state.timer);state.timer=null;if(!active)return;load().catch(error=>toast(error.message||'读取失败',true));state.timer=setInterval(()=>{if(state.active&&document.visibilityState!=='hidden')load(true).catch(()=>{});},5000);}
+ function clear(){state.boxes=[];state.epoch++;state.active=false;clearInterval(state.timer);state.timer=null;if(root)root.replaceChildren();}
+
+ root?.addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;if(button.matches('[data-store-box-refresh]'))load().catch(error=>toast(error.message||'读取失败',true));if(button.dataset.storeBoxCall){const row=state.boxes.find(item=>item.id===button.dataset.storeBoxCall);if(row)requestSheet(row);}if(button.dataset.storeBoxCancel)cancelRequest(button.dataset.storeBoxCancel,button).catch(error=>toast(error.message||'取消失败',true));});
+ return {load,openClaim,setActive,clear};
+}
