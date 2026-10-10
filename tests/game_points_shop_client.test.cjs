@@ -10,6 +10,6 @@ const c={state:{user:{id:'member'}},document:{querySelector:()=>root,createEleme
  // Simulate a page reload: session storage recovers the same item, request and confirmed price.
  vm.runInContext('pointsShopPending=null;',c);fail=false;await c.openPointsShop();await c.exchangeShopItem({...item,points_cost:99},'member');const exchange=calls.filter(x=>x.name==='yt_point_shop_exchange');assert.deepEqual(exchange[1].args,original);assert.equal(exchange[1].args.p_expected_cost,50);assert.equal(success,1);assert(!storage.has('points-shop:member'));
  assert(!src.includes("db.rpc('yt_claim_random_points'"));assert(!src.includes('不玩游戏 · 随机领积分'));assert(src.includes("localResult.headline=record.achievement_percent+'%'"));
- for(const role of ['pos','owner','staff','cashier']){const html=fs.readFileSync(`play/${role}/index.html`,'utf8');assert(html.includes('id="ownerPointsRoot"'));assert(html.includes('20261009-points-v12-1'));}
+ for(const role of ['pos','owner','staff','cashier']){const html=fs.readFileSync(`play/${role}/index.html`,'utf8');assert(html.includes('id="ownerPointsRoot"'));assert(html.includes('20261010-formal-v13-1'));}
  console.log('PASS: explicit chance choice, immutable lost-response retry, skill auto-points, visible completion button, drawer exchange recovery across reload with original price, no random-point shortcut and all Owner aliases.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

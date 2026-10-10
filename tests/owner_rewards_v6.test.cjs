@@ -3,7 +3,7 @@ const base=path.join(__dirname,'../play');
 class El{constructor(){this.value='';this.textContent='';this.children=[];this.options=[{}];this.classList={add(){},remove(){}};}append(...items){this.children.push(...items);}replaceChildren(){this.children=[];}}
 const nodes={giftQR:new El(),issueReward:{value:'reward'},offerFrom:{value:''},offerUntil:{value:'2099-01-01T12:00'},offerTotal:{value:'10'},offerPerPerson:{value:'1'}};
 const calls=[];let copied,verified;
-const work=fs.readFileSync(path.join(base,'shared/work.js'),'utf8');
+const work=fs.readFileSync(path.join(base,'shared/owner-tools.js'),'utf8');
 const c={document:{createElement:()=>new El()},$:id=>nodes[id],copy:v=>copied=v,fmt:v=>v,uuid:()=>webcrypto.randomUUID(),busy:(_,fn)=>fn(),Date,console,ensureQRLibrary:async()=>{throw Error('offline');},codeLink:(kind,t)=>'https://example.test/?'+kind+'='+t,toMyTimestamp:s=>s?s+':00+08:00':null,unpack:r=>r.data,verifyIssuedCode:async(kind,token,card)=>verified={kind,token,card},db:{rpc:async(name,args)=>{calls.push({name,args});return {data:{display_code:'7K3M-9X2P',expires_at:'2099-01-01T04:00:00Z'}};}}};
 vm.createContext(c);vm.runInContext(work.slice(work.indexOf('async function showQR('),work.indexOf('async function verifyIssuedCode('))+work.slice(work.indexOf('async function createOffer('),work.indexOf('async function directReward('))+'\nglobalThis.issue=createOffer;',c);
 (async()=>{

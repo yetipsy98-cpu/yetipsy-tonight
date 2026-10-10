@@ -158,48 +158,26 @@ async function updateCampaign(e){const btn=e.currentTarget;await busy(btn,async(
 async function cloneCampaign(e){const btn=e.currentTarget;await busy(btn,async()=>{const id=$('ownerCampaign').value,name=$('cloneCampaignName').value.trim();if(!id||!name)throw Error('请填写新活动名称');const created=unpack(await db.rpc('yt_owner_clone_campaign',{p_source:id,p_name:name}));$('cloneCampaignName').value='';await loadCampaignAdmin();$('ownerCampaign').value=created;await loadCampaignSettings();status('新活动已复制，默认关闭');});}
 async function loadInsights(){const targets=[['profiles','countMembers',true],['game_passes','countPass',false],['user_rewards','countWallet',false],['redemptions','countRedeem',false]];for(const [table,id] of targets){const result=table==='profiles'?await db.from(table).select('id',{count:'exact',head:true}).not('phone','is',null):await db.from(table).select('id',{count:'exact',head:true});if(result.error){$(id).textContent='—';continue;}$(id).textContent=Number(result.count||0).toLocaleString('en-MY');}}
 
-let loyaltyOwnerData=null;
 function loyaltySelect(id,selected,emptyLabel='不提供'){const node=$(id);if(!node)return;node.replaceChildren();node.add(new Option(emptyLabel,''));for(const reward of state.rewards)node.add(new Option(reward.name,reward.id));node.value=selected||'';}
 async function loadLoyaltyOwner(){
  if(!roleIsOwner())throw Error('owner_only');
  const [rs,s]=await Promise.all([db.from('rewards').select('id,name,active').eq('active',true).order('name'),db.rpc('yt_loyalty_owner_settings')]);
- state.rewards=unpack(rs)||[];const cfg=unpack(s);loyaltyOwnerData=cfg;
+ state.rewards=unpack(rs)||[];const cfg=unpack(s);
  $('loyaltyWelcomeEnabled').checked=!!cfg.welcome_enabled;
  $('loyaltyReferralEnabled').checked=!!cfg.referral_enabled;
  $('loyaltyStack').checked=!!cfg.rewards_stack;
- $('loyaltyPointsEnabled').checked=!!cfg.points_enabled;
- $('loyaltyPointsRate').value=cfg.points_per_rm;
- $('loyaltyCap').value=cfg.max_points_percent;
- $('loyaltyMinSpend').value=cfg.min_spend_rm;
- $('loyaltyMaxSpend').value=cfg.max_spend_rm;
  loyaltySelect('loyaltyWelcomeReward',cfg.welcome_reward_id,'请选择注册奖励');
  loyaltySelect('loyaltyFriendReward',cfg.friend_reward_id,'请选择好友注册奖励');
  loyaltySelect('loyaltyInviterReward',cfg.inviter_reward_id,'不奖励邀请人（默认）');
- const sbox=$('loyaltyStats');sbox.textContent=`已记录邀请 ${cfg.stats?.referred_members||0} 位 · 新人礼 ${cfg.stats?.welcome_grants||0} 份 · 推荐礼 ${cfg.stats?.referral_grants||0} 份 · 累计送出积分 ${Number(cfg.stats?.points_awarded||0).toLocaleString('en-MY')} P`;
- const root=$('loyaltyTierEditor');root.replaceChildren();
- for(const t of cfg.tiers||[]){const section=document.createElement('div');section.className='user-card';section.innerHTML=`<strong>随机积分档位</strong><div class="split"><div><label>积分数</label><input class="tier-points" type="number" min="1" max="1000000" value="${Number(t.points)}"></div><div><label>权重（仅 Owner 可见）</label><input class="tier-weight" type="number" min="0" max="10000" value="${Number(t.weight)}"></div></div><label class="checkline"><input class="tier-enabled" type="checkbox" ${t.enabled?'checked':''}> 启用此档位</label><button type="button" class="btn outline small tier-save">保存档位</button>`;
-  section.querySelector('.tier-save').onclick=e=>busy(e.currentTarget,async()=>{
-   unpack(await db.rpc('yt_loyalty_owner_tier',{p_id:t.id,p_points:Number(section.querySelector('.tier-points').value),p_weight:Number(section.querySelector('.tier-weight').value),p_enabled:section.querySelector('.tier-enabled').checked}));
-   status('积分档位已保存');await loadLoyaltyOwner();
-  }).catch(()=>{});
-  root.append(section);
- }
 }
 async function saveLoyaltyOwner(e){const btn=e.currentTarget;await busy(btn,async()=>{
  const p={
   p_welcome_enabled:$('loyaltyWelcomeEnabled').checked,p_welcome_reward:$('loyaltyWelcomeReward').value||null,
   p_referral_enabled:$('loyaltyReferralEnabled').checked,p_friend_reward:$('loyaltyFriendReward').value||null,
-  p_inviter_reward:$('loyaltyInviterReward').value||null,p_stack:$('loyaltyStack').checked,
-  p_points_enabled:$('loyaltyPointsEnabled').checked,p_points_per_rm:Number($('loyaltyPointsRate').value),
-  p_cap_percent:Number($('loyaltyCap').value),p_min_spend:Number($('loyaltyMinSpend').value),p_max_spend:Number($('loyaltyMaxSpend').value)
+  p_inviter_reward:$('loyaltyInviterReward').value||null,p_stack:$('loyaltyStack').checked
  };
  if((p.p_welcome_enabled||p.p_referral_enabled)&&!confirm('注意：手机号目前未完成短信验证，免费礼物可能被重复开新账号领取。确认要开放这些活动？'))return;
- unpack(await db.rpc('yt_loyalty_owner_save',p));status('活动与积分设置已保存');await loadLoyaltyOwner();
-}).catch(()=>{});}
-async function addLoyaltyTier(e){const btn=e.currentTarget;await busy(btn,async()=>{
- const pts=Number($('loyaltyNewTierPoints').value),weight=Number($('loyaltyNewTierWeight').value);
- unpack(await db.rpc('yt_loyalty_owner_tier',{p_id:null,p_points:pts,p_weight:weight,p_enabled:true}));
- $('loyaltyNewTierPoints').value='';$('loyaltyNewTierWeight').value='';await loadLoyaltyOwner();status('已新增积分抽取档位');
+ unpack(await db.rpc('yt_loyalty_owner_member_save',p));status('会员活动已保存');await loadLoyaltyOwner();
 }).catch(()=>{});}
 
 
@@ -230,10 +208,6 @@ async function loadCashiers(){if(!roleIsOwner())return;
  if(!out.cashiers?.length)root.textContent='尚无 Cashier 独立账户。';
 }
 
-function bind(){ $('loginForm').onsubmit=e=>login(e).catch(report);$('setupForm').onsubmit=e=>activate(e).catch(report);$('changeForm').onsubmit=e=>changePassword(e).catch(report);$('openSetup').onclick=()=>renderGate('setup');$('setupBack').onclick=signinView;$('logoutBtn').onclick=()=>signout().catch(report);$('passReceiptAuto').onclick=()=>{$('passReceipt').value=nextInternalReceipt();};if(!$('passReceipt').value)$('passReceipt').value=nextInternalReceipt();$('passForm').onsubmit=e=>issuePass(e).catch(()=>{});$('lookupForm').onsubmit=e=>lookupRedeem(e).catch(()=>{});$('scanBtn').onclick=e=>busy(e.currentTarget,startCamera).catch(()=>{});$('scanStop').onclick=stopCamera;$('resetForm').onsubmit=e=>makeReset(e).catch(()=>{});$('staffForm').onsubmit=e=>createStaff(e).catch(()=>{});$('cashierCreateForm').onsubmit=e=>createCashierForm(e).catch(()=>{});$('cashierPasswordGenerate').onclick=()=>{$('cashierPassword').value=randomPassword();};$('refreshCashiers').onclick=e=>busy(e.currentTarget,loadCashiers).catch(()=>{});$('staffTempGenerate').onclick=()=>{$('staffTemp').value=randomPassword();};$('refreshStaff').onclick=e=>busy(e.currentTarget,loadStaff).catch(()=>{});$('rewardForm').onsubmit=e=>createReward(e).catch(()=>{});$('issueOfferBtn').onclick=e=>createOffer(e).catch(()=>{});$('directSendBtn').onclick=e=>directReward(e).catch(()=>{});$('ownerCampaign').onchange=()=>loadCampaignSettings().catch(report);$('poolGame').onchange=renderPool;$('saveCampaignBtn').onclick=e=>updateCampaign(e).catch(()=>{});$('cloneBtn').onclick=e=>cloneCampaign(e).catch(()=>{});$('refreshInsights').onclick=e=>busy(e.currentTarget,loadInsights).catch(()=>{});$('saveLoyaltyOwner').onclick=saveLoyaltyOwner;$('addLoyaltyTier').onclick=addLoyaltyTier;$('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();stopCamera();}});}
-
-
-
 let embeddedBound=false;
 export function initOwnerTools(client,identity){
  db=client;state.identity=identity;if(embeddedBound)return;embeddedBound=true;
@@ -242,7 +216,7 @@ export function initOwnerTools(client,identity){
  $('refreshCashiers').onclick=e=>busy(e.currentTarget,loadCashiers).catch(()=>{});$('refreshStaff').onclick=e=>busy(e.currentTarget,loadStaff).catch(()=>{});
  if($('setDefaultCampaign'))$('setDefaultCampaign').onclick=e=>busy(e.currentTarget,async()=>{unpack(await db.rpc('yt_owner_default_campaign',{p_campaign:$('ownerCampaign').value||null}));await loadCampaignAdmin();status('默认发码活动已保存');}).catch(()=>{});$('ownerCampaign').onchange=()=>loadCampaignSettings().catch(report);$('poolGame').onchange=renderPool;
  $('saveCampaignBtn').onclick=e=>updateCampaign(e).catch(()=>{});$('cloneBtn').onclick=e=>cloneCampaign(e).catch(()=>{});
- $('saveLoyaltyOwner').onclick=saveLoyaltyOwner;$('addLoyaltyTier').onclick=addLoyaltyTier;
+ $('saveLoyaltyOwner').onclick=saveLoyaltyOwner;
  $('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 }
 export async function loadOwnerTool(key){if(!roleIsOwner())throw Error('owner_only');

@@ -501,15 +501,13 @@ function renderMyLoyalty(){
  const l=state.loyalty;if(!l)return;
  const cards=['ytLoyaltyWallet'];
  for(const id of cards){const target=$(id);if(!target)continue;target.classList.remove('hide');target.replaceChildren();
-  const h=document.createElement('div');h.className='yt-loyalty-head';h.innerHTML='<strong>MY REWARDS CLUB</strong><span>会员积分 · 好友推荐</span>';target.append(h);
+  const h=document.createElement('div');h.className='yt-loyalty-head';h.innerHTML='<strong>我的积分</strong><span>POINTS</span>';target.append(h);
   const p=document.createElement('div');p.className='yt-loyalty-points';p.innerHTML='<span>可用积分</span><b>'+Number(l.points_balance||0).toLocaleString('en-MY')+' P</b>';
   target.append(p);
-  const row=document.createElement('div');row.className='yt-loyalty-code';
-  const label=document.createElement('span');label.textContent='我的好友码';row.append(label);
-  const code=document.createElement('b');code.textContent=l.referral_code||'—';row.append(code);target.append(row);
-  const desc=document.createElement('p');desc.className='tiny-help';desc.textContent=l.referral_enabled?'邀请好友注册可领取活动好礼；实际奖励与兑换规则以活动设置为准。':'好友推荐活动尚未开放，好友码已经为你保留。';target.append(desc);
-  if(l.referral_enabled){const b=document.createElement('button');b.type='button';b.className='button button-outline wide';b.textContent='复制我的好友邀请链接 ↗';b.onclick=()=>{const u=new URL('./',location.href);u.search='';u.searchParams.set('invite',l.referral_code);copy(u.href);};target.append(b);}
-  const history=document.createElement('button');history.type='button';history.className='loyalty-history-button';history.textContent='最近积分记录 ›';history.onclick=showPointsHistory;target.append(history);const shop=document.createElement('button');shop.type='button';shop.className='loyalty-history-button';shop.textContent='积分商场 ›';shop.onclick=()=>openPointsShop().catch(e=>toast(errorText(e),true));target.append(shop);
+  const actions=document.createElement('div');actions.className='loyalty-actions';
+  const shop=document.createElement('button');shop.type='button';shop.className='button button-primary';shop.textContent='积分商场';shop.onclick=()=>openPointsShop().catch(e=>toast(errorText(e),true));actions.append(shop);
+  const history=document.createElement('button');history.type='button';history.className='button button-outline';history.textContent='积分记录';history.onclick=showPointsHistory;actions.append(history);target.append(actions);
+  if(l.referral_enabled){const invite=document.createElement('details');invite.className='loyalty-referral';invite.innerHTML='<summary>好友邀请</summary><div class="yt-loyalty-code"><span>我的好友码</span><b>'+esc(l.referral_code||'—')+'</b></div><p class="tiny-help">好友注册可领取当前活动好礼。</p>';const b=document.createElement('button');b.type='button';b.className='button button-outline wide';b.textContent='复制邀请链接';b.onclick=()=>{const u=new URL('./',location.href);u.search='';u.searchParams.set('invite',l.referral_code);copy(u.href);};invite.append(b);target.append(invite);}
  }
 }
 function showPointsHistory(){
