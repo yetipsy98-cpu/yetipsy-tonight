@@ -25,7 +25,7 @@ export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,lo
     if(key==='team')await loadRights();if(key==='loyalty'){const module=await import('./owner-points.js?v=20261010-workbench-v15-1');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();}
    }
    if(key==='insights'){const module=await import('./owner-reports.js?v=20261010-workbench-v15-1');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner,notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
-   if(key==='dayclose'){const module=await import('./day-close.js?v=20261010-workbench-v15-1');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
+   if(key==='dayclose'){const module=await import('./day-close.js?v=20261010-statement-v15-3');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
    if(key==='factory')await reset.resume();
   }catch(e){notice(e.message||'加载失败，请重试',true);}
  }
