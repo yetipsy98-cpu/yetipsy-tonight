@@ -19,6 +19,6 @@ vm.createContext(context);vm.runInContext(functions+'\nglobalThis.test={showRewa
  assert.equal(elements.sheetCountdown.afterButton.textContent,'重新生成兑换码');await elements.sheetCountdown.afterButton.onclick();assert.equal(elements.sheetCopy.disabled,false);
  qrFails=true;await context.test.showRewardQR({id:'award'});assert.equal(elements.sheetToken.textContent,'7K3M-9X2P');elements.sheetCopy.onclick();assert.equal(copied,'7K3M-9X2P');
  qrFails=false;const link='https://example.test/play/?gift=test';await context.test.showCodeSheet('Gift','claim',link,false);elements.sheetCopy.onclick();assert.equal(copied,link);
- await context.test.showCodeSheet('Reward Claim','claim',link,true,new Date(clock+86400000).toISOString(),'7K3M-9X2P','gift');elements.sheetCopy.onclick();assert.equal(copied,'7K3M-9X2P');assert.match(markup,/复制领取码/);assert.match(markup,/客户端/);assert.match(elements.sheetCountdown.textContent,/领取截止/);assert(!markup.includes('https://'));
+ await context.test.showCodeSheet('Reward Claim','claim',link,true,new Date(clock+86400000).toISOString(),'7K3M-9X2P','gift');elements.sheetCopy.onclick();assert.equal(copied,'7K3M-9X2P');assert.match(markup,/复制领取码/);assert.match(markup,/扫不到可直接输入短码/);assert.match(elements.sheetCountdown.textContent,/领取截止/);assert(!markup.includes('https://'));
  console.log('PASS: Wallet short-code issuance, visible and copied code, expiry, regeneration, QR failure fallback and existing gift link behavior.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

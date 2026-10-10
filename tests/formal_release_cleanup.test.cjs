@@ -10,6 +10,6 @@ for(const role of ['pos','owner','staff','cashier']){
  const html=fs.readFileSync(`play/${role}/index.html`,'utf8');
  for(const stale of ['OWNER · RANDOM POINTS','ops_loyaltyPointsEnabled','ops_loyaltyTierEditor','ops_addLoyaltyTier'])assert(!html.includes(stale),`${role}: ${stale}`);
  assert(html.includes('id="ownerPointsRoot"'));
- assert(html.includes('20261010-workbench-v15-1'));
+ assert(html.includes('20261010-copy-v15-4'));
 }
 console.log('PASS: retired random-points controls and dead entry file are gone; member campaigns use the focused RPC and points stay in the rewards surface.');
