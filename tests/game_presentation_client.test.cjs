@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const app=fs.readFileSync('play/app.js','utf8'),owner=fs.readFileSync('play/shared/owner-tools.js','utf8');
+assert(app.includes("'mystery-card':'六张好运签"));
+assert(app.includes("'mystery-box':'从五份神秘礼盒"));
+assert(app.includes("game.choice_count||(isCard?6:5)"));
+assert(app.includes('game.fortune_texts'));
+assert(app.includes('上上签 · 今夜好事正在靠近。'));
+assert(!app.includes('points_max'));
+assert(!app.includes('reaction_perfect_ms'));
+assert(!app.includes('积分 MAX'));
+assert(!app.includes('100% 拿满'));
+assert(owner.includes("db.rpc('yt_owner_game_copy_save'"));
+assert(owner.includes("select('id,title,slug,mode,active,choice_count,fortune_texts')"));
+console.log('PASS: customers see six fortune cards and five boxes, editable Owner fortune copy, gameplay-only skill descriptions and no public skill cap fields.');

@@ -1,4 +1,4 @@
-import {createFactoryReset} from './factory-reset.js?v=20261010-formal-v13-1';
+import {createFactoryReset} from './factory-reset.js?v=20261010-games-v14-1';
 const $=id=>document.getElementById(id);
 const titles={catalog:'商品与系列',rewards:'奖励',team:'团队与权限',campaign:'活动与奖池',loyalty:'会员与积分',banners:'轮播广告',insights:'报表中心',factory:'系统重置',pin:'顾客 PIN 重设',dayclose:'营业日结'};
 export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,loadRights,notice,onReset,onOrdersChanged,getBusinessDay,onOwnerEdit}){
@@ -19,13 +19,13 @@ export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,lo
    if(['catalog','rewards','team','banners'].includes(key))await loadAdmin();
    if(epoch!==loadEpoch)return;if(key==='rewards')await loadOffers();
    if(['team','campaign','loyalty'].includes(key)){
-    ownerTools||=await import('../shared/owner-tools.js?v=20261010-formal-v13-1');if(epoch!==loadEpoch)return;
+    ownerTools||=await import('../shared/owner-tools.js?v=20261010-games-v14-1');if(epoch!==loadEpoch)return;
     const identityResult=await db.rpc('yt_pos_identity');if(identityResult.error)throw identityResult.error;
     if(!identityResult.data?.can_owner)throw Error('owner_only');ownerTools.initOwnerTools(db,identityResult.data);await ownerTools.loadOwnerTool(key);
-    if(key==='team')await loadRights();if(key==='loyalty'){const module=await import('./owner-points.js?v=20261010-formal-v13-1');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();}
+    if(key==='team')await loadRights();if(key==='loyalty'){const module=await import('./owner-points.js?v=20261010-games-v14-1');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();}
    }
-   if(key==='insights'){const module=await import('./owner-reports.js?v=20261010-formal-v13-1');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner,notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
-   if(key==='dayclose'){const module=await import('./day-close.js?v=20261010-formal-v13-1');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
+   if(key==='insights'){const module=await import('./owner-reports.js?v=20261010-games-v14-1');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner,notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
+   if(key==='dayclose'){const module=await import('./day-close.js?v=20261010-games-v14-1');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
    if(key==='factory')await reset.resume();
   }catch(e){notice(e.message||'加载失败，请重试',true);}
  }
