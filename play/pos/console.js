@@ -1,7 +1,7 @@
 import {createFactoryReset} from './factory-reset.js?v=20261010-copy-v15-4';
 const $=id=>document.getElementById(id);
-const titles={catalog:'商品与系列',rewards:'奖励',team:'团队与权限',campaign:'活动与奖池',loyalty:'会员与积分',banners:'轮播广告',insights:'报表中心',factory:'系统重置',pin:'顾客 PIN 重设',dayclose:'营业日结'};
-export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,loadRights,notice,onReset,onOrdersChanged,getBusinessDay,onOwnerEdit}){
+const titles={catalog:'商品与系列',storebox:'存酒箱',rewards:'奖励',team:'团队与权限',campaign:'活动与奖池',loyalty:'会员与积分',banners:'轮播广告',insights:'报表中心',factory:'系统重置',pin:'顾客 PIN 重设',dayclose:'营业日结'};
+export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,loadRights,loadStoreBoxOwner,notice,onReset,onOrdersChanged,getBusinessDay,onOwnerEdit}){
  let previousFocus=null,activeKey=null,loadEpoch=0,ownerTools=null,ownerReports=null,dayClose=null,pointsAdmin=null;
  const overlay=$('toolDrawerOverlay'),drawer=$('toolDrawer'),main=document.querySelector('main'),head=document.querySelector('.site-head');
  const reset=createFactoryReset({work,notice,onReset,onOrdersChanged,getBusinessDay,onOwnerEdit});
@@ -17,6 +17,7 @@ export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,lo
   overlay.classList.remove('hidden');document.body.classList.add('tool-open');main.inert=true;head.inert=true;drawer.focus();
   try{
    if(['catalog','rewards','team','banners'].includes(key))await loadAdmin();
+   if(key==='storebox')await loadStoreBoxOwner?.();
    if(epoch!==loadEpoch)return;if(key==='rewards')await loadOffers();
    if(['team','campaign','loyalty'].includes(key)){
     ownerTools||=await import('../shared/owner-tools.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;

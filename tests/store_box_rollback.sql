@@ -27,7 +27,9 @@ begin
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',staff_id)::text,true);
  r:=public.yt_store_box_issue(item,token,gen_random_uuid(),2);
  box:=(r->>'box_id')::uuid;claim:=(r->>'claim_id')::uuid;
- if jsonb_array_length(public.yt_store_box_claims_active())<1 then raise exception 'active_claim_not_visible';end if;
+ if r->>'claim_token'<>token::text then raise exception 'issued_token_not_returned';end if;
+ if not exists(select 1 from jsonb_array_elements(public.yt_store_box_issue_orders()->'orders')x where x->>'id'=o::text) then raise exception 'eligible_order_not_visible';end if;
+ if not exists(select 1 from jsonb_array_elements(public.yt_store_box_claims_active())x where x->>'claim_id'=claim::text and x->>'claim_token'=token::text) then raise exception 'active_claim_not_visible_to_staff';end if;
  begin
   perform public.yt_store_box_issue(item,gen_random_uuid(),gen_random_uuid(),2);raise exception 'expected_failure';
  exception when others then if sqlerrm<>'store_box_claim_already_active' then raise;end if;end;

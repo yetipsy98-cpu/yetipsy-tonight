@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const base=path.join(__dirname,'../play');
-const c={Intl,Date};vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(base,'reward-stacks.js'),'utf8').replace(/export /g,'')+'\nglobalThis.test={buildRewardStacks,rewardAvailability};',c);
 const now=Date.parse('2026-10-09T12:00:00+08:00'),day=86400000;
+const c={Intl,Date:class extends Date{static now(){return now;}}};vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(base,'reward-stacks.js'),'utf8').replace(/export /g,'')+'\nglobalThis.test={buildRewardStacks,rewardAvailability};',c);
 function award(id,reward,days,extra={}){return {id,reward_id:reward,status:'available',redeem_after:new Date(now-day).toISOString(),expires_at:new Date(now+days*day).toISOString(),created_at:new Date(now-day).toISOString(),rewards:{name:'RM5',category:'voucher',active:true},...extra};}
 const a=award('later','same',10),b=award('first','same',1),future=award('future','same',.5,{redeem_after:new Date(now+day/4).toISOString()}),expired=award('expired','same',-1),used=award('used','same',2,{status:'redeemed'}),other=award('other','other',2);
 let groups=c.test.buildRewardStacks([a,expired,other,used,future,b],now);

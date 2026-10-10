@@ -2,7 +2,8 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261010-copy-v15-4';
+import {createConsole} from './console.js?v=20261010-storebox-v16-1';
+import {createStoreBox} from './store-box.js?v=20261010-storebox-v16-1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -49,7 +50,8 @@ const msgMap={game_points_already_used:'本单积分已花费或到期，不能�
   release_coupon_before_cancel:'订单还有预留奖励，请先在购物车内取消预留',
   unit_already_reserved:'这杯饮品已被其他优惠占用',unit_not_available:'这杯商品已领取其他权益，无法再使用折扣',
   cannot_remove_prepared_reward_item:'赠饮已经出品，不能直接撤销预留；请先联系 Cashier 处理订单',
-  coupon_no_longer_available:'奖品已失效，请让顾客再次核对',coupon_cart_item_missing:'赠饮／优惠商品已被修改，请检查订单'};
+  coupon_no_longer_available:'奖品已失效，请让顾客再次核对',coupon_cart_item_missing:'赠饮／优惠商品已被修改，请检查订单',
+  store_box_claim_already_active:'这个存酒箱已有领取码，请显示或先取消原码',store_box_already_claimed:'顾客已经领取这个存酒箱',store_box_product_not_configured:'Owner 尚未设置这个商品的存酒规则',store_box_after_payment_only:'订单完成出品并付款后才能生成存酒箱',store_box_request_already_active:'这个存酒箱已有叫酒请求',store_box_quantity_unavailable:'叫酒数量超过可用数量或单次上限',store_box_not_available:'这个存酒箱目前不能叫酒',store_box_completed_units_invalid:'喝完杯数超过已出杯数量'};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>'RM'+Number(v||0).toFixed(2);
 const stamp=v=>v?new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(v)):'—';
@@ -57,12 +59,12 @@ const unpack=r=>{if(r?.error){const e=Error(r.error.message||r.error.code||'serv
 const errorText=e=>{let s=String(e?.message||e||'server_unavailable');return msgMap[s]||s.replaceAll('_',' ')};
 const isOwner=()=>state.identity?.can_owner===true;
 const isCashier=()=>state.identity?.can_cashier===true;
-let consoleUI=null;
+let consoleUI=null,storeBox=null;
 function showNotice(message,bad=false,persist=false){const n=$('notice');n.textContent=message;n.classList.remove('hidden');n.classList.toggle('error',bad);clearTimeout(state.noticeTimer);if(!persist)state.noticeTimer=setTimeout(()=>n.classList.add('hidden'),6200);}
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
 async function work(action,data={},signed=false){const headers={'Content-Type':'application/json',apikey:conf.publishableKey};if(signed)headers.Authorization='Bearer '+await getBearer();const resp=await fetch(workURL,{method:'POST',headers,cache:'no-store',body:JSON.stringify({action,...data})});const res=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));if(!resp.ok||!res.ok)throw Error(res.error||'server_unavailable');return res;}
-function resetLogin(){clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.ownerDashboard=null;state.ownerDashboardDay=null;state.ownerDashboardLoading=false;state.activeView='login';state.identity=null;consoleUI?.roleChanged();$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
+function resetLogin(){clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();storeBox?.clear();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.ownerDashboard=null;state.ownerDashboardDay=null;state.ownerDashboardLoading=false;state.activeView='login';state.identity=null;consoleUI?.roleChanged();$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
 async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
  const username=$('username').value.trim().toLowerCase(),password=$('password').value;
  const result=await work('login',{username,password});
@@ -92,25 +94,26 @@ async function changeCashierFirstPassword(e){e.preventDefault();const button=e.s
 
 const defaultTab=()=>isOwner()?'admin':state.identity?.role==='cashier'?'pending':'create';
 function buildNav(){const nav=$('nav');const tabs=isOwner()
-  ?[['admin','管理'],['create','点单'],['orders','订单'],['benefits','Game Pass']]
-  :isCashier()?[['orders','订单'],['create','点单'],['benefits','Game Pass']]
-  :[['create','点单'],['orders','订单'],['benefits','Game Pass']];
+  ?[['admin','管理'],['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']]
+  :isCashier()?[['orders','订单'],['create','点单'],['benefits','Game Pass'],['storebox','存酒箱']]
+  :[['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']];
  $('orderPendingTab').classList.toggle('hidden',!isCashier());
  nav.replaceChildren();for(const [key,label] of tabs){const b=document.createElement('button');b.type='button';b.dataset.tab=key;b.textContent=label;b.onclick=()=>showTab(key);nav.append(b);}}
 function showTab(tab,orderId=null){
  if(tab==='more')tab=isOwner()?'admin':'benefits';
  if(tab==='redeem'){tab='create';}
- if(!['create','pending','orders','history','benefits','reset','admin'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='admin'&&!isOwner()))tab=defaultTab();
+ if(!['create','pending','orders','history','benefits','storebox','reset','admin'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='admin'&&!isOwner()))tab=defaultTab();
  $('accountMenu').open=false;
  if(tab==='reset'&&consoleUI){consoleUI.open('pin');return;}
  if(tab!=='create'){closeCartDrawer();stopRedeemCamera();}state.currentTab=tab;
- for(const section of ['create','pending','orders','history','benefits','redeem','reset','admin'])$('tab-'+section).classList.toggle('hidden',section!==tab);
+ for(const section of ['create','pending','orders','history','benefits','storebox','redeem','reset','admin'])$('tab-'+section).classList.toggle('hidden',section!==tab);
  const orderView=['pending','orders','history'].includes(tab);$('orderTabs').classList.toggle('hidden',!orderView);
  for(const b of $('orderTabs').querySelectorAll('button'))b.classList.toggle('active',b.dataset.goTab===tab);
  for(const b of $('nav').querySelectorAll('button'))b.classList.toggle('active',b.dataset.tab===tab||(orderView&&b.dataset.tab==='orders'));
  if(tab==='admin'&&!consoleUI)loadAdmin().then(loadOwnerRewardOffers).catch(e=>showNotice(errorText(e),true));
  if(tab==='admin')loadOwnerDashboard().catch(e=>showNotice(errorText(e),true));
  if(tab==='benefits')loadBenefits(orderId).catch(e=>showNotice(errorText(e),true));
+ if(tab==='storebox')storeBox?.loadStaff().catch(e=>showNotice(errorText(e),true));
  if(tab==='pending'||tab==='orders'||tab==='history')refreshOrders(false).catch(e=>showNotice(errorText(e),true));
 }
 const compactNumber=v=>Number(v||0).toLocaleString('en-MY');
@@ -793,11 +796,12 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
  else qr.textContent='二维码图片暂时无法加载，请使用下方领取短码。';
  showNotice('已创建 Reward Claim，奖励绑定规则将在 POS 结账时验证');
  }).catch(()=>{});}
-function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}}},6500);}
+function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});}},6500);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
 function bind(){
  $('paidDateForm').onsubmit=e=>{e.preventDefault();refreshOrders(false);};$('paidToday').onclick=async()=>{try{const c=unpack(await db.rpc('yt_business_context'));state.businessDay=c.day;$('paidDate').value=c.day;await refreshOrders(false);}catch(e){showNotice(errorText(e),true);}};
- if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onOwnerEdit:openEditDialog,onOrdersChanged:()=>refreshOrders(false),onReset:async(scopes)=>{
+ storeBox=createStoreBox({db,ownerRoot:$('storeBoxOwnerRoot'),staffRoot:$('storeBoxStaffRoot'),isOwner,notice:(message,bad)=>showNotice(errorText(Error(message)),bad)});
+ if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,loadStoreBoxOwner:()=>storeBox.loadOwner(),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onOwnerEdit:openEditDialog,onOrdersChanged:()=>refreshOrders(false),onReset:async(scopes)=>{
   stopPolling();if(scopes?.includes('records')){state.cart.clear();state.pendingSubmit=null;state.draftSummary=null;for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('yt-pos-'))sessionStorage.removeItem(key);}}
   showNotice('所选范围已重置',false,true);location.reload();
  }});
