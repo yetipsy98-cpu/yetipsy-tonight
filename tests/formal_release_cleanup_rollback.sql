@@ -34,6 +34,10 @@ BEGIN
  EXCEPTION WHEN OTHERS THEN
   IF SQLERRM<>'owner_only' THEN RAISE; END IF;
  END;
+ body:=public.yt_loyalty_member_summary();
+ IF body ? 'points_enabled' OR body ? 'points_per_rm' OR body ? 'max_points_percent'
+    OR NOT body ? 'points_balance' OR NOT body ? 'points_history'
+ THEN RAISE EXCEPTION 'member summary still exposes retired point mode'; END IF;
 END;
 $test$;
 
