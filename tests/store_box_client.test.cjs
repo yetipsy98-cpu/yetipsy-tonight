@@ -42,6 +42,6 @@ test('Package and challenge checkout issues the customer claim code immediately'
  for(const page of ['pos','owner','staff','cashier']){
   const html=read(`play/${page}/index.html`);
   assert.match(html,/id="orderCartClaims"/);
-  assert.match(html,/20261012-direct-checkout-v16-5/);
+  assert.match(html,/20261012-direct-checkout-v16-6/);
  }
 });
