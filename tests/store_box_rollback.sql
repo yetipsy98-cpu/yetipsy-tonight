@@ -6,6 +6,11 @@ declare
  token uuid:=gen_random_uuid();token2 uuid:=gen_random_uuid();claim uuid;box uuid;drink_request uuid;
  r jsonb;before_passes bigint;
 begin
+ if not exists(
+  select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname='yt_store_box_rule_save'
+   and p.proargnames=array['p_product','p_mode','p_total_units','p_request_limit','p_expiry_days','p_unit_label','p_completion_reward','p_game_pass_enabled','p_active']::text[]
+ ) then raise exception 'store_box_rpc_argument_names_missing';end if;
  select auth_user_id into owner_id from public.work_accounts where role='owner' and active and not must_change_password limit 1;
  select auth_user_id into staff_id from public.work_accounts where role in ('staff','cashier') and active and not must_change_password order by role limit 1;
  select auth_user_id into member_id from public.pin_accounts where not exists(select 1 from public.work_accounts where auth_user_id=pin_accounts.auth_user_id) limit 1;
@@ -17,7 +22,7 @@ begin
 
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',owner_id)::text,true);
  insert into public.yt_shop_products(title,price_rm,active) values('rollback store box',120,true) returning id into product;
- perform public.yt_store_box_rule_save(product,'challenge',6,2,30,'杯',null,false,true);
+ perform public.yt_store_box_rule_save(p_product=>product,p_mode=>'challenge',p_total_units=>6,p_request_limit=>2,p_expiry_days=>30,p_unit_label=>'杯',p_completion_reward=>null,p_game_pass_enabled=>false,p_active=>true);
  insert into public.yt_member_orders(source,status,amount_rm,payment_status,payment_method,paid_at,created_by,paid_by,table_label)
  values('future_pos','fulfilled',120,'paid','cash',now(),owner_id,owner_id,'T8') returning id into o;
  insert into public.yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm)

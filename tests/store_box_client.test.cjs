@@ -27,4 +27,7 @@ test('Store Box client uses the protected RPC workflow',()=>{
  assert.match(js,/p_game_pass_enabled:false/);
  assert.match(js,/同时确认已喝完几杯/);
  assert.match(js,/全店待领取码/);
+ assert.match(js,/addEventListener\('submit'/);
+ assert.match(js,/event\.preventDefault\(\)/);
+ assert.match(js,/保存中…/);
 });
