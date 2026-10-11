@@ -677,7 +677,7 @@ async function changeMyPin(){
  }).catch(()=>{});};
 }
 function bindEvents(){
- $('phoneCheckForm').addEventListener('submit',submitPhone);$('authForm').addEventListener('submit',submitAuth);$('authBack').onclick=()=>changeAuthMode('phone');
+ $('phoneCheckForm').addEventListener('submit',submitPhone);$('authForm').addEventListener('submit',submitAuth);window.YT_CLIENT_READY=true;$('authBack').onclick=()=>changeAuthMode('phone');
  $('togglePin').onclick=()=>{const field=$('pin');field.type=field.type==='password'?'text':'password';$('togglePin').textContent=field.type==='password'?'显示':'隐藏';};
  for(const b of document.querySelectorAll('[data-page]'))b.onclick=()=>navigate(b.dataset.page);
  $('homeRewardClaim').onclick=openRewardClaim;$('authRewardClaim').onclick=openRewardClaim;
@@ -718,5 +718,5 @@ async function boot(){bindEvents();homeCarousel=createHomeCarousel({db,root:$('h
  }
  if('serviceWorker'in navigator&&location.protocol==='https:'&&location.pathname.includes('/play-v12/'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
-boot().catch(e=>{console.error('Boot:',e);shell(false);$('authError').textContent='系统暂时无法启动：'+errorText(e);});
+boot().catch(e=>{window.YT_CLIENT_READY='failed';console.error('Boot:',e);shell(false);$('authError').textContent='系统暂时无法启动：'+errorText(e);});
 
