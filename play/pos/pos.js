@@ -221,7 +221,7 @@ async function createOrder(){if(state.draftSaving||state.draftMutating)return;st
  showNotice(`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'Cashier 已接受':'等待 Cashier 接受'}`);
  showTab('orders');try{await refreshOrders(false);}catch(e){showNotice(`${data.order_no} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
 }
-function statusLabel(row){if(row.payment_status==='refunded')return '已退款取消';if(row.payment_status==='paid'&&Number(row.balance_rm)>0)return '待补收 '+money(row.balance_rm);if(row.payment_status==='paid'&&Number(row.balance_rm)<0)return '待退款 '+money(-row.balance_rm);return row.payment_status==='paid'?'已付款':({pending:'等待 Cashier 接受',confirmed:'已接受 · 待出品',fulfilled:'已出品 · 待结账',cancelled:'已拒绝／取消'}[row.status]||row.status);}
+function statusLabel(row){if(row.payment_status==='refunded')return '已退款取消';if(row.payment_status==='paid'&&Number(row.balance_rm)>0)return '待补收 '+money(row.balance_rm);if(row.payment_status==='paid'&&Number(row.balance_rm)<0)return '待退款 '+money(-row.balance_rm);if(row.payment_status==='paid')return '已付款';if(row.status==='confirmed'&&row.store_box_only)return '待结账 · 结账后发码';return ({pending:'等待 Cashier 接受',confirmed:'已接受 · 待出品',fulfilled:'已出品 · 待结账',cancelled:'已拒绝／取消'}[row.status]||row.status);}
 function escapeAttr(s){return esc(s)}
 function renderOrder(row,scope){const pay=row.payment_status==='paid',refunded=row.payment_status==='refunded',cancelled=row.status==='cancelled';
  const items=(row.items||[]).map(i=>`<div class="order-line"><span>${esc(i.quantity)} × ${esc(i.name)}</span><b>${money(Number(i.quantity)*Number(i.price_rm))}</b></div>`).join('');
@@ -229,7 +229,8 @@ function renderOrder(row,scope){const pay=row.payment_status==='paid',refunded=r
  if(scope==='pending'&&isCashier()&&row.status==='pending')controls=`<div class="action-row"><button type="button" class="primary" data-action="accept" data-order="${escapeAttr(row.id)}">接受订单 →</button><button type="button" class="danger" data-action="reject" data-order="${escapeAttr(row.id)}">拒绝</button></div>`;
  if(scope==='active'){
   if(row.status==='pending'&&isCashier())controls=`<div class="action-row"><button type="button" class="primary" data-action="accept" data-order="${escapeAttr(row.id)}">接受订单</button><button type="button" class="danger" data-action="reject" data-order="${escapeAttr(row.id)}">拒绝</button></div>`;
-  if(row.status==='confirmed')controls=`<div class="action-row"><button type="button" class="primary" data-action="fulfilled" data-order="${escapeAttr(row.id)}">确认已完成出品</button>${isCashier()?`<button type="button" data-action="cancel" data-order="${escapeAttr(row.id)}">取消</button>`:''}</div>`;
+  if(row.status==='confirmed'&&row.store_box_only)controls=isCashier()?`<div class="action-row"><button type="button" class="primary" data-order-cart="${escapeAttr(row.id)}">直接结账并发领取码</button><button type="button" data-action="cancel" data-order="${escapeAttr(row.id)}">取消</button></div>`:'';
+  else if(row.status==='confirmed')controls=`<div class="action-row"><button type="button" class="primary" data-action="fulfilled" data-order="${escapeAttr(row.id)}">确认已完成出品</button>${isCashier()?`<button type="button" data-action="cancel" data-order="${escapeAttr(row.id)}">取消</button>`:''}</div>`;
   if(row.status==='fulfilled'&&isCashier())controls=`<div class="action-row"><select data-payment="${escapeAttr(row.id)}" aria-label="收款方式"><option value="foodcourt" selected>Foodcourt 食阁</option><option value="cash">Cash 现金</option><option value="duitnow">DuitNow QR</option><option value="card">Card 刷卡</option><option value="bank_transfer">Bank Transfer</option><option value="other">Other</option></select><button type="button" class="primary" data-action="paid" data-order="${escapeAttr(row.id)}">确认已收款</button></div>`;
  }
  return `<article class="order"><div class="order-head"><div><h3>#<span>${esc(row.order_no||'—')}</span> · ${esc(row.table_label||'Walk-in')}</h3><small>${esc(row.created_by_name||'Staff')} · ${stamp(row.created_at)}</small><span class="order-status ${pay?'paid':cancelled?'cancelled':row.status==='pending'?'pending':''}">${statusLabel(row)}</span></div><div class="order-price">${money(row.amount_rm)}</div></div><details><summary>${(row.items||[]).reduce((sum,item)=>sum+Number(item.quantity||0),0)} 件商品 · 查看明细</summary><div class="order-lines">${items}</div></details>${row.notes?`<small>备注：${esc(row.notes)}</small>`:''}${row.has_chit?'<small>▣ 已生成 Order Chit（待出品）</small>':''}${pay?`<small>✓ ${stamp(row.paid_at)} · ${esc(row.payment_method||'')}</small>`:''}${controls}<div class="receipt-actions"><button type="button" data-receipt="${escapeAttr(row.id)}">${pay||refunded?'账单':'未付款账单'}</button>${!cancelled&&row.payment_status!=='refunded'&&(isOwner()||(!pay&&['pending','confirmed'].includes(row.status)&&state.identity?.can_edit_orders))?`<button type="button" data-edit="${escapeAttr(row.id)}">改单</button>`:''}${!pay&&!cancelled&&['pending','confirmed','fulfilled'].includes(row.status)?`<button type="button" class="primary" data-order-cart="${escapeAttr(row.id)}">▣ 优惠与结账</button>`:''}${pay&&Number(row.balance_rm||0)===0?`<button type="button" data-benefits="${escapeAttr(row.id)}">发游戏资格</button>`:''}</div></article>`;
@@ -663,7 +664,7 @@ function escapeOrderCart(){stopRedeemCamera();state.selectedOrderCart=null;state
  $('orderCartOverlay').classList.add('hidden');document.body.classList.remove('sheet-open');}
 async function openOrderCart(id){
  state.selectedOrderCart=id;state.activeRewardHold=null;$('cartRedeemToken').value='';
- $('cartRedeemChoices').innerHTML='';$('orderCartOverlay').classList.remove('hidden');
+ $('cartRedeemChoices').innerHTML='';$('orderCartClaims').replaceChildren();$('orderCartClaims').classList.add('hidden');$('orderCartOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');await refreshOrderCart();
 }
 async function refreshOrderCart(){if(!state.selectedOrderCart)return;
@@ -677,11 +678,11 @@ async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  $('orderCartGross').textContent=money(q.gross_rm);
  $('orderCartDiscount').textContent='−'+money(q.reserved_discount_rm);
  $('orderCartPayable').textContent=money(q.payable_rm);
- $('orderCartStatus').textContent=q.unresolved_count?'请先处理奖励。':q.minimum_met===false?'需保留至少一杯付费饮品。':q.status==='pending'?'等待 Cashier 接单。':q.status==='confirmed'?'等待完成出品。':q.payment_status==='paid'?'已结账。':'可结账。';
+ $('orderCartStatus').textContent=q.unresolved_count?'请先处理奖励。':q.minimum_met===false?'需保留至少一杯付费饮品。':q.status==='pending'?'等待 Cashier 接单。':q.status==='confirmed'&&q.store_box_only?'可直接结账；完成后立即生成顾客领取码。':q.status==='confirmed'?'等待完成出品。':q.payment_status==='paid'?'已结账。':'可结账。';
  $('orderCartStatus').classList.toggle('warn',q.unresolved_count>0||q.minimum_met===false);
  $('cartRedeemForm').classList.add('hidden');
  $('cartCheckoutControls').classList.toggle('hidden',!isCashier()||q.payment_status==='paid');
- $('cartCheckoutBtn').disabled=!q.can_pay;
+ $('cartCheckoutBtn').disabled=!q.can_pay;$('cartCheckoutBtn').textContent=q.store_box_only?'确认收款并生成领取码':'确认收款并正式核销奖励';
  $('cartCheckoutPayment').value='foodcourt';
 }
 async function reserveInCart(){const btn=$('cartReserveBtn');await busy(btn,async()=>{
@@ -736,11 +737,24 @@ async function checkoutOrderCart(){const btn=$('cartCheckoutBtn');await busy(btn
  if(!q.can_pay)throw Error('coupon_hold_not_ready_or_expired');
  const method=$('cartCheckoutPayment').value;
  if(!window.confirm(`确认已实际收到 ${money(q.payable_rm)}？\n本单优惠：−${money(q.reserved_discount_rm)}\n\n确认后才正式核销所有预留奖励，此动作不能随意撤销。`))return;
- unpack(await db.rpc('yt_pos_action',{p_order:state.selectedOrderCart,p_action:'paid',p_method:method,p_reason:null}));
+ const result=unpack(await db.rpc('yt_pos_action',{p_order:state.selectedOrderCart,p_action:'paid',p_method:method,p_reason:null}));
  await refreshOrderCart();await refreshOrders(false);
- $('cartRedeemChoices').innerHTML='<div class="redeem-banner success">✓ 已结账，奖励已正式使用，Receipt 金额已更新。</div>';
- showNotice('Foodcourt／Cashier 收款已登记，奖券已随结账正式核销');
+ if(result.store_box_claims?.length){await showCheckoutStoreBoxClaims(result.store_box_claims);showNotice('已结账，顾客领取码已生成');}
+ else showNotice('Foodcourt／Cashier 收款已登记，奖券已随结账正式核销');
  }).catch(()=>{});}
+async function showCheckoutStoreBoxClaims(claims){
+ const root=$('orderCartClaims');root.replaceChildren();root.classList.remove('hidden');
+ const heading=document.createElement('h3');heading.textContent='请顾客扫码领取';root.append(heading);
+ const ready=await qrLibrary();
+ for(const claim of claims){const card=document.createElement('article');card.className='storebox-checkout-claim';
+  const title=document.createElement('strong');title.textContent=claim.name||'Package／挑战';
+  const meta=document.createElement('small');meta.textContent=`${Number(claim.total_units||0)}${claim.unit_label||'杯'} · 2分钟内领取`;
+  const square=document.createElement('div');square.className='qr-screen';const url=portalClientUrl();url.searchParams.set('box',claim.claim_token);
+  if(ready)new window.QRCode(square,{text:url.href,width:206,height:206,colorDark:'#1d251f',colorLight:'#fff',correctLevel:window.QRCode.CorrectLevel.M});else square.textContent='二维码载入失败，请到存酒箱重新显示。';
+  card.append(title,meta,square);root.append(card);
+ }
+ root.scrollIntoView({behavior:'smooth',block:'center'});
+}
 // Compact Owner issuance: only rewards with an active SKU/series binding are selectable.
 async function loadOwnerRewardOffers(){
  if(!isOwner())return;

@@ -83,6 +83,7 @@ body.sheet-open{overflow:hidden}
 .order-cart-total .discount{color:#9fe2b1}.order-cart-total .grand{margin-top:13px;padding-top:13px;border-top:1px solid #52614f;font-size:17px;font-weight:900}.order-cart-total .grand strong{font-size:27px;color:#f1c980}
 #orderCartStatus{border-radius:12px;padding:10px 12px;background:#1c3226;color:#b7d6bd}#orderCartStatus.warn{background:#4e3519;color:#ffdd9f}
 .cart-redeem-form,.cart-checkout-tools{padding:15px;border-radius:14px;border:1px solid #52604f;background:#1a211b;margin-top:15px}
+.storebox-checkout-claims{display:grid;gap:14px;margin-top:16px;padding:16px;border:1px solid #7f6b43;border-radius:15px;background:#171f19}.storebox-checkout-claims.hidden{display:none}.storebox-checkout-claims h3{margin:0;color:#efd497}.storebox-checkout-claim{display:grid;justify-items:center;gap:7px;padding:14px;border-radius:13px;background:#222d24}.storebox-checkout-claim small{color:#bac8bc}.storebox-checkout-claim .qr-screen{margin-top:5px}
 .cart-redeem-form .pair{display:grid;grid-template-columns:1fr auto;align-items:end;gap:11px}.cart-redeem-form h3{font-size:17px;margin:7px 0 12px}
 .cart-scan-tools{display:flex;gap:7px;margin-bottom:0}.cart-scan-tools button{white-space:nowrap;min-height:48px}
 .cart-redeem-choices{display:grid;gap:9px;margin-top:10px}.reward-choice{width:100%;text-align:left;border:1px solid #797147;background:#28382c;color:#f8e4b7;padding:13px;border-radius:11px;min-height:48px;font-weight:650;white-space:normal}

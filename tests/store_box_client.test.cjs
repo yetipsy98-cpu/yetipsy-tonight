@@ -31,3 +31,17 @@ test('Store Box client uses the protected RPC workflow',()=>{
  assert.match(js,/event\.preventDefault\(\)/);
  assert.match(js,/保存中…/);
 });
+
+test('Package and challenge checkout issues the customer claim code immediately',()=>{
+ const js=read('play/pos/pos.js');
+ assert.match(js,/row\.status==='confirmed'&&row\.store_box_only/);
+ assert.match(js,/直接结账并发领取码/);
+ assert.match(js,/result\.store_box_claims\?\.length/);
+ assert.match(js,/showCheckoutStoreBoxClaims/);
+ assert.match(js,/url\.searchParams\.set\('box',claim\.claim_token\)/);
+ for(const page of ['pos','owner','staff','cashier']){
+  const html=read(`play/${page}/index.html`);
+  assert.match(html,/id="orderCartClaims"/);
+  assert.match(html,/20261012-direct-checkout-v16-5/);
+ }
+});
