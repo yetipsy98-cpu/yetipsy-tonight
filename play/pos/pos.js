@@ -43,6 +43,7 @@ const msgMap={game_points_already_used:'本单积分已花费或到期，不能�
    token_invalid:'请让顾客在 Wallet 重新生成兑奖 QR；已经成功预留的奖励不受 QR 图片过期影响',reward_unavailable:'奖品还不能兑换或已过期',role_mismatch:'请使用正确的 Cashier／Staff 登录入口',
   reward_pos_binding_required:'该奖励尚未由 Owner 绑定 POS 商品或系列',redeem_order_not_ready:'先让 Cashier 接受订单，且订单必须尚未结账',
   reward_reserved_by_other_order:'此奖品正预留在另一张订单，请取消之前的预留或等待到期',
+  moon_invalid_code:'Moon 旧码格式不正确',moon_code_not_found:'找不到该 Moon 兑换码，请 Owner 先手动登记',moon_already_redeemed:'这张 Moon 码已经使用过',moon_reserved_elsewhere:'这张 Moon 码已经锁定在其他订单，请先释放',moon_expired:'Moon 码已过期',moon_not_started:'还未到领取日期',moon_drink_required:'请填写要送出的实际饮品名称',moon_minimum_payable:'抵扣 RM5 后必须仍有付费饮品金额',moon_release_unavailable:'订单已经出品或收款，无法直接释放赠品',
   hold_expired_rescan:'预留已过期，请让顾客重新出示 Wallet QR 以续期',coupon_hold_not_ready_or_expired:'购物车仍有未选择商品或已过期的兑奖预留，请先处理',
   choose_reward_product:'请先选择奖品对应的赠饮',choose_discount_item:'请选择一项符合奖品条件的订单商品',
   reward_binding_changed_rescan:'Owner 已修改兑奖规则，请重新核对这张奖券',discount_amount_invalid:'优惠金额计算失败',
@@ -679,7 +680,7 @@ async function submitAdjustment(e){e.preventDefault();const btn=e.submitter;awai
 function escapeOrderCart(){stopRedeemCamera();state.selectedOrderCart=null;state.activeRewardHold=null;
  $('orderCartOverlay').classList.add('hidden');document.body.classList.remove('sheet-open');}
 async function openOrderCart(id){
- state.selectedOrderCart=id;state.activeRewardHold=null;$('cartRedeemToken').value='';
+ state.selectedOrderCart=id;state.activeRewardHold=null;$('cartRedeemToken').value='';$('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
  $('cartRedeemChoices').innerHTML='';$('orderCartClaims').replaceChildren();$('orderCartClaims').classList.add('hidden');$('orderCartOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');await refreshOrderCart();
 }
@@ -690,6 +691,8 @@ async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  const bill=unpack(receipt),q=unpack(summary);
  $('orderCartTitle').textContent='#'+(q.order_no||bill.order_no)+' · 优惠与结账';
  $('orderCartItems').innerHTML=(bill.items||[]).map(item=>`<div class="cart-preview-item"><strong>${esc(item.item_name)} × ${Number(item.quantity)}</strong><span>${money(item.quantity*item.unit_price_rm)}</span></div>`).join('');
+ $('moonGuestPanel').classList.toggle('hidden',q.payment_status!=='unpaid');
+ $('moonGuestRows').innerHTML=(q.moon_codes||[]).map(x=>'<div class="cart-discount-line"><div><strong>'+esc(x.kind==='R0'?'RM5 Voucher':x.kind==='R3'?'彩虹 Shot 赠品':x.kind==='R5'?'断片指南赠品':'微醺特调赠品')+'</strong><small>'+esc(x.code)+' · 已预留，收款后核销</small></div><b>'+ (x.kind==='R0'?'−RM5.00':'FREE') +'</b><button type="button" class="quiet" data-moon-release="'+esc(x.id)+'">释放</button></div>').join('');
  $('orderCartHolds').innerHTML=(q.holds||[]).length?q.holds.map(h=>`<div class="cart-discount-line"><div><strong>− ${esc(h.reward_name)}</strong><small>${h.can_checkout?'已预留':h.state==='reserved'?'待选择商品':'已超时'} · ${stamp(h.expires_at)}</small></div><b>−${money(h.discount_rm)}</b>${q.payment_status==='unpaid'?`<button type="button" class="quiet" data-release-hold="${esc(h.id)}">释放</button>`:''}</div>`).join(''):'<p class="muted">无预留奖励</p>';
  $('orderCartGross').textContent=money(q.gross_rm);
  $('orderCartDiscount').textContent='−'+money(q.reserved_discount_rm);
@@ -701,6 +704,31 @@ async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  $('cartCheckoutBtn').disabled=!q.can_pay;$('cartCheckoutBtn').textContent=q.store_box_only?'确认收款并生成领取码':'确认收款并正式核销奖励';
  $('cartCheckoutPayment').value='foodcourt';
 }
+
+async function moonGuestLookup(){
+ const code=$('moonGuestCode').value.trim(),order=state.selectedOrderCart;if(!order)throw Error('invalid_order');
+ if(!code)throw Error('moon_invalid_code');
+ const info=unpack(await db.rpc('yt_moon_lookup',{p_order:order,p_code:code}));
+ if(info.status==='reserved'){showNotice('此旧码已经在本订单预留，无需重复添加');await refreshOrderCart();return;}
+ if(info.kind==='R5'||info.kind==='R4'){
+  $('moonGuestChoice').classList.remove('hidden');$('moonGuestChoiceTitle').textContent=(info.kind==='R5'?'断片指南':'微醺特调')+' · 输入实际要出的赠饮名称';
+  $('moonGuestDrink').focus();return;
+ }
+ await moonGuestReserve(null);
+}
+async function moonGuestReserve(drink=null){
+ const code=$('moonGuestCode').value.trim(),order=state.selectedOrderCart;
+ const result=unpack(await db.rpc('yt_moon_reserve',{p_order:order,p_code:code,p_drink:drink}));
+ $('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
+ await refreshOrderCart();await refreshOrders(false);
+ showNotice(result.kind==='R0'?'Moon RM5 优惠已预留，结账才核销':'Moon 赠品已加入订单和 KDS，结账才核销');
+}
+async function moonGuestRelease(id){
+ if(!window.confirm('释放这张 Moon 旧码？取消预留后顾客仍能再次使用。'))return;
+ unpack(await db.rpc('yt_moon_release',{p_id:id}));
+ await refreshOrderCart();await refreshOrders(false);showNotice('Moon 兑换码已释放');
+}
+
 async function reserveInCart(){const btn=$('cartReserveBtn');await busy(btn,async()=>{
  const order=state.selectedOrderCart;if(!order)throw Error('请选择订单');
  const token=parseRedeemToken($('cartRedeemToken').value);
@@ -878,6 +906,9 @@ function bind(){
  $('cartReserveBtn').onclick=reserveInCart;
  $('cartScanCamera').onclick=()=>startRedeemCamera().catch(e=>showNotice(errorText(e),true));
  $('cartCheckoutBtn').onclick=checkoutOrderCart;
+ $('moonGuestCheck').onclick=()=>busy($('moonGuestCheck'),moonGuestLookup).catch(()=>{});
+ $('moonGuestConfirm').onclick=()=>busy($('moonGuestConfirm'),()=>moonGuestReserve($('moonGuestDrink').value.trim())).catch(()=>{});
+ $('moonGuestRows').onclick=e=>{const button=e.target.closest('[data-moon-release]');if(button)moonGuestRelease(button.dataset.moonRelease).catch(error=>showNotice(errorText(error),true));};
  $('orderCartHolds').onclick=e=>{const b=e.target.closest('button[data-release-hold]');if(b)releaseCartHold(b.dataset.releaseHold).catch(err=>showNotice(errorText(err),true));};
  $('ownerSendGift').onclick=ownerDirectGift;$('ownerIssueGiftQR').onclick=ownerGiftClaimQR;$('ownerNewRewardForm').onsubmit=ownerCreateNewReward;
  document.body.addEventListener('click',e=>{const btn=e.target.closest('[data-order-cart]');if(btn)openOrderCart(btn.dataset.orderCart).catch(err=>showNotice(errorText(err),true));});
