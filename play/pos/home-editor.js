@@ -3,7 +3,7 @@ const defaults={title_zh:'今晚，好事发生。',title_en:'Tonight, good thin
 const names={greeting:'首页标题',carousel:'轮播广告',games:'扫码游戏',claim:'领取奖励',shortcuts:'奖励入口',leaderboard:'排行榜'};
 const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','"':'&quot;'}[c]));
 const copy=x=>JSON.parse(JSON.stringify(x));
-const normalize=x=>({...copy(defaults),...x,blocks:Array.isArray(x?.blocks)&&x.blocks.length===6?x.blocks:copy(defaults.blocks),labels:{...copy(defaults.labels),...(x?.labels||{})}});
+const normalize=x=>({...copy(defaults),...x,blocks:Array.isArray(x?.blocks)&&x.blocks.length===6?x.blocks:copy(defaults.blocks),labels:{...copy(defaults.labels),...(x?.labels||{})},links:Array.isArray(x?.links)?x.links.slice(0,5):[]});
 export function createHomeEditor({db,root,notice}){
  let draft=copy(defaults),published=copy(defaults);
  const f=k=>root.querySelector('[data-key="'+k+'"]');
@@ -13,13 +13,15 @@ export function createHomeEditor({db,root,notice}){
   '<div class="pair"><label>主题金色<input type="color" data-key="accent"></label><label>轮播比例<select data-key="banner_ratio"><option>16/9</option><option>32/9</option><option>2/1</option><option>4/3</option></select></label></div>'+
   '<label>轮播显示<select data-key="banner_fit"><option value="contain">完整显示</option><option value="cover">铺满裁切</option></select></label>'+
   '<h3>版块排序与显示</h3><div id="homeLayoutBlocks"></div><h3>按钮名称（中文 / English）</h3><div id="homeLayoutLabels"></div>'+
+  '<h3>自定义跳转入口（最多五个）</h3><div id="homeLayoutLinks"></div><button type="button" class="quiet" id="homeLayoutAddLink">＋ 新增入口</button>'+ 
   '<h3>预览（未发布）</h3><div id="homeLayoutPreview" style="border:1px solid #a48a5966;padding:14px;border-radius:12px"></div>'+
   '<div class="button-row"><button type="button" id="homeLayoutSave" class="quiet">保存草稿</button><button type="button" id="homeLayoutPublish" class="main-button">发布到首页</button><button type="button" id="homeLayoutRollback" class="quiet">恢复已发布版</button></div><p id="homeLayoutStatus" role="status"></p></article>';
   ['title_zh','title_en','subtitle_zh','subtitle_en','accent','banner_ratio','banner_fit'].forEach(k=>{f(k).value=draft[k]||defaults[k];f(k).oninput=()=>{draft[k]=f(k).value;preview();};});
   root.querySelector('#homeLayoutSave').onclick=()=>save(false);
   root.querySelector('#homeLayoutPublish').onclick=()=>save(true);
   root.querySelector('#homeLayoutRollback').onclick=()=>{draft=copy(published);draw();};
-  blocks();labels();preview();
+  root.querySelector('#homeLayoutAddLink').onclick=()=>{if(draft.links.length>=5)return notice('最多添加五个入口',true);draft.links.push({zh:'自定义入口',en:'More',url:'https://yetipsy98-cpu.github.io/yetipsy-tonight/play/',enabled:true});links();preview();};
+  blocks();labels();links();preview();
  }
  function blocks(){
   const box=root.querySelector('#homeLayoutBlocks');
@@ -32,8 +34,16 @@ export function createHomeEditor({db,root,notice}){
   box.innerHTML=Object.keys(defaults.labels).map(k=>'<label>'+k+'<div class="pair"><input data-label="'+k+'" data-lang="zh" maxlength="60" value="'+safe(draft.labels[k]?.zh)+'"><input data-label="'+k+'" data-lang="en" maxlength="60" value="'+safe(draft.labels[k]?.en)+'"></div></label>').join('');
   box.oninput=e=>{const t=e.target;if(!t.dataset.label)return;draft.labels[t.dataset.label][t.dataset.lang]=t.value;preview();};
  }
- function preview(){const box=root.querySelector('#homeLayoutPreview');box.replaceChildren();const title=document.createElement('strong');title.textContent=draft.title_zh;box.append(title);for(const b of draft.blocks.filter(b=>b.visible)){const p=document.createElement('p');p.textContent=names[b.id];p.style.cssText='border:1px solid #d0af7245;padding:9px;border-radius:9px';box.append(p);}}
+ function links(){
+  const box=root.querySelector('#homeLayoutLinks');
+  box.innerHTML=draft.links.map((link,i)=>'<div class="home-design-link"><div class="pair"><label>中文名称<input data-link="'+i+'" data-prop="zh" maxlength="60" value="'+safe(link.zh||'')+'"></label><label>English<input data-link="'+i+'" data-prop="en" maxlength="60" value="'+safe(link.en||'')+'"></label></div><label>链接 URL<input data-link="'+i+'" data-prop="url" maxlength="500" value="'+safe(link.url||'')+'"></label><label class="checkline"><input type="checkbox" data-link="'+i+'" data-prop="enabled" '+(link.enabled!==false?'checked':'')+'>显示入口</label><button type="button" class="quiet" data-remove-link="'+i+'">移除</button></div>').join('');
+  box.oninput=e=>{const t=e.target;if(t.dataset.link===undefined)return;draft.links[Number(t.dataset.link)][t.dataset.prop]=t.type==='checkbox'?t.checked:t.value;preview();};
+  box.onchange=box.oninput;
+  box.onclick=e=>{const b=e.target.closest('[data-remove-link]');if(b){draft.links.splice(Number(b.dataset.removeLink),1);links();preview();}};
+ }
+ function preview(){const box=root.querySelector('#homeLayoutPreview');box.replaceChildren();const title=document.createElement('strong');title.textContent=draft.title_zh;box.append(title);for(const b of draft.blocks.filter(b=>b.visible)){const p=document.createElement('p');p.textContent=names[b.id];p.style.cssText='border:1px solid #d0af7245;padding:9px;border-radius:9px';box.append(p);}for(const link of draft.links.filter(x=>x.enabled!==false)){const el=document.createElement('p');el.textContent=(link.zh||link.en||'入口')+' ↗';box.append(el);}}
  async function save(publish){const status=root.querySelector('#homeLayoutStatus');status.textContent='保存中…';if(draft.blocks.every(b=>!b.visible)){status.textContent='至少显示一个模块';return;}
+  for(const link of draft.links){try{const url=new URL(link.url,location.href);if(!['http:','https:'].includes(url.protocol))throw Error('invalid_link');}catch{return notice('请填写有效的 HTTP(S) 页面地址',true);}}
   const res=await db.rpc('yt_home_layout_save',{p_layout:draft,p_publish:publish});if(res.error){status.textContent='保存失败：'+res.error.message;notice(status.textContent,true);return;}
   published=normalize(res.data.published);status.textContent=publish?'已发布，顾客刷新后生效':'草稿已保存，未影响顾客首页';notice(status.textContent);
  }

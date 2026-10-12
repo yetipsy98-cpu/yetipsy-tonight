@@ -73,3 +73,5 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 
 /* Receipt layout editor, both POS and preview use receipt-layout.js */
 .receipt-design-row{display:flex;gap:14px;justify-content:space-between;align-items:center;border:1px solid #ffffff26;border-radius:11px;padding:9px 12px;margin:8px 0}.receipt-design-row>div{display:flex;gap:5px}.receipt-design-row button{background:#2b3e30;color:#e8cf9e;border:1px solid #67755b;border-radius:8px;min-width:38px;padding:8px}.receipt-layout-group[hidden]{display:none!important}.receipt-layout-group{break-inside:avoid}.receipt-layout-group .receipt-row{break-inside:avoid}
+
+.home-design-link{border:1px solid #7f795951;padding:12px;border-radius:12px;margin:9px 0}.home-design-link input{width:100%}

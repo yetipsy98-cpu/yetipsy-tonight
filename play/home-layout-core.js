@@ -15,4 +15,15 @@ export function applyHomeLayout(root,data,language='zh'){
  const selector={game:'#heroScan',claim:'#homeRewardClaim strong',prizes:'#homePrizes strong',wallet:'#homeWallet strong',leaderboard:'#homeLeaderboard strong'};
  for(const key of Object.keys(selector)){const node=root.querySelector(selector[key]),text=data.labels?.[key]?.[lang];if(node&&typeof text==='string'&&text.trim())node.textContent=key==='game'?'▣ '+text+' ↗':text;}
  if(/^#[0-9a-f]{6}$/i.test(data.accent||''))root.style.setProperty('--gold',data.accent);
+ const oldLinks=root.querySelector('#homeOwnerLinks');
+ const list=oldLinks||document.createElement('div');list.id='homeOwnerLinks';list.className='home-owner-links';list.replaceChildren();
+ for(const item of (Array.isArray(data.links)?data.links.slice(0,5):[])){
+  if(item.enabled===false)continue;
+  let url;try{url=new URL(String(item.url||''),location.href);if(!['http:','https:'].includes(url.protocol))continue;}catch{continue;}
+  const link=document.createElement('a');link.href=url.href;link.textContent=String(item[lang]||item.zh||item.en||'更多')+' ↗';
+  if(url.origin!==location.origin){link.rel='noopener noreferrer';link.target='_blank';}
+  list.append(link);
+ }
+ root.append(list);
 }
+
