@@ -1,0 +1,22 @@
+name: Yetipsy V2.2 checks
+on:
+  push:
+    branches:
+      - 'fix/safe-reset-home-receipt-20261012'
+  pull_request:
+    branches: [main]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          for f in tests/*.test.cjs; do node "$f"; done
+      - run: |
+          for f in play/pos/pos.js play/pos/console.js play/pos/factory-reset.js play/pos/home-editor.js play/home-layout-init.js play/home-layout-core.js play/pos/receipt-layout.js play/pos/receipt-layout-editor.js play/pos/receipt-settings.js; do node --check "$f"; done
