@@ -142,7 +142,7 @@ begin
  else
   if exists(select 1 from public.yt_pos_pass_bundle_items x join public.yt_lucky_results r on r.pass_id=x.pass_id where x.bundle_id=v_ref)
    then raise exception 'lucky_already_opened';end if;
-  select coalesce(sum(i.unit_price_rm),0),min(x.pass_id) into v_box_gross,v_first
+  select coalesce(sum(i.unit_price_rm),0),(array_agg(x.pass_id order by x.pass_id))[1] into v_box_gross,v_first
    from public.yt_pos_pass_bundle_items x join public.game_passes p on p.id=x.pass_id
    join public.yt_pos_item_units u on u.order_item_id=x.order_item_id and u.unit_number=x.unit_number and u.game_pass_id=p.id
    join public.yt_member_order_items i on i.id=x.order_item_id
@@ -222,7 +222,7 @@ begin
   update public.game_passes set customer_id=actor,status='used',claimed_at=clock_timestamp(),used_at=clock_timestamp(),
    selection='points' where id=v_pass;
  else
-  select min(pass_id) into v_pass from public.yt_pos_pass_bundle_items where bundle_id=r.bundle_id;
+  select pass_id into v_pass from public.yt_pos_pass_bundle_items where bundle_id=r.bundle_id order by pass_id limit 1;
   if v_pass is null or exists(select 1 from public.yt_pos_pass_bundle_items x join public.game_passes p on p.id=x.pass_id
    where x.bundle_id=r.bundle_id and (p.customer_id is not null or p.lucky_mode<>'lucky' or p.status not in ('issued','expired')))
    then raise exception 'lucky_pass_not_available';end if;
