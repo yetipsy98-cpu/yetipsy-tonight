@@ -32,7 +32,8 @@ test('Store Box client uses the protected RPC workflow',()=>{
  assert.match(js,/p_components:components/);
  assert.match(js,/p_selection_mode:/);
  assert.match(js,/selectionText\(row\.selections\)/);
- assert.match(js,/本次共/);
+ assert.match(js,/存酒箱叫酒/);
+ assert.match(js,/kds-ticket/);
  assert.match(js,/storebox-history/);
  assert.doesNotMatch(js,/喝完/);
  assert.match(js,/确认已经出杯/);
@@ -45,14 +46,14 @@ test('Store Box client uses the protected RPC workflow',()=>{
 test('Package and challenge checkout issues the customer claim code immediately',()=>{
  const js=read('play/pos/pos.js');
  assert.match(js,/row\.status==='confirmed'&&row\.store_box_only/);
- assert.match(js,/直接结账并发领取码/);
+ assert.match(js,/收款并发领取码/);
  assert.match(js,/result\.store_box_claims\?\.length/);
  assert.match(js,/showCheckoutStoreBoxClaims/);
  assert.match(js,/url\.searchParams\.set\('box',claim\.claim_token\)/);
  for(const page of ['pos','owner','staff','cashier']){
   const html=read(`play/${page}/index.html`);
   assert.match(html,/id="orderCartClaims"/);
-  assert.match(html,/20261012-storebox-multi-v16-9/);
+  assert.match(html,/20261012-kds-v17/);
   assert.match(html,/id="storeBoxOrderQueue"/);
  }
 });

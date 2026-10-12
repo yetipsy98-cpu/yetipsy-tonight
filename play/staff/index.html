@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-Hans">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · 工作台</title><link rel="stylesheet" href="../pos/pos.css?v=20261012-storebox-multi-v16-9"><link rel="stylesheet" href="../reward-binding.css?v=20261010-storebox-v16-1">
-<link rel="stylesheet" href="../pos/console.css?v=20261012-storebox-multi-v16-9"><link rel="modulepreload" href="../pos/pos.js?v=20261012-storebox-multi-v16-9"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · 工作台</title><link rel="stylesheet" href="../pos/pos.css?v=20261012-kds-v17"><link rel="stylesheet" href="../reward-binding.css?v=20261010-storebox-v16-1">
+<link rel="stylesheet" href="../pos/console.css?v=20261012-kds-v17"><link rel="modulepreload" href="../pos/pos.js?v=20261012-kds-v17"></head>
 <body data-entry="work" data-unified="true">
 <header class="site-head"><div class="logo">YE<span>·</span>TIPSY<small>POINT OF SALE · KLUANG</small></div><div class="site-head-actions"><span id="accountName" class="account-tag">WORK ACCOUNT</span><details id="accountMenu" class="account-menu hidden"><summary>账号 ⌄</summary><div><button type="button" class="hidden" data-cashier-tool="dayclose">营业日结</button><button type="button" data-go-tab="reset">顾客 PIN 重设</button><button type="button" id="logout" class="quiet hidden">退出登录</button></div></details></div></header>
 <main class="root">
@@ -9,7 +9,7 @@
 <section id="dashboard" class="hidden">
  <div class="intro"><div><p class="kicker">LIVE SERVICE WORKSPACE</p><h1 id="workspaceTitle">工作台</h1><p id="workspaceSubtitle" class="muted">点单 · 出品 · 结账 · Game Pass</p></div><div id="permissionPill" class="pill">STAFF</div></div>
  <div class="alert-card hidden" id="pendingBanner" role="status"><div><strong id="pendingBannerTitle">有新的订单需要接受</strong><p id="pendingBannerText">Cashier 请检查顾客订单。</p></div><button id="jumpPending" class="gold-button" type="button">立即查看 →</button></div>
- <nav class="tabs" id="nav" aria-label="工作台功能"></nav><nav id="orderTabs" class="subtabs hidden" aria-label="订单状态"><button type="button" id="orderPendingTab" data-go-tab="pending">待审核</button><button type="button" data-go-tab="orders">处理中</button><button type="button" data-go-tab="history">已结账</button><button type="button" class="hidden" data-cashier-tool="dayclose">日结</button></nav>
+ <nav class="tabs" id="nav" aria-label="工作台功能"></nav><nav id="orderTabs" class="subtabs hidden" aria-label="订单状态"><button type="button" id="orderPendingTab" data-go-tab="pending">待审核</button><button type="button" data-go-tab="orders">吧台 KDS</button><button type="button" id="orderUnpaidTab" data-go-tab="unpaid">挂单</button><button type="button" data-go-tab="history">已结账</button><button type="button" class="hidden" data-cashier-tool="dayclose">日结</button></nav>
  <section id="tab-create" class="tab-view">
    <div class="two-column">
     <article class="card"><div class="block-head"><div><p class="kicker">CREATE NEW ORDER</p><h2>选择产品</h2></div><span class="mini-chip">按产品计价</span></div>
@@ -27,6 +27,7 @@
      </div>
      <div class="draft-totals"><div><span>商品原价（含赠饮）</span><b id="draftGross">RM0.00</b></div><div class="discount"><span>奖励优惠</span><b id="draftDiscount">−RM0.00</b></div></div>
      <div class="summary"><span>预计应收</span><strong id="cartTotal">RM0.00</strong></div><div class="draft-status-row"><p id="draftStatus" class="field-note" role="status"></p><button id="draftRefresh" type="button" class="quiet">重新核对</button></div>
+     <fieldset class="checkout-mode"><legend>付款安排</legend><label><input id="checkoutPayNow" type="radio" name="checkoutMode" value="pay_now"><span><strong>直接付</strong><small>下单后立即收款</small></span></label><label><input id="checkoutPayLater" type="radio" name="checkoutMode" value="pay_later" checked><span><strong>后付 / 挂单</strong><small>出品后再收款</small></span></label></fieldset>
      <label id="cashierCreateChoice" class="checkline hidden"><input id="cashierDirect" type="checkbox"> <span>Cashier 自开单 · 自动接受</span></label>
      <p id="createHint" class="field-note">提交后等待 Cashier 接单。</p>
      <button type="button" id="createOrderBtn" class="main-button">提交订单 →</button>
@@ -36,7 +37,8 @@
    <button type="button" id="cartDock" class="cart-dock" aria-controls="checkoutDrawer" aria-expanded="false"><span class="cart-dock-icon">▤</span><span class="cart-dock-info"><strong>本次开单 <span id="cartDockCount">0 件</span></strong><small>点击查看／修改购物车</small></span><b id="cartDockTotal">RM0.00</b><span class="cart-dock-chevron">⌃</span></button>
  </section>
  <section id="tab-pending" class="tab-view hidden"><article class="card"><div class="block-head"><div><p class="kicker">CASHIER APPROVAL QUEUE</p><h2>待接受的新订单 <span id="pendingCount" class="count">0</span></h2></div><button type="button" class="quiet" id="refreshPending">刷新</button></div><div id="pendingList" class="orders-list"></div></article></section>
- <section id="tab-orders" class="tab-view hidden"><article class="card bar-hub"><div class="block-head"><div><p class="kicker">BAR REQUESTS</p><h2>吧台叫酒</h2></div></div><div id="storeBoxOrderQueue" class="storebox-stack"><div class="empty">正在读取叫酒请求…</div></div></article><article class="card"><div class="block-head"><div><p class="kicker">SERVICE & PAYMENT</p><h2>现场订单</h2></div><button type="button" class="quiet" id="refreshOrders">刷新</button></div><div id="activeList" class="orders-list"></div></article></section>
+ <section id="tab-orders" class="tab-view hidden"><article class="card kds-hub"><div class="block-head"><div><p class="kicker">BAR KDS</p><h2>吧台出品 <span id="kdsCount" class="count">0</span></h2></div><button type="button" class="quiet" id="refreshOrders">刷新</button></div><div id="kdsBoard" class="kds-board"><div id="storeBoxOrderQueue" class="kds-list"></div><div id="activeList" class="kds-list"></div><div id="kdsEmpty" class="empty">目前没有待出品项目。</div></div></article></section>
+ <section id="tab-unpaid" class="tab-view hidden"><article class="card"><div class="block-head"><div><p class="kicker">OPEN TABS</p><h2>挂单 · 待付款 <span id="unpaidCount" class="count">0</span></h2></div><button type="button" class="quiet" id="refreshUnpaid">刷新</button></div><div id="unpaidList" class="orders-list"></div></article></section>
  <section id="tab-history" class="tab-view hidden"><article class="card"><div class="block-head"><div><p class="kicker">PAID RECEIPTS</p><h2>已结账记录</h2></div><button type="button" class="quiet" id="refreshHistory">刷新</button></div><form id="paidDateForm" class="report-range"><label>营业日<input id="paidDate" type="date"></label><button type="submit">查看</button><button type="button" id="paidToday">今天</button></form><div id="paidList" class="orders-list"></div></article></section>
 
  <section id="tab-benefits" class="tab-view hidden"><article class="card"><div class="block-head"><div><p class="kicker">GAME PASS</p><h2>分配 Game Pass</h2></div><button type="button" class="quiet" id="refreshBenefits">刷新</button></div>

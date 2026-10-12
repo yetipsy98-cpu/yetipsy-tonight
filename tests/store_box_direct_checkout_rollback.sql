@@ -28,12 +28,12 @@ begin
  insert into public.yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm)
  values(mixed_order,normal_product,'rollback normal drink',1,20);
  q:=public.yt_pos_cart_summary(mixed_order);
- if (q->>'store_box_only')::boolean or (q->>'can_pay')::boolean then raise exception 'mixed_order_bypassed_serve';end if;
- begin perform public.yt_pos_action(mixed_order,'paid',null,'cash');raise exception 'expected_failure';
- exception when others then if sqlerrm<>'order_not_served' then raise;end if;end;
- perform public.yt_pos_action(mixed_order,'fulfilled');
+ if (q->>'store_box_only')::boolean or not (q->>'can_pay')::boolean then raise exception 'mixed_order_not_prepaid_ready';end if;
  r:=public.yt_pos_action(mixed_order,'paid',null,'cash');
- if jsonb_array_length(r->'store_box_claims')<>1 then raise exception 'mixed_package_claim_not_issued';end if;
+ if r->>'status'<>'confirmed' or r->>'payment_status'<>'paid' or jsonb_array_length(r->'store_box_claims')<>0 then raise exception 'mixed_prepayment_left_kds';end if;
+ if exists(select 1 from public.yt_store_boxes where source_order_item_id=mixed_item) then raise exception 'mixed_package_issued_before_serve';end if;
+ r:=public.yt_pos_action(mixed_order,'fulfilled');
+ if r->>'status'<>'fulfilled' or jsonb_array_length(r->'store_box_claims')<>1 then raise exception 'mixed_package_claim_not_issued';end if;
  if not exists(select 1 from public.yt_store_boxes where source_order_item_id=mixed_item) then raise exception 'mixed_package_box_missing';end if;
 end $$;
 rollback;

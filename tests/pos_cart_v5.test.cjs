@@ -43,7 +43,7 @@ function harness(role='staff') {
   } else if(name==='yt_pos_preorder_choose'){
    Object.assign(backend.holds.find(h=>h.id===args.p_hold),{state:'chosen',discount_rm:5,chosen_product_id:args.p_product,chosen_unit:args.p_unit,chosen_product_name:'Test drink',valid:true});data={ok:true};
   } else if(name==='yt_pos_preorder_release'){backend.holds=backend.holds.filter(h=>h.id!==args.p_hold);data=true;
-  } else if(name==='yt_pos_create_order_with_rewards'){
+  } else if(name==='yt_pos_create_order_with_rewards_v2'){
    if(backend.reject)return {error:{code:'P0001',message:'reward_reserved_by_other_order'}};
    if(!backend.orders.has(args.p_request)){backend.orders.set(args.p_request,{id:webcrypto.randomUUID(),order_no:'YT-TEST-1',status:args.p_channel==='cashier'?'confirmed':'pending',reward_cart:{attached:backend.holds.length}});backend.holds=[];}
    data=backend.orders.get(args.p_request);
@@ -77,10 +77,10 @@ async function run(){
  // Server committed but response was lost: replay the exact payload after a page reload.
  h.e.tableInput.value='A03';h.backend.timeout=true;await h.api.createOrder();assert.equal(h.backend.orders.size,1);assert(h.api.state.pendingSubmit);assert.equal(h.e.tableInput.disabled,true);assert.equal(h.e.createOrderBtn.disabled,false);
  const original=structuredClone(h.api.state.pendingSubmit);h.api.adjustCart(P,1);assert.equal(h.api.state.cart.get(P),2);h.api.restoreDraft();assert.equal(JSON.stringify(h.api.state.pendingSubmit),JSON.stringify(original));h.e.tableInput.value='changed';await h.api.createOrder();
- const submits=h.backend.calls.filter(c=>c.name==='yt_pos_create_order_with_rewards');assert.equal(submits.length,2);assert.deepEqual(submits[0].args,submits[1].args);assert.equal(h.backend.orders.size,1);assert.equal(h.api.state.pendingSubmit,null);assert.equal(h.api.state.cart.size,0);
+ const submits=h.backend.calls.filter(c=>c.name==='yt_pos_create_order_with_rewards_v2');assert.equal(submits.length,2);assert.deepEqual(submits[0].args,submits[1].args);assert.equal(submits[0].args.p_checkout_mode,'pay_later');assert.equal(h.backend.orders.size,1);assert.equal(h.api.state.pendingSubmit,null);assert.equal(h.api.state.cart.size,0);
  // A definite database rejection unlocks the draft so the reward can be corrected.
  h=harness('cashier');h.api.state.cart.set(P,1);h.e.cashierDirect.checked=true;await h.api.refreshDraftSummary();h.backend.reject=true;await h.api.createOrder();assert.equal(h.api.state.pendingSubmit,null);assert.equal(h.e.tableInput.disabled,false);assert.equal(h.backend.orders.size,0);
- h.backend.reject=false;await h.api.createOrder();assert.equal(h.backend.calls.filter(c=>c.name==='yt_pos_create_order_with_rewards').at(-1).args.p_channel,'cashier');
+ h.backend.reject=false;await h.api.createOrder();const cashierSubmit=h.backend.calls.filter(c=>c.name==='yt_pos_create_order_with_rewards_v2').at(-1);assert.equal(cashierSubmit.args.p_channel,'cashier');assert.equal(cashierSubmit.args.p_checkout_mode,'pay_later');
  // Browser without BarcodeDetector uses decoded pixel data rather than losing camera support.
  h=harness();let decoded=false;h.context.window.jsQR=(pixels,width,height)=>{decoded=pixels.length===16&&width===640&&height===480;return {data:'redeem:'+T};};const decode=await h.api.qrDecoder();assert.equal(await decode({videoWidth:1280,videoHeight:960}),'redeem:'+T);assert(decoded);
  assert(!h.backend.calls.some(c=>c.name==='yt_pos_cart_reserve'),'cart flow must not use post-order reservation');
