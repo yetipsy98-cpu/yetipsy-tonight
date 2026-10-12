@@ -2,7 +2,7 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261012-reset-fix-v23';
+import {createConsole} from './console.js?v=20261012-moon-manual-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261012-kds-v17';
 
