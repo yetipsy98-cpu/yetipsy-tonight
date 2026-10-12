@@ -1,6 +1,8 @@
-const $=(root,selector)=>root.querySelector(selector);
+// Selector must be scoped to the mounted Owner drawer. The previous two-argument
+// helper was called with one argument, causing mount() to throw before the RPC.
 const toNumber=(n,d)=>Number.isFinite(Number(n))?Number(n):d;
 export function createLuckyOwner({db,root,notice,isOwner}){
+ const $=selector=>root.querySelector(selector);
  let busy=false,loaded=false;
  const fields=['base_points_per_rm','cap_points_per_rm','minimum_spend_rm','claim_minutes'];
  const modes=[['game','GAME · 原有小游戏'],['lucky','LUCKY BOX · 开箱积分'],['off','OFF · 暂停发码']];
