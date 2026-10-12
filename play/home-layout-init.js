@@ -1,3 +1,4 @@
+import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {applyHomeLayout,homeBlocks} from './home-layout-core.js?v=20261012-v22';
 export function startHomeLayout({db,language}){
  const root=document.getElementById('homePage');
@@ -13,4 +14,13 @@ export function startHomeLayout({db,language}){
  if(carousel)new MutationObserver(apply).observe(carousel,{childList:true,subtree:true});
  apply();
  return{refresh,apply};
+}
+
+const config=window.YETIPSY_PLAY_CONFIG||{};
+if(config.url&&config.publishableKey){
+ const client=createClient(config.url,config.publishableKey,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
+ const ui=startHomeLayout({db:client,language:()=>localStorage.getItem('yt-client-language')==='en'?'en':'zh'});
+ ui.refresh().catch(error=>console.warn('Home settings unavailable:',error.message));
+ document.getElementById('languageToggle')?.addEventListener('click',()=>queueMicrotask(ui.apply));
+ document.querySelector('[data-page="home"]')?.addEventListener('click',()=>setTimeout(ui.apply,30));
 }
