@@ -1,7 +1,7 @@
 name: Yetipsy Moon manual voucher checks
 on:
   push:
-    branches: ['feat/manual-moon-guest-vouchers-20261012']
+    branches: ['feat/manual-moon-guest-vouchers-20261012', 'fix/moon-owner-blank-20261012']
   pull_request:
     branches: [main]
 jobs:
