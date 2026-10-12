@@ -31,6 +31,8 @@ test('Store Box client uses the protected RPC workflow',()=>{
  assert.match(js,/data-box-selection/);
  assert.match(js,/p_components:components/);
  assert.match(js,/p_selection_mode:/);
+ assert.match(js,/selectionText\(row\.selections\)/);
+ assert.match(js,/本次共/);
  assert.match(js,/storebox-history/);
  assert.doesNotMatch(js,/喝完/);
  assert.match(js,/确认已经出杯/);
@@ -50,7 +52,7 @@ test('Package and challenge checkout issues the customer claim code immediately'
  for(const page of ['pos','owner','staff','cashier']){
   const html=read(`play/${page}/index.html`);
   assert.match(html,/id="orderCartClaims"/);
-  assert.match(html,/20261012-storebox-combo-v16-8/);
+  assert.match(html,/20261012-storebox-multi-v16-9/);
   assert.match(html,/id="storeBoxOrderQueue"/);
  }
 });

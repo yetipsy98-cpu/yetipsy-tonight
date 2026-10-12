@@ -3,7 +3,7 @@ import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v1
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261010-storebox-v16-1';
-import {createStoreBox} from './store-box.js?v=20261012-storebox-combo-v16-8';
+import {createStoreBox} from './store-box.js?v=20261012-storebox-multi-v16-9';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.

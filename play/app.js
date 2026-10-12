@@ -3,7 +3,7 @@ import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=202
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from './owner-banners.js?v=20261010-copy-v15-4';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
-import {createCustomerStoreBox} from './customer-store-box.js?v=20261012-storebox-combo-v16-8';
+import {createCustomerStoreBox} from './customer-store-box.js?v=20261012-storebox-multi-v16-9';
 
 const $=id=>document.getElementById(id);
 const urlConfig=window.YETIPSY_PLAY_CONFIG||{};
