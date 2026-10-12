@@ -30,7 +30,15 @@ export function createFactoryReset({work,notice,onReset}){
   e.preventDefault();if(running||!challenge||!$('factoryConsent').checked)return;lock(true);$('factoryStatus').textContent='正在验证第二次密码…';
   const password=$('factoryPassword2').value;$('factoryPassword2').value='';
   try{const res=await work('reset_confirm',{password,challenge},true);const job={challenge:res.challenge,scopes:res.scopes};saveJob(job);await finish(job);}
-  catch(e){notice(e.message||'重置未完成，请重试',true);$('factoryStatus').textContent=savedJob()?'所选数据已清空，重新打开此抽屉可继续清理。':'未收到完成结果。请重试第二次确认；同一次确认不会重复清空。';}finally{lock(false);}
+  catch(e){
+   const raw=e?.message||'server_unavailable';
+   const translations={reset_database_error:'数据库未能完成重置，本次没有清空资料；请检查错误日志。',reset_confirmation_expired:'本次确认已超过 5 分钟，请重新选择范围并验证密码。',reset_cleanup_pending:'上一次重置尚有清理工作，请先恢复。',invalid_credentials:'第二次输入的 Owner 密码不正确。',storebox_member_reset_blocked:'还有存酒箱关联会员，不能仅清空会员。',too_many_attempts:'密码尝试次数过多，请稍后重试。',reset_verification_failed:'密码验证服务异常，请稍后重试。',server_unavailable:'服务器暂时无法执行重置，尚未确认完成。'};
+   const message=translations[raw]||raw;
+   notice(message,true);
+   const pendingCleanup=!!savedJob();
+   $('factoryStatus').textContent=pendingCleanup?'业务重置已提交，但文件／账号清理未完成；重新打开可继续。': '第二次确认失败：'+message;
+   if(raw==='reset_confirmation_expired'){challenge=null;$('factoryPrepareForm').classList.remove('hidden');$('factoryConfirmForm').classList.add('hidden');$('factoryConfirmForm').reset();}
+  }finally{lock(false);}
  };
  $('factoryCancel').onclick=cancel;syncScopes();
  return {cancel,resume,get busy(){return running;}};

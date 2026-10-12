@@ -1,4 +1,4 @@
-import {createFactoryReset} from './factory-reset.js?v=20261010-copy-v15-4';
+import {createFactoryReset} from './factory-reset.js?v=20261012-reset-fix-v23';
 const $=id=>document.getElementById(id);
 const titles={catalog:'商品与系列',storebox:'存酒箱',rewards:'奖励',team:'团队与权限',campaign:'活动与奖池',loyalty:'会员与积分',banners:'轮播广告',insights:'报表中心',receipt:'账单样式',home:'客户端设计',factory:'系统重置',pin:'顾客 PIN 重设',dayclose:'营业日结'};
 export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,loadRights,loadStoreBoxOwner,notice,onReset,onOrdersChanged,getBusinessDay,onOwnerEdit}){

@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const root=fs.readFileSync('play/pos/factory-reset.js','utf8');
+const sql=fs.readFileSync('sql/050_repair_owner_reset_where_guards.sql','utf8');
+const client=fs.readFileSync('play/pos/pos.js','utf8');
+const consoleSrc=fs.readFileSync('play/pos/console.js','utf8');
+assert.match(client,/console\.js\?v=20261012-reset-fix-v23/);
+assert.match(consoleSrc,/factory-reset\.js\?v=20261012-reset-fix-v23/);
+assert.match(root,/reset_database_error/);
+assert.match(root,/reset_confirmation_expired/);
+assert.doesNotMatch(root,/未收到完成结果。请重试第二次确认/);
+assert.match(sql,/update public\.yt_loyalty_config set welcome_enabled=false,referral_enabled=false,updated_at=now\(\) where true/);
+assert.match(sql,/update public\.games set points_max=100,reaction_perfect_ms=200,reaction_zero_ms=1000 where true/);
+assert.match(sql,/delete from public\.yt_point_shop_items where true/);
+assert.match(sql,/update public\.yt_store_boxes b[\s\S]*?where b\.source_order_id=o\.id/);
+assert.doesNotMatch(sql,/delete from public\.[a-z_]+;/i);
+console.log('PASS: Reset SQL safe-update guards and descriptive second-confirmation errors.');
