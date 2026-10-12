@@ -66,14 +66,16 @@ begin
  perform public.yt_store_box_request_action(drink_request,'serve',0,'');
  if not exists(select 1 from public.yt_store_boxes where id=box and served_units=2 and completed_units=0 and total_units-served_units=4) then raise exception 'served_completed_not_separate';end if;
 
- -- A challenge may request the next drinks even when the prior drinks are not marked completed.
+ -- A challenge may request the next drinks without a separate completion counter.
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',member_id)::text,true);
  r:=public.yt_store_box_request(box,2,gen_random_uuid(),'T9');drink_request:=(r->>'id')::uuid;
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',staff_id)::text,true);
  perform public.yt_store_box_request_action(drink_request,'accept',0,'');
- perform public.yt_store_box_request_action(drink_request,'serve',1,'');
- perform public.yt_store_box_progress(box,'complete',2);
- if not exists(select 1 from public.yt_store_boxes where id=box and served_units=4 and completed_units=3) then raise exception 'progress_wrong';end if;
+ perform public.yt_store_box_request_action(drink_request,'serve',99,'');
+ if not exists(select 1 from public.yt_store_boxes where id=box and served_units=4 and completed_units=0) then raise exception 'served_balance_wrong';end if;
+ begin
+  perform public.yt_store_box_progress(box,'complete',2);raise exception 'expected_failure';
+ exception when others then if sqlerrm<>'store_box_progress_retired' then raise;end if;end;
  if (select count(*) from public.game_passes)<>before_passes then raise exception 'package_created_gamepass';end if;
 end $$;
 ROLLBACK;

@@ -19,13 +19,16 @@ test('all work roles can open Store Box without a separate page',()=>{
  assert.match(js,/\['storebox','存酒箱'\]/);
  assert.match(js,/tab==='storebox'\)storeBox\?\.loadStaff/);
  assert.match(js,/createStoreBox\(\{db,ownerRoot:/);
+ assert.match(js,/loadOrderQueue\(silent\)/);
+ assert.match(js,/has-alert/);
 });
 
 test('Store Box client uses the protected RPC workflow',()=>{
  const js=read('play/pos/store-box.js');
  for(const name of ['yt_store_box_rule_list','yt_store_box_rule_save','yt_store_box_issue_orders','yt_store_box_issue_quote','yt_store_box_issue','yt_store_box_claims_active','yt_store_box_claim_cancel','yt_store_box_queue','yt_store_box_staff_boxes','yt_store_box_request_action','yt_store_box_progress'])assert.ok(js.includes(name),name);
  assert.match(js,/p_game_pass_enabled:false/);
- assert.match(js,/同时确认已喝完几杯/);
+ assert.doesNotMatch(js,/喝完/);
+ assert.match(js,/确认已经出杯/);
  assert.match(js,/全店待领取码/);
  assert.match(js,/addEventListener\('submit'/);
  assert.match(js,/event\.preventDefault\(\)/);
@@ -42,6 +45,7 @@ test('Package and challenge checkout issues the customer claim code immediately'
  for(const page of ['pos','owner','staff','cashier']){
   const html=read(`play/${page}/index.html`);
   assert.match(html,/id="orderCartClaims"/);
-  assert.match(html,/20261012-direct-checkout-v16-6/);
+  assert.match(html,/20261012-bar-hub-v16-7/);
+  assert.match(html,/id="storeBoxOrderQueue"/);
  }
 });

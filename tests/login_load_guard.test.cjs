@@ -11,7 +11,7 @@ function exercise(file,flag,formIds){
  const source=scripts.find(script=>script.includes(flag));
  assert.ok(source,file+' has an early login guard');
  assert.match(html,/rel="modulepreload"/);
- assert.match(html,/202610(?:11-login-v16-4|12-direct-checkout-v16-6)/);
+ assert.match(html,/202610(?:11-login-v16-4|12-direct-checkout-v16-6|12-bar-hub-v16-7)/);
  const listeners=new Map(),elements=new Map();
  for(const id of formIds)elements.set(id,{addEventListener:(name,fn)=>listeners.set(id+':'+name,fn)});
  elements.set('notice',{textContent:'',classList:{add(){},remove(){}}});

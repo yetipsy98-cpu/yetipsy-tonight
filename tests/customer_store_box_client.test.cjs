@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const html=fs.readFileSync('play/index.html','utf8'),app=fs.readFileSync('play/app.js','utf8'),moduleSource=fs.readFileSync('play/customer-store-box.js','utf8');
 
 test('customer has one compact Store Box page in the main navigation',()=>{
- assert.match(html,/id="storeboxPage"/);assert.match(html,/id="customerStoreBoxRoot"/);assert.match(html,/data-page="storebox"/);assert.match(html,/20261010-storebox-v16-2/);
+ assert.match(html,/id="storeboxPage"/);assert.match(html,/id="customerStoreBoxRoot"/);assert.match(html,/data-page="storebox"/);assert.match(html,/20261012-bar-hub-v16-7/);
  const ids=[...html.matchAll(/id="([^"]+)"/g)].map(match=>match[1]);assert.equal(ids.length,new Set(ids).size);
 });
 
@@ -24,4 +24,11 @@ test('lost request response reuses the exact original request',()=>{
 test('customer Store Box uses only protected RPC operations',()=>{
  for(const name of ['yt_store_box_claim_preview','yt_store_box_claim','yt_my_store_boxes','yt_store_box_request','yt_store_box_request_cancel'])assert(moduleSource.includes(`'${name}'`),name);
  assert(moduleSource.includes('p_request:frozen.request'));assert(!moduleSource.includes("db.from('yt_store_boxes')"));
+});
+
+test('customer Store Box only shows remaining and served quantities',()=>{
+ assert.doesNotMatch(moduleSource,/已喝完/);
+ assert.doesNotMatch(moduleSource,/喝完后/);
+ assert.match(moduleSource,/剩余/);
+ assert.match(moduleSource,/已出/);
 });
