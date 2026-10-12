@@ -1,3 +1,4 @@
+import {createLuckyBox} from './lucky-box.js?v=20261012-lucky-v1';
 import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
 import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
@@ -13,9 +14,9 @@ const db=configured?createClient(urlConfig.url,urlConfig.publishableKey,{auth:{p
 const EDGE_URL=(urlConfig.url||'')+'/functions/v1/yt-pin-auth';
 const MY_TZ='Asia/Kuala_Lumpur';
 const rewardBindingEditor=createRewardBindingEditor({db,root:$('rewardBindingRoot')});
-const state={user:null,role:null,profile:null,view:'home',games:[],passes:[],wallet:[],rewards:[],campaigns:[],ownerGames:[],pool:[],assigned:[],busy:false,refreshing:false,activeSession:null,currentRedemption:null,currentOffer:null,board:[],staffRoles:[],handleToken:null,loginMode:'phone',checkedPhone:null,pendingClaim:null,gamePlaying:false,referralDraft:'',loyalty:null};
+const state={user:null,role:null,profile:null,view:'home',games:[],passes:[],wallet:[],rewards:[],campaigns:[],ownerGames:[],pool:[],assigned:[],busy:false,refreshing:false,activeSession:null,currentRedemption:null,currentOffer:null,board:[],staffRoles:[],handleToken:null,loginMode:'phone',checkedPhone:null,pendingClaim:null,pendingLucky:null,gamePlaying:false,referralDraft:'',loyalty:null};
 let scanner=null,scannerRunning=false,qrLibPromise=null,barcodeLibPromise=null;
-let customerStoreBox=null;
+let customerStoreBox=null,luckyBox=null;
 const i18n=createClientI18n({button:$('languageToggle'),onChange:()=>{updateHome();renderWallet();renderMyLoyalty();customerStoreBox?.load(true).catch(()=>{});}});
 const tr=(key,vars)=>i18n.t(key,vars);
 const uuid=()=>crypto.randomUUID();
@@ -102,6 +103,7 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
   await initialize();toast(signup?'欢迎加入 Yetipsy Play ✳':'欢迎回来 ✳');
    if(signup){state.referralDraft='';const next=new URL(location.href);next.searchParams.delete('invite');history.replaceState(null,'',next.href);}
    loadMyLoyalty().catch(()=>{});
+   if(state.pendingLucky){const claim=state.pendingLucky;state.pendingLucky=null;try{await luckyBox.claimPending(claim);}catch(e){toast(errorText(e),true);}}
    if(state.pendingClaim){const claim=state.pendingClaim;state.pendingClaim=null;try{await (['claim','bundle'].includes(claim.kind)?previewClaim(claim.token,claim.kind):redeemScanValue(claim.token,claim.kind));}catch(e){toast(errorText(e),true);}}
  });
 }catch(err){$('authError').textContent=errorText(err);}}
@@ -188,6 +190,7 @@ function retryId(key){let prev=requestStore.get('v11:'+key);if(prev)return prev;
 async function previewClaim(raw,assumed=null){
  const info=tokenDetails(raw);if(assumed&&info.kind!=='gift_code')info.kind=assumed;
  if(info.kind==='box'){if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录或注册后，即可领取这个存酒箱。';window.scrollTo(0,0);return;}return customerStoreBox.openClaim(info.token);}
+ if(['claim','bundle'].includes(info.kind)&&await luckyBox?.preview(info.token,info.kind))return;
  if(info.kind==='gift_code')return redeemScanValue(info.token);
  if(info.kind==='redeem'){if(!state.user||!isStaff())throw Error('请由店员扫码核销奖励');return redeemScanValue(info.token,'redeem');}
  const data=info.kind==='bundle'?{...unpack(await db.rpc('yt_pos_bundle_preview',{p_token:info.token})),title:'整单 Game Pass',description:'一次领取这张订单分配给你的游戏权益。',rules:'同一会员一次领取；领取后3天内有效，可稍后玩，POS 不能重复发放。'}:(await pinRequest('preview','','','',{kind:info.kind,token:info.token})).preview;
@@ -706,7 +709,7 @@ function bindEvents(){
  $('ownerOpenPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('reloadInsights').onclick=e=>pending(e.currentTarget,loadInsights).catch(()=>{});$('staffAccessGrant').onclick=e=>pending(e.currentTarget,grantStaff).catch(()=>{});
 }
-async function boot(){i18n.apply();bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
+async function boot(){i18n.apply();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
  db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();shell(false);changeAuthMode('phone');}});
