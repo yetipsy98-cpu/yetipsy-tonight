@@ -1,8 +1,8 @@
 const $=id=>document.getElementById(id);
-const labels={records:'营业与发放记录',members:'会员账号',catalog:'菜单与系列',campaigns:'活动与奖励设置',team:'其他工作账号',banners:'轮播广告'};
+const labels={records:'营业与发放记录',members:'会员账号',catalog:'菜单与系列',campaigns:'活动与奖励设置',team:'其他工作账号',banners:'轮播广告',storebox:'存酒箱与叫酒记录'};
 export function createFactoryReset({work,notice,onReset}){
  let challenge=null,running=false;
- const key='yt-owner-reset-cleanup-v7',choices=[...$('factoryChoices').querySelectorAll('[data-reset-scope]')];
+ const key='yt-owner-reset-cleanup-v9',choices=[...$('factoryChoices').querySelectorAll('[data-reset-scope]')];
  function syncScopes(){const dependent=choices.some(el=>el.checked&&['members','catalog','campaigns','team'].includes(el.dataset.resetScope));if(dependent)$('scopeRecords').checked=true;$('scopeRecords').disabled=running||dependent;$('factoryDependencies').textContent=dependent?'所选范围包含相关营业记录，已自动勾选，避免保留失效引用。':'';}
  function cancel(){if(running)return;challenge=null;$('factoryPrepareForm').reset();$('factoryConfirmForm').reset();$('factoryPrepareForm').classList.remove('hidden');$('factoryConfirmForm').classList.add('hidden');$('factoryScope').replaceChildren();$('factoryStatus').textContent='';syncScopes();}
  function lock(value){running=value;for(const form of [$('factoryPrepareForm'),$('factoryConfirmForm')])for(const el of form.querySelectorAll('input,button'))el.disabled=value;$('toolDrawerClose').disabled=value;syncScopes();}
@@ -15,7 +15,7 @@ export function createFactoryReset({work,notice,onReset}){
  }
  async function resume(){lock(true);try{const job=savedJob()||await work('reset_status',{},true);if(!job?.challenge)return;await finish(job);}catch(e){$('factoryStatus').textContent='清理未完成，请重新打开系统重置继续。';notice(e.message||'清理暂时失败',true);}finally{lock(false);}}
  $('factoryChoices').onchange=syncScopes;
- $('factorySelectAll').onclick=()=>{const all=choices.every(el=>el.checked);for(const el of choices)el.checked=!all;syncScopes();};
+ $('factorySelectAll').onclick=()=>{const common=choices.filter(el=>el.dataset.resetScope!=='storebox');const all=common.every(el=>el.checked);for(const el of common)el.checked=!all;syncScopes();};
  $('factoryPrepareForm').onsubmit=async e=>{
   e.preventDefault();if(running)return;syncScopes();const scopes=choices.filter(el=>el.checked).map(el=>el.dataset.resetScope);if(!scopes.length){notice('请先选择清空范围',true);return;}lock(true);$('factoryStatus').textContent='正在验证…';
   const password=$('factoryPassword1').value;$('factoryPassword1').value='';
@@ -24,7 +24,7 @@ export function createFactoryReset({work,notice,onReset}){
    for(const [label,count] of Object.entries(res.counts||{})){const row=document.createElement('p');row.textContent=label+'：'+count;scope.append(row);}
    const expiry=document.createElement('p');expiry.textContent='范围已锁定，5 分钟内有效。当前 Owner 与内置游戏保留。';scope.append(expiry);
    $('factoryPrepareForm').classList.add('hidden');$('factoryConfirmForm').classList.remove('hidden');$('factoryStatus').textContent='核对上述范围后，输入第二次密码确认。';
-  }catch(e){notice(e.message||'密码验证失败',true);$('factoryStatus').textContent='验证失败，尚未清空任何记录。';}finally{lock(false);if(challenge)$('factoryPassword2').focus();}
+  }catch(e){const msg=({storebox_member_reset_blocked:'存酒箱仍关联会员；如需删除会员，必须独立勾选并清空存酒箱。',invalid_credentials:'密码不正确',reset_cleanup_pending:'上次重置清理未完成，请先恢复',reset_verification_failed:'登录验证服务暂时失败',too_many_attempts:'重试次数过多，请稍后再试',invalid_reset_scope:'所选范围无效'}[e.message]||e.message||'重置预检失败');notice(msg,true);$('factoryStatus').textContent='未清空任何记录：'+msg;}finally{lock(false);if(challenge)$('factoryPassword2').focus();}
  };
  $('factoryConfirmForm').onsubmit=async e=>{
   e.preventDefault();if(running||!challenge||!$('factoryConsent').checked)return;lock(true);$('factoryStatus').textContent='正在验证第二次密码…';
