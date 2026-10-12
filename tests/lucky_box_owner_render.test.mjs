@@ -1,5 +1,5 @@
-const assert=require('node:assert/strict');
-const fs=require('node:fs');
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
 const source=fs.readFileSync('play/pos/lucky-box-owner.js','utf8');
 const {createLuckyOwner}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const defaults={mode:'game',base_points_per_rm:1.8,cap_points_per_rm:5,minimum_spend_rm:15,claim_minutes:20,
