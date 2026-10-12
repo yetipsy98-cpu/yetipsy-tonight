@@ -1,7 +1,7 @@
 name: Yetipsy Lucky Box regression checks
 on:
   push:
-    branches: ['feat/lucky-box-gamepass-20261012']
+    branches: ['feat/lucky-box-gamepass-20261012', 'main']
   pull_request:
     branches: [main]
 jobs:
