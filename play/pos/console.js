@@ -33,7 +33,7 @@ export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,lo
    }
    if(key==='insights'){const module=await import('./owner-reports.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner,notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
    if(key==='home'){const module=await import('./home-editor.js?v=20261012-v22');if(epoch!==loadEpoch)return;homeEditor||=module.createHomeEditor({db,root:$('homeEditorRoot'),notice});await homeEditor.load();}
-   if(key==='moon'){const module=await import('./moon-code-editor.js?v=20261012-moon-manual-v1');if(epoch!==loadEpoch)return;moonEditor||=module.createMoonCodeEditor({db,root:$('moonCodeEditorRoot'),isOwner,notice});await moonEditor.load();}
+   if(key==='moon'){const module=await import('./moon-code-editor.js?v=20261012-moon-manual-v2');if(epoch!==loadEpoch)return;moonEditor||=module.createMoonCodeEditor({db,root:$('moonCodeEditorRoot'),isOwner,notice});await moonEditor.load();}
    if(key==='receipt'){const module=await import('./receipt-settings.js?v=20261012-v22');if(epoch!==loadEpoch)return;receiptSettings||=module.createReceiptSettings({db,root:$('receiptSettingsRoot'),isOwner,notice});await receiptSettings.load();}
    if(key==='dayclose'){const module=await import('./day-close.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
    if(key==='factory')await reset.resume();

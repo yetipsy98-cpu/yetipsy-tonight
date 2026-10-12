@@ -26,8 +26,18 @@ export function createMoonCodeEditor({db,root,isOwner,notice}){
  }
  async function load(){
   if(!isOwner())throw Error('owner_only');
-  const res=await db.rpc('yt_moon_owner_list');if(res.error)throw res.error;
-  records=Array.isArray(res.data)?res.data:[];list();
+  // Render the form before the asynchronous RPC. Without mount() the drawer
+  // is empty, and list() throws when it tries to access #moonCount.
+  if(!root.querySelector('#moonCodeForm'))mount();
+  const listRoot=root.querySelector('#moonList'),status=root.querySelector('#moonFormStatus');
+  try{
+   const res=await db.rpc('yt_moon_owner_list');if(res.error)throw res.error;
+   records=Array.isArray(res.data)?res.data:[];list();
+  }catch(error){
+   if(listRoot)listRoot.innerHTML='<p class="empty">兑换码列表暂时无法读取。表单已加载，可以点击「刷新」重试。</p>';
+   if(status)status.textContent='读取历史记录失败：'+(error.message||'请稍后重试');
+   throw error;
+  }
  }
  async function submit(e){
   e.preventDefault();if(saving||!isOwner())return;
