@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const read=p=>fs.readFileSync(p,'utf8');
-const schema=read('sql/053_lucky_box_foundation.sql'),rpc=read('sql/054_lucky_box_rpc.sql'),app=read('play/app.js'),box=read('play/lucky-box.js'),console=read('play/pos/console.js');
+const schema=read('sql/053_lucky_box_foundation.sql'),rpc=read('sql/054_lucky_box_rpc.sql'),app=read('play/app.js'),box=read('play/lucky-box.js'),consoleSrc=read('play/pos/console.js');
 for(const n of ['yt_lucky_settings','yt_lucky_order_modes','yt_lucky_order_draws','yt_lucky_results','yt_lucky_pass_stamp','yt_lucky_capture_unit','yt_lucky_factory_restore'])assert(schema.includes(n),n);
 for(const n of ['yt_lucky_owner_save','yt_lucky_owner_reset','yt_lucky_preview','yt_lucky_reveal','yt_lucky_claim'])assert(rpc.includes(n),n);
 assert.match(rpc,/perform pg_advisory_xact_lock\(781943081\)/);
@@ -15,7 +15,7 @@ assert.match(app,/luckyBox\.claimPending/);
 assert.match(box,/yt_lucky_reveal/);
 assert.match(box,/yt_lucky_claim/);
 assert.match(box,/sessionStorage\.setItem/);
-assert.match(console,/createLuckyOwner/);
+assert.match(consoleSrc,/createLuckyOwner/);
 assert.match(read('play/pos/lucky-box-owner.js'),/yt_lucky_owner_reset/);
 assert.match(read('play/pos/pos.js'),/console\.js\?v=20261012-lucky-v1/);
 assert.match(read('play/index.html'),/lucky-box\.css\?v=20261012-lucky-v1/);
