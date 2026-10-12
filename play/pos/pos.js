@@ -3,7 +3,7 @@ import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v1
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261010-storebox-v16-1';
-import {createStoreBox} from './store-box.js?v=20261012-bar-hub-v16-7';
+import {createStoreBox} from './store-box.js?v=20261012-storebox-combo-v16-8';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -273,13 +273,14 @@ async function orderAction(orderId,action,container){const btn=container;await b
 let bannerManager=null;
 async function loadPOSBanners(){if(!isOwner())return;if(!bannerManager)bannerManager=createBannerManager({db,root:$('ownerBannersPanel'),notify:showNotice});await bannerManager.load();}
 async function loadAdmin(){if(!isOwner())return;await loadPOSBanners();await loadCatalog();await Promise.all([loadRights(),loadRewardRules()]);}
-function renderProductAdmin(){if(!isOwner())return;const root=$('productAdminList');root.innerHTML=state.catalog.length?state.catalog.map(p=>`<div class="admin-entry"><div><strong>${esc(p.name)}</strong><small>${esc(p.category)} · ${money(p.price_rm)} · ${p.active?'可点单':'已停用'} · ${esc(p.series_name||'没有系列权益')}</small></div><button data-product="${esc(p.id)}" type="button">编辑</button></div>`).join(''):'<div class="empty">当前没有产品。请先新增菜单。</div>';}
+function renderProductAdmin(){if(!isOwner())return;const root=$('productAdminList');root.innerHTML=state.catalog.length?state.catalog.map(p=>`<div class="admin-entry"><div><strong>${esc(p.name)}</strong><small>${esc(p.category)} · ${money(p.price_rm)} · ${p.active?'可点单':'已停用'} · ${esc(p.series_name||'没有系列权益')}</small></div><div class="admin-entry-actions"><button data-copy-product="${esc(p.id)}" type="button">复制</button><button data-product="${esc(p.id)}" type="button">编辑</button></div></div>`).join(''):'<div class="empty">当前没有产品。请先新增菜单。</div>';}
 async function saveProduct(e){e.preventDefault();await busy($('productForm').querySelector('[type=submit]'),async()=>{
  const id=$('productId').value||null;const price=Number($('productPrice').value);if(!Number.isFinite(price)||price<0||price>5000)throw Error('请输入正确产品价格');
  unpack(await db.rpc('yt_pos_owner_product_v2',{p_id:id,p_name:$('productName').value.trim(),p_category:$('productCategory').value.trim(),p_price:price,p_active:$('productActive').checked,p_sort:Number($('productSort').value),p_series:$('productSeries').value||null}));
  clearProduct();await loadCatalog();showNotice(id?'产品已更新':'产品已加入菜单');
  }).catch(()=>{});}
 function editProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value=p.id;$('productName').value=p.name;$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=p.sort_order||100;$('productSeries').value=p.series_id||'';window.scrollTo({top:0,behavior:'smooth'});}
+function copyProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value='';$('productName').value=p.name+' 副本';$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=Number(p.sort_order||100)+1;$('productSeries').value=p.series_id||'';$('productName').focus();$('productName').select();}
 function clearProduct(){$('productForm').reset();$('productId').value='';$('productActive').checked=true;$('productSort').value=100;$('productSeries').value='';}
 async function loadRights(){if(!isOwner())return;const staff=unpack(await db.rpc('yt_pos_staff_list'))||[];
  $('staffRights').innerHTML=staff.length?staff.map(x=>`<div class="admin-entry"><div><strong>${esc(x.username)}</strong><small>${x.active?'Active':'Disabled'} · ${x.role==='cashier'?'Cashier 独立账号':'Staff'}</small></div>${x.role==='cashier'?'<span>独立 Cashier 账号</span>':`<label class="checkline"><input type="checkbox" data-cashier="${esc(x.id)}" ${x.can_cashier?'checked':''} ${!x.active?'disabled':''}><span>收银权限</span></label><label class="checkline"><input type="checkbox" data-edit-staff="${esc(x.id)}" ${x.can_edit_orders?'checked':''} ${!x.active?'disabled':''}><span>改单权限</span></label>`}</div>`).join(''):'<div class="empty">还没有 Staff 账户。</div>';}
@@ -837,7 +838,7 @@ function bind(){
  $('ownerDashboardRefresh').onclick=()=>loadOwnerDashboard(true).catch(e=>showNotice(errorText(e),true));
  document.body.addEventListener('click',e=>{const b=e.target.closest('button[data-action][data-order]');if(b)orderAction(b.dataset.order,b.dataset.action,b);});
  $('productForm').onsubmit=saveProduct;$('clearProduct').onclick=clearProduct;
- $('productAdminList').onclick=e=>{const b=e.target.closest('[data-product]');if(b)editProduct(b.dataset.product);};
+ $('productAdminList').onclick=e=>{const copy=e.target.closest('[data-copy-product]');if(copy){copyProduct(copy.dataset.copyProduct);return;}const b=e.target.closest('[data-product]');if(b)editProduct(b.dataset.product);};
  $('staffRights').onchange=e=>{const cashier=e.target.closest('input[data-cashier]');if(cashier)changeRight(cashier.dataset.cashier,cashier.checked,cashier);const edit=e.target.closest('input[data-edit-staff]');if(edit)changeEditRight(edit.dataset.editStaff,edit.checked,edit);};
   $('seriesForm').onsubmit=saveSeries;
   $('seriesList').onclick=e=>{const b=e.target.closest('[data-series]');if(b)editSeries(b.dataset.series);};

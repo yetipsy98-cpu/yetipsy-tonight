@@ -25,8 +25,13 @@ test('all work roles can open Store Box without a separate page',()=>{
 
 test('Store Box client uses the protected RPC workflow',()=>{
  const js=read('play/pos/store-box.js');
- for(const name of ['yt_store_box_rule_list','yt_store_box_rule_save','yt_store_box_issue_orders','yt_store_box_issue_quote','yt_store_box_issue','yt_store_box_claims_active','yt_store_box_claim_cancel','yt_store_box_queue','yt_store_box_staff_boxes','yt_store_box_request_action','yt_store_box_progress'])assert.ok(js.includes(name),name);
- assert.match(js,/p_game_pass_enabled:false/);
+ for(const name of ['yt_store_box_rule_list','yt_store_box_rule_save_v2','yt_store_box_issue_orders','yt_store_box_issue_quote','yt_store_box_issue','yt_store_box_claims_active','yt_store_box_claim_cancel','yt_store_box_queue','yt_store_box_staff_boxes','yt_store_box_request_action','yt_store_box_progress'])assert.ok(js.includes(name),name);
+ assert.match(js,/data-box-kind/);
+ assert.match(js,/data-box-components/);
+ assert.match(js,/data-box-selection/);
+ assert.match(js,/p_components:components/);
+ assert.match(js,/p_selection_mode:/);
+ assert.match(js,/storebox-history/);
  assert.doesNotMatch(js,/喝完/);
  assert.match(js,/确认已经出杯/);
  assert.match(js,/全店待领取码/);
@@ -45,7 +50,15 @@ test('Package and challenge checkout issues the customer claim code immediately'
  for(const page of ['pos','owner','staff','cashier']){
   const html=read(`play/${page}/index.html`);
   assert.match(html,/id="orderCartClaims"/);
-  assert.match(html,/20261012-bar-hub-v16-7/);
+  assert.match(html,/20261012-storebox-combo-v16-8/);
   assert.match(html,/id="storeBoxOrderQueue"/);
  }
+});
+
+test('Owner can copy an existing menu item into an editable new item',()=>{
+ const js=read('play/pos/pos.js');
+ assert.match(js,/data-copy-product/);
+ assert.match(js,/function copyProduct\(id\)/);
+ assert.match(js,/productId'\)\.value=''/);
+ assert.match(js,/副本/);
 });
