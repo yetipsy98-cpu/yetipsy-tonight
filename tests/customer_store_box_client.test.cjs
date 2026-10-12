@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const html=fs.readFileSync('play/index.html','utf8'),app=fs.readFileSync('play/app.js','utf8'),moduleSource=fs.readFileSync('play/customer-store-box.js','utf8');
 
 test('customer has one compact Store Box page in the main navigation',()=>{
- assert.match(html,/id="storeboxPage"/);assert.match(html,/id="customerStoreBoxRoot"/);assert.match(html,/data-page="storebox"/);assert.match(html,/20261012-bilingual-receipt-v19/);
+ assert.match(html,/id="storeboxPage"/);assert.match(html,/id="customerStoreBoxRoot"/);assert.match(html,/data-page="storebox"/);assert.match(html,/20261012-v22/);
  const ids=[...html.matchAll(/id="([^"]+)"/g)].map(match=>match[1]);assert.equal(ids.length,new Set(ids).size);
 });
 
