@@ -3,6 +3,7 @@ import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v1
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261012-bilingual-receipt-v19';
+import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261012-kds-v17';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
@@ -422,6 +423,7 @@ function receiptInner(r){
 async function viewReceipt(orderId){
  const data=unpack(await db.rpc('yt_pos_bill_v8',{p_order:orderId}));
  $('receiptContent').innerHTML=receiptInner(data);
+ applyReceiptLayout($('receiptContent').querySelector('.receipt-paper'),data.receipt_settings?.layout,data.payment_status==='paid'?'paid':'unpaid');
  $('receiptTitle').textContent='#'+(data.order_no||'ORDER')+' · '+(data.payment_status==='refunded'?'退款记录':data.payment_status==='paid'?'Receipt':'未付款账单');
  $('receiptOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');
