@@ -1,0 +1,19 @@
+name: Yetipsy Lucky Box regression checks
+on:
+  push:
+    branches: ['feat/lucky-box-gamepass-20261012']
+  pull_request:
+    branches: [main]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: |
+          for f in tests/*.test.cjs; do node "$f"; done
+      - run: |
+          for f in play/app.js play/lucky-box.js play/pos/pos.js play/pos/console.js play/pos/lucky-box-owner.js; do node --check "$f"; done
