@@ -19,7 +19,7 @@ body.sheet-open{overflow:hidden}
 .receipt-dialog{display:flex;flex-direction:column;width:min(520px,100%);max-height:calc(100dvh - 32px);background:#202721;border:1px solid #6d6551;border-radius:22px;overflow:hidden;box-shadow:0 28px 80px #0009}
 .receipt-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 21px;border-bottom:1px solid #3c473b}.receipt-dialog-head small{color:var(--accent);letter-spacing:.15em;font-size:10px}.receipt-dialog-head h2{margin:4px 0 0;font-size:18px}
 .receipt-preview-area{min-height:100px;overflow:auto;padding:23px;background:#131916;display:flex;justify-content:center}
-.receipt-paper{font-family:Arial,'Noto Sans CJK SC',sans-serif;background:#fff;color:#151916;line-height:1.45;width:100%;max-width:330px;padding:20px 19px;border-radius:3px;box-shadow:0 10px 40px #0004;font-size:11px;font-variant-numeric:tabular-nums}
+.receipt-paper{font-family:Arial,'Noto Sans CJK SC',sans-serif;background:#fff;color:#151916;line-height:1.45;width:min(100%,var(--receipt-width,80mm));max-width:330px;padding:20px 19px;border-radius:3px;box-shadow:0 10px 40px #0004;font-size:11px;font-variant-numeric:tabular-nums}.receipt-business-line{text-align:center;font-size:9px;white-space:pre-line;margin-top:2px}
 .receipt-logo{font-weight:900;text-align:center;letter-spacing:.22em;font-size:22px}.receipt-logo span{color:#c49a44}.receipt-subhead{text-align:center;color:#667169;letter-spacing:.13em;font-size:9px;margin:7px 0 15px}.receipt-document{text-align:center;border:1px dashed #727c6b;padding:9px;font-weight:800;font-size:10px}.receipt-facts{border-bottom:1px dashed #a8b2aa;padding:11px 0}.receipt-facts p{margin:5px 0}.receipt-items-head{display:flex;justify-content:space-between;color:#666;font-size:9px;letter-spacing:.12em;padding:14px 0 7px}
 .receipt-row{display:flex;justify-content:space-between;gap:15px;padding:8px 0;border-bottom:1px dashed #ddd}.receipt-row strong{font-weight:650}.receipt-row small{display:block;color:#697067;font-size:9px;margin-top:4px}.receipt-row b{white-space:nowrap}.receipt-discount{display:flex;justify-content:space-between;color:#517557;padding:12px 0}.receipt-sum{display:flex;justify-content:space-between;gap:10px;border-top:2px solid #19241b;margin-top:12px;padding-top:12px;font-weight:850}.receipt-sum strong{font-size:18px}.receipt-bottom{text-align:center;color:#787878;font-size:9px;line-height:1.6;margin:18px 0 3px}
 .receipt-preview-footer{display:flex;gap:10px;padding:13px 18px 18px;border-top:1px solid #3c473b}.receipt-preview-footer .main-button{margin:0;flex:1}.receipt-preview-footer .quiet{flex:0 0 auto}
@@ -38,7 +38,7 @@ body.sheet-open{overflow:hidden}
  .receipt-dialog{position:static!important;width:100%!important;max-height:none!important;box-shadow:none!important;border:0!important;border-radius:0!important;overflow:visible!important}
  .receipt-dialog-head,.receipt-preview-footer{display:none!important}
  .receipt-preview-area{display:block!important;background:white!important;padding:0!important;overflow:visible!important}
- .receipt-paper{box-shadow:none!important;border:0!important;width:74mm!important;max-width:74mm!important;padding:0!important;color:black!important}
+ .receipt-paper{box-shadow:none!important;border:0!important;width:var(--receipt-width,80mm)!important;max-width:var(--receipt-width,80mm)!important;padding:0!important;color:black!important}
 }
 
 /* POS V4: one-hand, bottom-drawer bill on phones; persistent side panel on tablet */

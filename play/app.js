@@ -3,7 +3,8 @@ import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=202
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from './owner-banners.js?v=20261010-copy-v15-4';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
-import {createCustomerStoreBox} from './customer-store-box.js?v=20261012-points-rewards-v18';
+import {createCustomerStoreBox} from './customer-store-box.js?v=20261012-bilingual-receipt-v19';
+import {createClientI18n} from './client-i18n.js?v=20261012-bilingual-receipt-v19';
 
 const $=id=>document.getElementById(id);
 const urlConfig=window.YETIPSY_PLAY_CONFIG||{};
@@ -15,12 +16,14 @@ const rewardBindingEditor=createRewardBindingEditor({db,root:$('rewardBindingRoo
 const state={user:null,role:null,profile:null,view:'home',games:[],passes:[],wallet:[],rewards:[],campaigns:[],ownerGames:[],pool:[],assigned:[],busy:false,refreshing:false,activeSession:null,currentRedemption:null,currentOffer:null,board:[],staffRoles:[],handleToken:null,loginMode:'phone',checkedPhone:null,pendingClaim:null,gamePlaying:false,referralDraft:'',loyalty:null};
 let scanner=null,scannerRunning=false,qrLibPromise=null,barcodeLibPromise=null;
 let customerStoreBox=null;
+const i18n=createClientI18n({button:$('languageToggle'),onChange:()=>{updateHome();renderWallet();renderMyLoyalty();customerStoreBox?.load(true).catch(()=>{});}});
+const tr=(key,vars)=>i18n.t(key,vars);
 const uuid=()=>crypto.randomUUID();
 const esc=x=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
-const fmt=t=>t?new Intl.DateTimeFormat('zh-MY',{timeZone:MY_TZ,day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(t)):'未设置';
+const fmt=t=>t?new Intl.DateTimeFormat(i18n.locale,{timeZone:MY_TZ,day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(t)):tr('not_set');
 const millis=t=>t?new Date(t).getTime():0;
 const pending=(btn,job)=>{if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(job).catch(err=>{toast(errorText(err),true);throw err;}).finally(()=>{if(btn)btn.disabled=false;});};
-const unpack=result=>{if(result?.error)throw new Error(result.error.message||'数据库请求失败');return result.data;};
+const unpack=result=>{if(result?.error)throw new Error(result.error.message||tr('database_error'));return result.data;};
 const isStaff=()=>state.role==='staff'||state.role==='owner';
 const isOwner=()=>state.role==='owner';
 const newLink=(kind,token)=>{const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set(kind,token);return u.toString();};
@@ -64,9 +67,9 @@ function changeAuthMode(mode='phone'){
  $('consentGroup').classList.toggle('hide',!signup);
  $('nickname').required=signup;$('birthday').required=signup;$('pinConfirm').required=signup;
  if(mode!=='phone'){$('authKnownPhone').textContent=state.checkedPhone;$('authStepTitle').textContent=signup?'JOIN YETIPSY · ONE LAST STEP':'WELCOME BACK · MEMBER SIGN-IN';}
- $('authSubmit').innerHTML=signup?'完成注册并加入 <span>↗</span>':'安全登录 <span>↗</span>';
- $('pinLabel').textContent=signup?'设置 6 位安全 PIN *':'你的 6 位 PIN *';
- $('pinHint').textContent=signup?'请记住你的 PIN。':'请输入 PIN。';
+ $('authSubmit').textContent=tr(signup?'register_submit':'login_submit');
+ $('pinLabel').textContent=tr(signup?'pin_create':'pin_login');
+ $('pinHint').textContent=tr(signup?'pin_create_hint':'pin_login_hint');
  $('authError').textContent='';
 }
 async function submitPhone(ev){ev.preventDefault();const button=$('checkPhone');try{
@@ -115,7 +118,7 @@ async function initialize(){if(!db)return;const {data:{user},error}=await db.aut
  if(new URL(location.href).searchParams.has('redeem')&&isStaff()){openWorkspace('staff');$('staffRedeemInput').value=new URL(location.href).searchParams.get('redeem');showStaffRedeem();}
 }
 function drawProfile(){const p=state.profile||{};$('profileName').textContent=p.display_name||'Yetipsy Member';$('profilePhone').textContent=p.phone||'PLAY CLUB MEMBER';$('profileLevel').textContent=isOwner()?'OWNER MEMBER':isStaff()?'STAFF MEMBER':'PLAY CLUB MEMBER';}
-function updateHome(){const valid=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());$('openExistingPass').classList.toggle('hide',!valid.length);$('openExistingPass').textContent='我的游戏 · '+valid.length+' →';$('homeGreetingSub').textContent=state.profile?.display_name?'嗨，'+state.profile.display_name+' · 今晚玩点新的？':'YETIPSY PLAY · 轻松享受此刻';}
+function updateHome(){const valid=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());$('openExistingPass').classList.toggle('hide',!valid.length);$('openExistingPass').textContent=tr('games_count',{count:valid.length});$('homeGreetingSub').textContent=state.profile?.display_name?tr('greeting_name',{name:state.profile.display_name}):tr('home_sub');}
 async function refreshPasses(){if(!state.user)return;const actor=state.user.id;const rows=unpack(await db.rpc('yt_my_game_passes'));if(state.user?.id!==actor)return;state.passes=rows||[];updateHome();}
 async function loadGames(){state.games=unpack(await db.from('games').select('id,slug,title,mode,active,choice_count,fortune_texts').eq('active',true).order('slug'));}
 async function wallet(silent=false){
@@ -126,7 +129,7 @@ async function wallet(silent=false){
  state.wallet=items;renderWallet();if(!silent)updateHome();
 }
 const iconFor=category=>({drink:'♧',voucher:'◇',gift:'✳',event:'✦',custom:'◈'})[category]||'✦';
-function rewardDate(value){return new Intl.DateTimeFormat('zh-MY',{timeZone:MY_TZ,month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value));}
+function rewardDate(value){return new Intl.DateTimeFormat(i18n.locale,{timeZone:MY_TZ,month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value));}
 async function useNextReward(key){
  await wallet(true);
  const stack=buildRewardStacks(state.wallet).live.find(s=>s.key===key);
@@ -135,23 +138,23 @@ async function useNextReward(key){
 }
 function renderRewardStack(stack,recommended=false,archive=false){
  const next=stack.next,status=rewardAvailability(next),window=rewardWindow(next),card=document.createElement('article');card.className='reward-stack'+(recommended?' recommended':'');
- card.innerHTML=`<div class="reward-stack-head"><span class="reward-icon">${iconFor(next.rewards?.category)}</span><div><h3>${esc(next.rewards?.name||'Reward')}</h3><p>${recommended?'优先使用 · ':''}${archive?esc(status.label):status.ready?'到期 '+esc(rewardDate(window.end)):status.label==='未到使用日期'?'开始 '+esc(rewardDate(window.start)):esc(status.label)}</p></div><span class="reward-quantity">×${stack.items.length}</span></div>`;
+ card.innerHTML=`<div class="reward-stack-head"><span class="reward-icon">${iconFor(next.rewards?.category)}</span><div><h3>${esc(next.rewards?.name||'Reward')}</h3><p>${recommended?esc(tr('recommended'))+' · ':''}${archive?esc(status.label):status.ready?esc(tr('expires',{date:rewardDate(window.end)})):status.label==='未到使用日期'?esc(tr('starts',{date:rewardDate(window.start)})):esc(status.label)}</p></div><span class="reward-quantity">×${stack.items.length}</span></div>`;
  const actions=document.createElement('div');actions.className='reward-stack-actions';
- if(stack.ready.length){const use=document.createElement('button');use.type='button';use.className='button button-outline';use.textContent=stack.ready.length>1?'使用最早到期的一份':'出示兑换码';use.onclick=()=>pending(use,()=>useNextReward(stack.key)).catch(()=>{});actions.append(use);}
- const detail=document.createElement('button');detail.type='button';detail.className='reward-detail-button';detail.textContent=stack.items.length>1?'查看 '+stack.items.length+' 份 ›':'详情 ›';detail.onclick=()=>showRewardStackDetails(stack.key,archive);actions.append(detail);card.append(actions);return card;
+ if(stack.ready.length){const use=document.createElement('button');use.type='button';use.className='button button-outline';use.textContent=tr(stack.ready.length>1?'use_first':'use_code');use.onclick=()=>pending(use,()=>useNextReward(stack.key)).catch(()=>{});actions.append(use);}
+ const detail=document.createElement('button');detail.type='button';detail.className='reward-detail-button';detail.textContent=stack.items.length>1?tr('view_count',{count:stack.items.length}):tr('details');detail.onclick=()=>showRewardStackDetails(stack.key,archive);actions.append(detail);card.append(actions);return card;
 }
 function renderWallet(){
  const root=$('walletItems');root.replaceChildren();const stacks=buildRewardStacks(state.wallet);
- if(!state.wallet.length){root.innerHTML='<div class="empty-state"><span class="empty-symbol">✦</span>这里还没有奖励。<br/>扫码玩游戏，或输入奖励领取码。</div>';return;}
+ if(!state.wallet.length){root.innerHTML='<div class="empty-state"><span class="empty-symbol">✦</span>'+esc(tr('empty_wallet'))+'</div>';return;}
  for(const [i,stack] of stacks.live.entries())root.append(renderRewardStack(stack,i===0&&!!stack.ready.length));
- if(stacks.history.length){const history=document.createElement('details');history.className='reward-archive';const summary=document.createElement('summary');summary.textContent='已使用／已失效';history.append(summary);const list=document.createElement('div');list.className='reward-archive-list';for(const stack of stacks.history)list.append(renderRewardStack(stack,false,true));history.append(list);root.append(history);}
+ if(stacks.history.length){const history=document.createElement('details');history.className='reward-archive';const summary=document.createElement('summary');summary.textContent=tr('used_expired');history.append(summary);const list=document.createElement('div');list.className='reward-archive-list';for(const stack of stacks.history)list.append(renderRewardStack(stack,false,true));history.append(list);root.append(history);}
 }
 function showRewardStackDetails(key,archive=false){
  const stacks=buildRewardStacks(state.wallet),stack=(archive?stacks.history:stacks.live).find(s=>s.key===key);if(!stack)return;
- showSheet(stack.next.rewards?.name||'奖励详情','REWARD DETAILS');const root=document.createElement('div');root.className='sheet-content reward-details';
- const description=document.createElement('p');description.textContent=stack.next.rewards?.description||'到店出示兑换码，由店员在点单购物车中使用。';root.append(description);
- const daily=stack.next.rewards;if(daily?.daily_start_local&&daily?.daily_end_local){const line=document.createElement('p');line.textContent='每日可用：'+daily.daily_start_local.slice(0,5)+' – '+daily.daily_end_local.slice(0,5);root.append(line);}
- for(const award of stack.items){const status=rewardAvailability(award),window=rewardWindow(award),row=document.createElement('div');row.className='reward-copy-row';const info=document.createElement('div');info.innerHTML=`<strong>${esc(status.label)}${award.id===stack.ready[0]?.id?' · 建议先用':''}</strong><small>开始 ${esc(fmt(window.start))}<br/>截止 ${esc(fmt(window.end))}</small>`;row.append(info);if(status.ready){const use=document.createElement('button');use.type='button';use.className='button button-outline';use.textContent='使用';use.onclick=()=>pending(use,()=>showRewardQR(award)).catch(()=>{});row.append(use);}root.append(row);}
+ showSheet(stack.next.rewards?.name||tr('reward_details'),'REWARD DETAILS');const root=document.createElement('div');root.className='sheet-content reward-details';
+ const description=document.createElement('p');description.textContent=stack.next.rewards?.description||tr('reward_default_desc');root.append(description);
+ const daily=stack.next.rewards;if(daily?.daily_start_local&&daily?.daily_end_local){const line=document.createElement('p');line.textContent=tr('daily_hours',{from:daily.daily_start_local.slice(0,5),until:daily.daily_end_local.slice(0,5)});root.append(line);}
+ for(const award of stack.items){const status=rewardAvailability(award),window=rewardWindow(award),row=document.createElement('div');row.className='reward-copy-row';const info=document.createElement('div');info.innerHTML=`<strong>${esc(status.label)}${award.id===stack.ready[0]?.id?' · '+esc(tr('recommended')):''}</strong><small>${esc(tr('starts',{date:fmt(window.start)}))}<br/>${esc(tr('ends',{date:fmt(window.end)}))}</small>`;row.append(info);if(status.ready){const use=document.createElement('button');use.type='button';use.className='button button-outline';use.textContent=tr('use');use.onclick=()=>pending(use,()=>showRewardQR(award)).catch(()=>{});row.append(use);}root.append(row);}
  $('sheetBody').append(root);
 }
 function showSheet(title,eyebrow='YETIPSY PLAY'){if(scannerRunning)stopScanner();$('sheetTitle').textContent=title;$('sheetEyebrow').textContent=eyebrow;$('sheetBody').replaceChildren();$('sheetBackdrop').classList.remove('hide');document.body.style.overflow='hidden';}
@@ -173,7 +176,7 @@ async function qrcode(target,text){
  new window.QRCode(target,{text,width:220,height:220,colorDark:'#171b19',colorLight:'#faf6e9',correctLevel:window.QRCode.CorrectLevel.M});
 }
 async function barcode(svg,text){if(!window.JsBarcode)barcodeLibPromise??=loadScript('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js');await barcodeLibPromise;window.JsBarcode(svg,text,{format:'CODE128',lineColor:'#1c2421',background:'#f2ecdf',width:1.1,height:51,displayValue:false,margin:3});}
-function copy(text){navigator.clipboard?.writeText(text).then(()=>toast('已复制')).catch(()=>{const input=document.createElement('textarea');input.value=text;document.body.append(input);input.select();document.execCommand('copy');input.remove();toast('已复制');});}
+function copy(text){navigator.clipboard?.writeText(text).then(()=>toast(tr('copied'))).catch(()=>{const input=document.createElement('textarea');input.value=text;document.body.append(input);input.select();document.execCommand('copy');input.remove();toast(tr('copied'));});}
 async function showCodeSheet(title,subtitle,link,withBarcode=true,deadline=null,shortCode=null,shortKind='redeem'){showSheet(title,'SCAN & CLAIM');sheetHtml(`<div class="sheet-content"><p>${esc(subtitle)}</p><div class="code-card"><b>YE·TIPSY</b><small style="display:block">PRESENT THIS CODE</small><div id="sheetQR" class="sheet-qr-container"></div>${withBarcode?'<svg id="sheetBarcode" aria-label="可扫描条形码"></svg>':''}<div class="token-text" id="sheetToken"></div></div><button type="button" id="sheetCopy" class="button button-outline wide">${shortCode?(shortKind==='gift'?'复制领取码':'复制兑换码'):'复制领取链接'}</button>${deadline?'<p id="sheetCountdown" class="tiny-help"></p>':''}${shortCode?'<p class="tiny-help">扫不到可直接输入短码。</p>':''}</div>`);$('sheetToken').textContent=shortCode||link;if(shortCode){$('sheetToken').classList.add('redeem-short-code');$('sheetToken').setAttribute('aria-label','短兑换码');}const codeURL=new URL(link);const codeKey=[...codeURL.searchParams.keys()][0]||'claim';const codeRaw=codeURL.searchParams.get(codeKey)||link;const raw=codeKey+':'+codeRaw;try{await qrcode($('sheetQR'),link);}catch(e){$('sheetQR').style.display='none';toast(shortCode?'二维码加载失败，请出示下方兑换码':'二维码素材加载失败，请复制链接',true);}if(withBarcode){try{await barcode($('sheetBarcode'),raw);}catch(e){$('sheetBarcode').classList.add('hide');}}
  $('sheetCopy').onclick=()=>copy(shortCode||link);if(deadline){const tick=()=>{const el=$('sheetCountdown');if(!el||!el.isConnected){clearInterval(timer);return;}const secs=Math.max(0,Math.ceil((millis(deadline)-Date.now())/1000));el.textContent=secs?(shortKind==='gift'?'领取截止：'+fmt(deadline):`${shortCode?(shortKind==='gift'?'二维码与领取码':'二维码与兑换码'):'动态二维码'} ${secs} 秒后失效`):'已过期，需要重新生成';if(!secs){clearInterval(timer);if(shortCode){$('sheetCopy').disabled=true;$('sheetToken').classList.add('code-expired');}}};let timer=setInterval(tick,1000);tick();}}
 async function showRewardQR(reward){const code=uuid();const data=unpack(await db.rpc('yt_make_redeem_v5',{p_award:reward.id,p_token:code}));const link=newLink('redeem',code);await showCodeSheet('出示奖励凭证',reward.rewards?.name||'Yetipsy Reward',link,true,data.expires_at,data.display_code);const regenerate=document.createElement('button');regenerate.type='button';regenerate.className='button button-outline wide';regenerate.textContent='重新生成兑换码';regenerate.onclick=()=>pending(regenerate,()=>showRewardQR(reward));$('sheetCountdown').after(regenerate);}
@@ -220,16 +223,16 @@ async function redeemScanValue(raw,assumed){const info=tokenDetails(raw);if(assu
 }
 function stripLink(kind){const u=new URL(location.href);u.searchParams.delete(kind);history.replaceState(null,'',u.href);}
 function openRewardClaim(){
- showSheet('输入奖励领取码','REWARD CLAIM');
- sheetHtml('<div class="sheet-content"><p>输入店员提供的 8 位 Reward Claim 短码，奖励会存入你的 Wallet。</p><form id="rewardClaimForm"><label for="rewardClaimCode">奖励领取码</label><input id="rewardClaimCode" class="claim-code-input" placeholder="例如 7K3M-9X2P" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" required/><button id="rewardClaimSubmit" class="button button-primary wide" type="submit">领取奖励 ↗</button></form><p class="tiny-help">请按活动设置的开始与截止时间领取，每账户限额保持有效。</p></div>');
+ showSheet(tr('reward_claim_title'),'REWARD CLAIM');
+ sheetHtml('<div class="sheet-content"><p>'+esc(tr('reward_claim_help'))+'</p><form id="rewardClaimForm"><label for="rewardClaimCode">'+esc(tr('reward_claim_label'))+'</label><input id="rewardClaimCode" class="claim-code-input" placeholder="7K3M-9X2P" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" required/><button id="rewardClaimSubmit" class="button button-primary wide" type="submit">'+esc(tr('reward_claim_button'))+'</button></form><p class="tiny-help">'+esc(tr('reward_claim_terms'))+'</p></div>');
  $('rewardClaimForm').onsubmit=e=>{e.preventDefault();return pending($('rewardClaimSubmit'),()=>redeemScanValue($('rewardClaimCode').value)).catch(()=>{});};
 }
 async function manualClaimSubmit(){const raw=$('scanManual').value.trim();await previewClaim(raw);}
 async function openScanner(mode='claim'){
- showSheet(mode==='redeem'?'扫描兑奖凭证':'扫一扫，开启惊喜','SCAN CODE');
- sheetHtml(`<div class="sheet-content"><div class="scan-frame" id="cameraFrame"><div class="scan-placeholder"><span>▣</span>准备启动相机…</div></div><p class="scan-helper">可扫描 Yetipsy QR / CODE128 条形码。首次使用请允许相机访问。</p><div class="sheet-sep"></div><label for="scanManual">扫描不方便？输入奖励领取短码</label><input id="scanManual" placeholder="输入 8 位 Reward Claim 短码"/><button type="button" id="scanSubmit" class="button button-outline wide">确认领取 / 核销查询</button></div>`);
- $('scanSubmit').onclick=()=>pending($('scanSubmit'),async()=>{const raw=$('scanManual').value;if(!raw.trim())throw Error('请输入凭证');await stopScanner();await (mode==='redeem'?redeemScanValue(raw,'redeem'):previewClaim(raw));});
- if(!window.Html5Qrcode){try{await loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js');}catch(e){$('cameraFrame').innerHTML='<div class="scan-placeholder"><span>▣</span>相机组件加载失败，请输入领取短码</div>';return;}}
+ showSheet(tr(mode==='redeem'?'scan_redeem_title':'scan_title'),'SCAN CODE');
+ sheetHtml(`<div class="sheet-content"><div class="scan-frame" id="cameraFrame"><div class="scan-placeholder"><span>▣</span>${esc(tr('camera_start'))}</div></div><p class="scan-helper">${esc(tr('scan_help'))}</p><div class="sheet-sep"></div><label for="scanManual">${esc(tr('manual_code'))}</label><input id="scanManual" placeholder="${esc(tr('claim_placeholder'))}"/><button type="button" id="scanSubmit" class="button button-outline wide">${esc(tr('confirm_lookup'))}</button></div>`);
+ $('scanSubmit').onclick=()=>pending($('scanSubmit'),async()=>{const raw=$('scanManual').value;if(!raw.trim())throw Error(tr('enter_code'));await stopScanner();await (mode==='redeem'?redeemScanValue(raw,'redeem'):previewClaim(raw));});
+ if(!window.Html5Qrcode){try{await loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js');}catch(e){$('cameraFrame').innerHTML='<div class="scan-placeholder"><span>▣</span>'+esc(tr('camera_load_failed'))+'</div>';return;}}
  if($('sheetBackdrop').classList.contains('hide'))return;
  try{
   $('cameraFrame').replaceChildren();const element=document.createElement('div');element.id='ytScannerCamera';element.style.width='100%';$('cameraFrame').append(element);
@@ -238,7 +241,7 @@ async function openScanner(mode='claim'){
   await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:Math.min(245,Math.max(155,innerWidth-110)),height:180}},async text=>{
    if(!scannerRunning)return;scannerRunning=false;await stopScanner();try{await (mode==='redeem'?redeemScanValue(text,'redeem'):previewClaim(text));}catch(e){toast(errorText(e),true);}
   });scannerRunning=true;
- }catch(e){$('cameraFrame').innerHTML='<div class="scan-placeholder"><span>▣</span>无法启动相机，请检查权限或使用粘贴方式</div>';scanner=null;scannerRunning=false;}
+ }catch(e){$('cameraFrame').innerHTML='<div class="scan-placeholder"><span>▣</span>'+esc(tr('camera_start_failed'))+'</div>';scanner=null;scannerRunning=false;}
 }
 async function stopScanner(){if(!scanner)return;const live=scanner;scanner=null;try{await live.stop();}catch{}try{await live.clear();}catch{}scannerRunning=false;}
 async function showSimpleSuccess(title,reward,sub){showSheet(title,'REWARD SAVED');sheetHtml(`<div class="sheet-content"><div class="game-arena"><div class="game-result-star">✳</div><div class="game-result-name">${esc(reward)}</div><div class="game-result-sub">${esc(sub)}</div></div><button id="successWallet" class="button button-primary wide">查看我的奖励 ↗</button></div>`);$('successWallet').onclick=()=>{closeSheet();navigate('wallet');};}
@@ -479,21 +482,21 @@ async function showGameSettlement(session,g,record){
 let pointsShopEpoch=0,pointsShopPending=null;
 async function openPointsShop(){
  const actor=state.user?.id;if(!actor)throw Error('请先登录会员');const epoch=++pointsShopEpoch;try{pointsShopPending=JSON.parse(requestStore.get('points-shop:'+actor)||'null');}catch{pointsShopPending=null;}
- showSheet('积分商场','POINTS SHOP');sheetHtml('<div class="sheet-content points-shop"><div id="pointsShopBalance" class="points-shop-balance">加载积分…</div><div id="pointsShopItems"></div></div>');
+ showSheet(tr('points_shop'),'POINTS SHOP');sheetHtml('<div class="sheet-content points-shop"><div id="pointsShopBalance" class="points-shop-balance">'+esc(tr('shop_loading'))+'</div><div id="pointsShopItems"></div></div>');
  const data=unpack(await db.rpc('yt_point_shop_list'));if(state.user?.id!==actor||epoch!==pointsShopEpoch||!$('pointsShopItems'))return;
- $('pointsShopBalance').textContent=Number(data.balance||0).toLocaleString('en-MY')+' P'+(data.expiring_points?' · '+data.expiring_points+' P 将在7天内到期':'');
- const root=$('pointsShopItems');root.replaceChildren();if(!data.items?.length&&!pointsShopPending){root.textContent='商场尚未上架，稍后再来看看。';return;}
- if(pointsShopPending?.actor===actor&&!data.items?.some(x=>x.id===pointsShopPending.item))data.items.push({id:pointsShopPending.item,name:pointsShopPending.name,points_cost:pointsShopPending.cost,validity_days:0,description:'找回上一笔兑换请求'});
- for(const item of data.items){const card=document.createElement('article');card.className='points-shop-card';const limited=item.per_member_limit!=null&&Number(item.claimed_count)>=Number(item.per_member_limit),sold=item.stock_remaining!=null&&Number(item.stock_remaining)<=0;card.innerHTML='<div><strong>'+esc(item.name)+'</strong><small>'+Number(item.points_cost)+' P'+(item.stock_remaining!=null?' · 剩余 '+Number(item.stock_remaining):'')+'</small><p>'+esc(item.description||'兑换后马上进入 Wallet 使用')+'</p><p class="tiny-help">立即可用 · '+Number(item.validity_days)+' 天有效'+(Number(item.min_spend_rm)>0?' · 最低消费 RM'+Number(item.min_spend_rm).toFixed(2):'')+(item.redeem_end_at?' · 截止 '+esc(fmt(item.redeem_end_at)):'')+(item.daily_start_local&&item.daily_end_local?' · '+esc(item.daily_start_local.slice(0,5))+'–'+esc(item.daily_end_local.slice(0,5)):'')+'</p></div>';
-  const b=document.createElement('button');b.type='button';b.className='button button-primary';const waiting=pointsShopPending?.actor===actor,own=waiting&&pointsShopPending.item===item.id;b.textContent=own?'重试兑换':limited?'已达限额':sold?'已兑完':Number(data.balance)<Number(item.points_cost)?'积分不足':'兑换';b.disabled=(!own&&(waiting||limited||sold||Number(data.balance)<Number(item.points_cost)));b.onclick=()=>pending(b,()=>exchangeShopItem(item,actor)).catch(()=>{});card.append(b);root.append(card);
+ $('pointsShopBalance').textContent=Number(data.balance||0).toLocaleString('en-MY')+' P'+(data.expiring_points?' · '+tr('expiring_points',{points:data.expiring_points}):'');
+ const root=$('pointsShopItems');root.replaceChildren();if(!data.items?.length&&!pointsShopPending){root.textContent=tr('shop_empty');return;}
+ if(pointsShopPending?.actor===actor&&!data.items?.some(x=>x.id===pointsShopPending.item))data.items.push({id:pointsShopPending.item,name:pointsShopPending.name,points_cost:pointsShopPending.cost,validity_days:0,description:tr('shop_recovery')});
+ for(const item of data.items){const card=document.createElement('article');card.className='points-shop-card';const limited=item.per_member_limit!=null&&Number(item.claimed_count)>=Number(item.per_member_limit),sold=item.stock_remaining!=null&&Number(item.stock_remaining)<=0;card.innerHTML='<div><strong>'+esc(item.name)+'</strong><small>'+Number(item.points_cost)+' P'+(item.stock_remaining!=null?' · '+esc(tr('remaining',{count:Number(item.stock_remaining)})):'')+'</small><p>'+esc(item.description||tr('shop_default_desc'))+'</p><p class="tiny-help">'+esc(tr('immediate'))+' · '+esc(tr('days_valid',{days:Number(item.validity_days)}))+(Number(item.min_spend_rm)>0?' · '+esc(tr('min_spend',{amount:Number(item.min_spend_rm).toFixed(2)})):'')+(item.redeem_end_at?' · '+esc(tr('deadline',{date:fmt(item.redeem_end_at)})):'')+(item.daily_start_local&&item.daily_end_local?' · '+esc(item.daily_start_local.slice(0,5))+'–'+esc(item.daily_end_local.slice(0,5)):'')+'</p></div>';
+  const b=document.createElement('button');b.type='button';b.className='button button-primary';const waiting=pointsShopPending?.actor===actor,own=waiting&&pointsShopPending.item===item.id;b.textContent=tr(own?'retry_exchange':limited?'limit_reached':sold?'sold_out':Number(data.balance)<Number(item.points_cost)?'points_low':'exchange');b.disabled=(!own&&(waiting||limited||sold||Number(data.balance)<Number(item.points_cost)));b.onclick=()=>pending(b,()=>exchangeShopItem(item,actor)).catch(()=>{});card.append(b);root.append(card);
  }
 }
 async function exchangeShopItem(item,actor){
  if(state.user?.id!==actor)throw Error('请重新登录');
  if(pointsShopPending&&(pointsShopPending.actor!==actor||pointsShopPending.item!==item.id))throw Error('请先完成上一笔兑换');
- if(!pointsShopPending){if(!confirm('使用 '+item.points_cost+' P 兑换「'+item.name+'」？'))return;pointsShopPending={actor,item:item.id,name:item.name,cost:item.points_cost,request:uuid()};requestStore.set('points-shop:'+actor,JSON.stringify(pointsShopPending));}
+ if(!pointsShopPending){if(!confirm(tr('exchange_confirm',{points:item.points_cost,name:item.name})))return;pointsShopPending={actor,item:item.id,name:item.name,cost:item.points_cost,request:uuid()};requestStore.set('points-shop:'+actor,JSON.stringify(pointsShopPending));}
  const request=pointsShopPending;const response=await db.rpc('yt_point_shop_exchange',{p_item:request.item,p_request:request.request,p_expected_cost:request.cost});if(response.error?.code==='P0001'){pointsShopPending=null;requestStore.remove('points-shop:'+actor);openPointsShop().catch(()=>{});}const result=unpack(response);pointsShopPending=null;requestStore.remove('points-shop:'+actor);
- if(state.user?.id!==actor)return;await Promise.all([wallet(true),loadMyLoyalty()]);await showSimpleSuccess('兑换成功',result.reward_name||item.name,'已存入 Wallet，现在就可以使用。');
+ if(state.user?.id!==actor)return;await Promise.all([wallet(true),loadMyLoyalty()]);await showSimpleSuccess(tr('exchange_success'),result.reward_name||item.name,tr('wallet_now'));
 }
 
 async function loadMyLoyalty(){
@@ -505,19 +508,19 @@ function renderMyLoyalty(){
  const l=state.loyalty;if(!l)return;
  const cards=['ytLoyaltyWallet'];
  for(const id of cards){const target=$(id);if(!target)continue;target.classList.remove('hide');target.replaceChildren();
-  const h=document.createElement('div');h.className='yt-loyalty-head';h.innerHTML='<strong>我的积分</strong><span>POINTS</span>';target.append(h);
-  const p=document.createElement('div');p.className='yt-loyalty-points';p.innerHTML='<span>可用积分</span><b>'+Number(l.points_balance||0).toLocaleString('en-MY')+' P</b>';
+  const h=document.createElement('div');h.className='yt-loyalty-head';h.innerHTML='<strong>'+esc(tr('my_points'))+'</strong><span>POINTS</span>';target.append(h);
+  const p=document.createElement('div');p.className='yt-loyalty-points';p.innerHTML='<span>'+esc(tr('available_points'))+'</span><b>'+Number(l.points_balance||0).toLocaleString('en-MY')+' P</b>';
   target.append(p);
   const actions=document.createElement('div');actions.className='loyalty-actions';
-  const shop=document.createElement('button');shop.type='button';shop.className='button button-primary';shop.textContent='积分商场';shop.onclick=()=>openPointsShop().catch(e=>toast(errorText(e),true));actions.append(shop);
-  const history=document.createElement('button');history.type='button';history.className='button button-outline';history.textContent='积分记录';history.onclick=showPointsHistory;actions.append(history);target.append(actions);
-  if(l.referral_enabled){const invite=document.createElement('details');invite.className='loyalty-referral';invite.innerHTML='<summary>好友邀请</summary><div class="yt-loyalty-code"><span>我的好友码</span><b>'+esc(l.referral_code||'—')+'</b></div>';const b=document.createElement('button');b.type='button';b.className='button button-outline wide';b.textContent='复制邀请链接';b.onclick=()=>{const u=new URL('./',location.href);u.search='';u.searchParams.set('invite',l.referral_code);copy(u.href);};invite.append(b);target.append(invite);}
+  const shop=document.createElement('button');shop.type='button';shop.className='button button-primary';shop.textContent=tr('points_shop');shop.onclick=()=>openPointsShop().catch(e=>toast(errorText(e),true));actions.append(shop);
+  const history=document.createElement('button');history.type='button';history.className='button button-outline';history.textContent=tr('points_history');history.onclick=showPointsHistory;actions.append(history);target.append(actions);
+  if(l.referral_enabled){const invite=document.createElement('details');invite.className='loyalty-referral';invite.innerHTML='<summary>'+esc(tr('invite'))+'</summary><div class="yt-loyalty-code"><span>'+esc(tr('invite_code'))+'</span><b>'+esc(l.referral_code||'—')+'</b></div>';const b=document.createElement('button');b.type='button';b.className='button button-outline wide';b.textContent=tr('copy_invite');b.onclick=()=>{const u=new URL('./',location.href);u.search='';u.searchParams.set('invite',l.referral_code);copy(u.href);};invite.append(b);target.append(invite);}
  }
 }
 function showPointsHistory(){
- showSheet('最近积分记录','POINTS HISTORY');const root=document.createElement('div');root.className='sheet-content points-history-drawer';const items=state.loyalty?.points_history||[];
- if(!items.length){const empty=document.createElement('p');empty.textContent='目前尚未获得积分。';root.append(empty);}
- for(const item of items.slice(0,15)){const row=document.createElement('div');row.className='points-history-row';const date=document.createElement('span');date.textContent=fmt(item.created_at);const value=document.createElement('strong');value.textContent=(item.source==='expiry'?'到期 ':item.source==='mall_exchange'?'兑换 ':item.direction==='adjust'?'撤销 ':'')+(item.direction==='earn'||item.direction==='refund'?'+':'−')+Number(item.points).toLocaleString('en-MY')+' P';row.append(date,value);root.append(row);}
+ showSheet(tr('recent_points'),'POINTS HISTORY');const root=document.createElement('div');root.className='sheet-content points-history-drawer';const items=state.loyalty?.points_history||[];
+ if(!items.length){const empty=document.createElement('p');empty.textContent=tr('points_empty');root.append(empty);}
+ for(const item of items.slice(0,15)){const row=document.createElement('div');row.className='points-history-row';const date=document.createElement('span');date.textContent=fmt(item.created_at);const value=document.createElement('strong');value.textContent=(item.source==='expiry'?tr('expired_prefix'):item.source==='mall_exchange'?tr('exchange_prefix'):item.direction==='adjust'?tr('reversed_prefix'):'')+(item.direction==='earn'||item.direction==='refund'?'+':'−')+Number(item.points).toLocaleString('en-MY')+' P';row.append(date,value);root.append(row);}
  $('sheetBody').append(root);
 }
 async function choosePassReward(pass){
@@ -527,8 +530,8 @@ async function choosePassReward(pass){
 }
 
 async function existingGamePass(){await refreshPasses();const passes=state.passes.filter(p=>p.status==='claimed'&&millis(p.expires_at)>Date.now());if(!passes.length)throw Error('还没有可用游戏，请先扫描员工二维码');
- showSheet('我的游戏','GAME PASS');sheetHtml('<div class="sheet-content"><div id="savedGamePasses" class="saved-game-passes"></div></div>');
- for(const pass of passes){const row=document.createElement('button');row.type='button';row.className='saved-game-pass';row.innerHTML='<span><strong>'+esc(pass.session_id?(pass.game_title||'继续本局游戏'):'选择游戏')+'</strong><small>到期 '+esc(fmt(pass.expires_at))+'</small></span><b>'+(pass.session_id?'继续本局':'开始选择')+' ↗</b>';row.onclick=()=>pending(row,()=>choosePassReward(pass)).catch(()=>{});$('savedGamePasses').append(row);}
+ showSheet(tr('saved_games'),'GAME PASS');sheetHtml('<div class="sheet-content"><div id="savedGamePasses" class="saved-game-passes"></div></div>');
+ for(const pass of passes){const row=document.createElement('button');row.type='button';row.className='saved-game-pass';row.innerHTML='<span><strong>'+esc(pass.session_id?(pass.game_title||tr('continue_game')):tr('choose_game'))+'</strong><small>'+esc(tr('expires',{date:fmt(pass.expires_at)}))+'</small></span><b>'+esc(tr(pass.session_id?'continue_action':'choose_action'))+' ↗</b>';row.onclick=()=>pending(row,()=>choosePassReward(pass)).catch(()=>{});$('savedGamePasses').append(row);}
 }
 async function resumeGamePass(pass){await refreshPasses();const current=state.passes.find(p=>p.id===pass.id);if(!current?.session_id)throw Error('这次游戏已完成或到期，请查看奖励钱包');const g={id:current.game_id,slug:current.game_slug,title:current.game_title};return startGame(current,g,{session_id:current.session_id,result_key:current.result_key,status:'resumed'});}
 async function gameCheckpoint(session,action,round=null,score=null){return unpack(await db.rpc('yt_game_checkpoint',{p_session:session.session_id,p_action:action,p_round:round,p_score:score}));}
@@ -703,7 +706,7 @@ function bindEvents(){
  $('ownerOpenPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('reloadInsights').onclick=e=>pending(e.currentTarget,loadInsights).catch(()=>{});$('staffAccessGrant').onclick=e=>pending(e.currentTarget,grantStaff).catch(()=>{});
 }
-async function boot(){bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
+async function boot(){i18n.apply();bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
  db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();shell(false);changeAuthMode('phone');}});
