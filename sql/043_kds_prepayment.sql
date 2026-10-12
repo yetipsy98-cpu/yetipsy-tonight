@@ -29,9 +29,10 @@ create or replace function public.yt_pos_create_order_with_rewards_v2(
  select private.yt_pos_create_order_with_rewards_v2(p_request,p_table,p_note,p_items,p_channel,p_draft,p_checkout_mode);
 $$;
 
-revoke all on function private.yt_pos_create_order_with_rewards_v2(uuid,text,text,jsonb,text,uuid,text) from public,anon,authenticated;
+revoke all on function private.yt_pos_create_order_with_rewards_v2(uuid,text,text,jsonb,text,uuid,text) from public,anon;
 revoke all on function public.yt_pos_create_order_with_rewards_v2(uuid,text,text,jsonb,text,uuid,text) from public,anon;
 grant execute on function public.yt_pos_create_order_with_rewards_v2(uuid,text,text,jsonb,text,uuid,text) to authenticated;
+grant execute on function private.yt_pos_create_order_with_rewards_v2(uuid,text,text,jsonb,text,uuid,text) to authenticated;
 
 create or replace function private.yt_pos_cart_summary(p_order uuid) returns jsonb
 language plpgsql stable security definer set search_path='' as $$

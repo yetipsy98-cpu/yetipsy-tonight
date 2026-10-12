@@ -8,12 +8,13 @@ begin
  select auth_user_id into member from public.pin_accounts where not exists(select 1 from public.work_accounts where auth_user_id=pin_accounts.auth_user_id) limit 1;
  if owner_id is null or staff_id is null or member is null then raise exception 'fixture_missing';end if;
  if has_function_privilege('anon','public.yt_game_settle(uuid,text)','execute') or has_table_privilege('authenticated','public.yt_point_shop_items','UPDATE') then raise exception 'write_exposed';end if;
+ if not has_function_privilege('authenticated','private.yt_pos_create_order_with_rewards_v2(uuid,text,text,jsonb,text,uuid,text)','execute') then raise exception 'pos_order_wrapper_permission_missing';end if;
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',owner_id)::text,true);
  insert into public.yt_pos_series(name,benefit_mode,game_plays,active) values('rollback point shop','games',1,true) returning id into series;
  insert into public.yt_shop_products(title,price_rm,series_id,active) values('rollback points drink',20,series,true) returning id into product;
  insert into public.campaigns(name,active) values('rollback point settlement',true) returning id into camp;
  insert into public.campaign_games(campaign_id,game_id) select camp,id from public.games where active;
- insert into public.rewards(name,category,validity_days,next_day_only,active,points_equivalent) values('rollback mall reward','voucher',30,false,true,75) returning id into reward;
+ insert into public.rewards(name,category,validity_days,next_day_only,active,points_equivalent) values('rollback mall reward','voucher',30,true,true,75) returning id into reward;
  insert into public.yt_pos_reward_rules(reward_id,mode,discount_type,discount_value,min_paid_drinks,min_spend_rm) values(reward,'any_drink','fixed',5,1,0);
  insert into public.reward_pool_entries(campaign_id,game_id,result_key,reward_id,weight) select camp,id,'R0',reward,1 from public.games where mode='chance' and active;
  insert into public.yt_member_orders(source,status,amount_rm,created_by) values('future_pos','fulfilled',60,owner_id) returning id into o;
@@ -49,7 +50,7 @@ begin
  begin perform public.yt_game_settle(session,'points');raise exception 'expected_failure';exception when others then if sqlerrm<>'game_settlement_locked' then raise;end if;end;
  -- Owner sets shop price/limits. Cashier and members cannot administer it.
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',owner_id)::text,true);
- again:=jsonb_build_object('request',gen_random_uuid(),'reward',reward,'cost',50,'active',true,'stock',2,'member_limit',1);r:=public.yt_owner_points_save('shop',again);shop:=(r->>'id')::uuid;r:=public.yt_owner_points_save('shop',again);if r->>'id'<>shop::text or not (r->>'idempotent')::boolean then raise exception 'owner_shop_retry_failed';end if;
+ again:=jsonb_build_object('request',gen_random_uuid(),'reward',reward,'description','兑换后马上使用的 RM5 优惠','cost',50,'active',true,'stock',2,'member_limit',1);r:=public.yt_owner_points_save('shop',again);shop:=(r->>'id')::uuid;r:=public.yt_owner_points_save('shop',again);if r->>'id'<>shop::text or not (r->>'idempotent')::boolean then raise exception 'owner_shop_retry_failed';end if;
  begin perform public.yt_owner_points_save('shop',again||jsonb_build_object('cost',51));raise exception 'expected_failure';exception when others then if sqlerrm<>'request_conflict' then raise;end if;end;
  r:=public.yt_owner_points_save('shop',jsonb_build_object('request',gen_random_uuid(),'reward',reward,'cost',20,'active',true,'stock',1));shop2:=(r->>'id')::uuid;
  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',staff_id)::text,true);
@@ -61,10 +62,11 @@ begin
  insert into public.yt_point_entries(customer_id,direction,points,reference,remaining_points,expires_at) values(member,'earn',30,'rollback soon',30,now()+interval '1 day') returning id into lot2;
  update public.yt_point_wallets set balance=balance+40,lifetime_earned=lifetime_earned+40 where customer_id=member;
  r:=public.yt_point_shop_list();if (r->>'balance')::integer<>205 or (select remaining_points from public.yt_point_entries where id=lot1)<>0 then raise exception 'expired_points_still_spendable';end if;
+ if not exists(select 1 from jsonb_array_elements(r->'items')x where x->>'id'=shop::text and x->>'description'='兑换后马上使用的 RM5 优惠' and not (x->>'next_day_only')::boolean) then raise exception 'shop_description_or_immediate_flag_missing';end if;
  begin perform public.yt_point_shop_exchange(shop,gen_random_uuid(),49);raise exception 'expected_failure';exception when others then if sqlerrm<>'shop_price_changed' then raise;end if;end;
  req:=gen_random_uuid();r:=public.yt_point_shop_exchange(shop,req,50);again:=public.yt_point_shop_exchange(shop,req,50);
  if r->>'id'<>again->>'id' or (select stock_used from public.yt_point_shop_items where id=shop)<>1 or (select remaining_points from public.yt_point_entries where id=lot2)<>0 then raise exception 'shop_retry_or_fefo_failed';end if;
- if not exists(select 1 from public.user_rewards where id=(r->>'reward_id')::uuid and reward_id=reward and session_id is null) then raise exception 'mall_not_usable_in_wallet';end if;
+ if not exists(select 1 from public.user_rewards where id=(r->>'reward_id')::uuid and reward_id=reward and session_id is null and redeem_after<=clock_timestamp()) then raise exception 'mall_not_immediately_usable_in_wallet';end if;
  begin perform public.yt_point_shop_exchange(shop2,req,20);raise exception 'expected_failure';exception when others then if sqlerrm<>'request_conflict' then raise;end if;end;
  begin perform public.yt_point_shop_exchange(shop,gen_random_uuid(),50);raise exception 'expected_failure';exception when others then if sqlerrm<>'shop_member_limit' then raise;end if;end;
  perform public.yt_point_shop_exchange(shop2,gen_random_uuid(),20);

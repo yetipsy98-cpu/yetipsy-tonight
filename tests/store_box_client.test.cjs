@@ -23,6 +23,17 @@ test('all work roles can open Store Box without a separate page',()=>{
  assert.match(js,/has-alert/);
 });
 
+test('table number help is visible in work orders and customer Store Box calls',()=>{
+ const customer=read('play/customer-store-box.js');
+ assert.match(customer,/不确定桌号？看指引图/);
+ assert.match(customer,/table-number-guide\.jpg/);
+ for(const page of ['pos','owner','staff','cashier']){
+  const html=read(`play/${page}/index.html`);
+  assert.match(html,/不确定桌号？看指引图/);
+  assert.match(html,/table-number-guide\.jpg/);
+ }
+});
+
 test('Store Box client uses the protected RPC workflow',()=>{
  const js=read('play/pos/store-box.js');
  for(const name of ['yt_store_box_rule_list','yt_store_box_rule_save_v2','yt_store_box_issue_orders','yt_store_box_issue_quote','yt_store_box_issue','yt_store_box_claims_active','yt_store_box_claim_cancel','yt_store_box_queue','yt_store_box_staff_boxes','yt_store_box_request_action','yt_store_box_progress'])assert.ok(js.includes(name),name);
@@ -53,7 +64,7 @@ test('Package and challenge checkout issues the customer claim code immediately'
  for(const page of ['pos','owner','staff','cashier']){
   const html=read(`play/${page}/index.html`);
   assert.match(html,/id="orderCartClaims"/);
-  assert.match(html,/20261012-kds-v17/);
+  assert.match(html,/20261012-points-rewards-v18/);
   assert.match(html,/id="storeBoxOrderQueue"/);
  }
 });

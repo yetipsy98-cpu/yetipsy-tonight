@@ -3,7 +3,7 @@ import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=202
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from './owner-banners.js?v=20261010-copy-v15-4';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
-import {createCustomerStoreBox} from './customer-store-box.js?v=20261012-storebox-multi-v16-9';
+import {createCustomerStoreBox} from './customer-store-box.js?v=20261012-points-rewards-v18';
 
 const $=id=>document.getElementById(id);
 const urlConfig=window.YETIPSY_PLAY_CONFIG||{};
@@ -484,7 +484,7 @@ async function openPointsShop(){
  $('pointsShopBalance').textContent=Number(data.balance||0).toLocaleString('en-MY')+' P'+(data.expiring_points?' · '+data.expiring_points+' P 将在7天内到期':'');
  const root=$('pointsShopItems');root.replaceChildren();if(!data.items?.length&&!pointsShopPending){root.textContent='商场尚未上架，稍后再来看看。';return;}
  if(pointsShopPending?.actor===actor&&!data.items?.some(x=>x.id===pointsShopPending.item))data.items.push({id:pointsShopPending.item,name:pointsShopPending.name,points_cost:pointsShopPending.cost,validity_days:0,description:'找回上一笔兑换请求'});
- for(const item of data.items){const card=document.createElement('article');card.className='points-shop-card';const limited=item.per_member_limit!=null&&Number(item.claimed_count)>=Number(item.per_member_limit),sold=item.stock_remaining!=null&&Number(item.stock_remaining)<=0;card.innerHTML='<div><strong>'+esc(item.name)+'</strong><small>'+Number(item.points_cost)+' P'+(item.stock_remaining!=null?' · 剩余 '+Number(item.stock_remaining):'')+'</small><p>'+esc(item.description||'兑换后可在我的奖励使用')+'</p><p class="tiny-help">'+(item.next_day_only?'次日可用 · ':'')+Number(item.validity_days)+' 天有效'+(Number(item.min_spend_rm)>0?' · 最低消费 RM'+Number(item.min_spend_rm).toFixed(2):'')+(item.redeem_end_at?' · 截止 '+esc(fmt(item.redeem_end_at)):'')+(item.daily_start_local&&item.daily_end_local?' · '+esc(item.daily_start_local.slice(0,5))+'–'+esc(item.daily_end_local.slice(0,5)):'')+'</p></div>';
+ for(const item of data.items){const card=document.createElement('article');card.className='points-shop-card';const limited=item.per_member_limit!=null&&Number(item.claimed_count)>=Number(item.per_member_limit),sold=item.stock_remaining!=null&&Number(item.stock_remaining)<=0;card.innerHTML='<div><strong>'+esc(item.name)+'</strong><small>'+Number(item.points_cost)+' P'+(item.stock_remaining!=null?' · 剩余 '+Number(item.stock_remaining):'')+'</small><p>'+esc(item.description||'兑换后马上进入 Wallet 使用')+'</p><p class="tiny-help">立即可用 · '+Number(item.validity_days)+' 天有效'+(Number(item.min_spend_rm)>0?' · 最低消费 RM'+Number(item.min_spend_rm).toFixed(2):'')+(item.redeem_end_at?' · 截止 '+esc(fmt(item.redeem_end_at)):'')+(item.daily_start_local&&item.daily_end_local?' · '+esc(item.daily_start_local.slice(0,5))+'–'+esc(item.daily_end_local.slice(0,5)):'')+'</p></div>';
   const b=document.createElement('button');b.type='button';b.className='button button-primary';const waiting=pointsShopPending?.actor===actor,own=waiting&&pointsShopPending.item===item.id;b.textContent=own?'重试兑换':limited?'已达限额':sold?'已兑完':Number(data.balance)<Number(item.points_cost)?'积分不足':'兑换';b.disabled=(!own&&(waiting||limited||sold||Number(data.balance)<Number(item.points_cost)));b.onclick=()=>pending(b,()=>exchangeShopItem(item,actor)).catch(()=>{});card.append(b);root.append(card);
  }
 }
@@ -493,7 +493,7 @@ async function exchangeShopItem(item,actor){
  if(pointsShopPending&&(pointsShopPending.actor!==actor||pointsShopPending.item!==item.id))throw Error('请先完成上一笔兑换');
  if(!pointsShopPending){if(!confirm('使用 '+item.points_cost+' P 兑换「'+item.name+'」？'))return;pointsShopPending={actor,item:item.id,name:item.name,cost:item.points_cost,request:uuid()};requestStore.set('points-shop:'+actor,JSON.stringify(pointsShopPending));}
  const request=pointsShopPending;const response=await db.rpc('yt_point_shop_exchange',{p_item:request.item,p_request:request.request,p_expected_cost:request.cost});if(response.error?.code==='P0001'){pointsShopPending=null;requestStore.remove('points-shop:'+actor);openPointsShop().catch(()=>{});}const result=unpack(response);pointsShopPending=null;requestStore.remove('points-shop:'+actor);
- if(state.user?.id!==actor)return;await Promise.all([wallet(true),loadMyLoyalty()]);await showSimpleSuccess('兑换成功',result.reward_name||item.name,'奖励已存入钱包，到店出示兑换码即可使用。');
+ if(state.user?.id!==actor)return;await Promise.all([wallet(true),loadMyLoyalty()]);await showSimpleSuccess('兑换成功',result.reward_name||item.name,'已存入 Wallet，现在就可以使用。');
 }
 
 async function loadMyLoyalty(){

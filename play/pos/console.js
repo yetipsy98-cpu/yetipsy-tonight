@@ -23,7 +23,7 @@ export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,lo
     ownerTools||=await import('../shared/owner-tools.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;
     const identityResult=await db.rpc('yt_pos_identity');if(identityResult.error)throw identityResult.error;
     if(!identityResult.data?.can_owner)throw Error('owner_only');ownerTools.initOwnerTools(db,identityResult.data);await ownerTools.loadOwnerTool(key);
-    if(key==='team')await loadRights();if(key==='loyalty'){const module=await import('./owner-points.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();}
+    if(key==='team')await loadRights();if(key==='loyalty'){const module=await import('./owner-points.js?v=20261012-points-rewards-v18');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();}
    }
    if(key==='insights'){const module=await import('./owner-reports.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner,notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
    if(key==='dayclose'){const module=await import('./day-close.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
