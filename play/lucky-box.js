@@ -11,7 +11,7 @@ export function createLuckyBox({db,showSheet,sheetHtml,getUser,onNeedLogin,onCla
   showSheet('LUCKY BOX','YE·TIPSY · OPEN YOUR SURPRISE');
   sheetHtml('<div class="sheet-content lucky-box-screen"><div class="lucky-box-top">LUCKY BOX · YETIPSY PLAY</div>'+
    '<h2>开启属于你的惊喜</h2><p>打开礼物箱，揭晓本次消费的随机积分。</p>'+
-   '<div class="lucky-gift-wrap" aria-hidden="true"><div class="lucky-gift">🎁</div><div class="lucky-sparkles">✦　✧　✦</div></div>'+
+   '<div class="lucky-gift-wrap" aria-hidden="true"><div class="lucky-gift"><div class="lucky-gift-lid"><span></span></div><div class="lucky-gift-bow">✦</div><div class="lucky-gift-body"><span></span></div><div class="lucky-gift-light"></div></div><div class="lucky-sparkles">✦　✧　✦</div></div>'+
    '<p class="lucky-box-note">无需先注册；中奖后登录或注册，即可领取积分。</p>'+
    '<button type="button" id="luckyOpenNow" class="button button-primary wide">打开礼物箱 · OPEN BOX</button>'+
    '<p id="luckyBoxStatus" class="tiny-help" role="status">请在领取 QR 有效期内打开。</p></div>');
