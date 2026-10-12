@@ -1,0 +1,19 @@
+name: Yetipsy Moon manual voucher checks
+on:
+  push:
+    branches: ['feat/manual-moon-guest-vouchers-20261012']
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions: {contents: read}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: |
+          for f in tests/*.test.cjs; do node "$f"; done
+      - run: |
+          for f in play/pos/pos.js play/pos/console.js play/pos/moon-code-editor.js; do node --check "$f"; done
