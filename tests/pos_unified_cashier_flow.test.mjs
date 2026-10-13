@@ -19,10 +19,14 @@ assert.deepEqual(readCashierBoxRequest({querySelector:()=>({value:'a'})},{...box
 const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const moon=fs.readFileSync('sql/060_moon_unified_preorder.sql','utf8');
 const store=fs.readFileSync('sql/061_cashier_package_first_pour.sql','utf8');
+const mixed=fs.readFileSync('sql/063_cashier_mixed_orders_kds_safety.sql','utf8');
 for(const s of ['yt_moon_preorder_scan','yt_moon_preorder_summary','yt_moon_preorder_release','yt_pos_create_order_with_rewards_v3','yt_pos_checkout_with_prep','renderCheckoutPrep','readCheckoutPrep']) assert(pos.includes(s),s);
 assert(moon.includes('yt_moon_preorder_attach')&&moon.includes("state='attached'"));
 assert(moon.includes("status='reserved'")&&moon.includes('reserved_order_id=p_order'));
 assert(store.includes('challenge_one_cup_only')&&store.includes("status='cancelled',claim_token=null"));
+assert(mixed.includes('cashier_managed')&&mixed.includes('store_box_item'),'Mixed order must not duplicate Package KDS');
+assert(mixed.includes('source_order_item_id')&&mixed.includes('r.selections @> p_selections'),'Mixed order remains QR-free and retry-safe');
+assert(pos.includes('.filter(item=>!item.store_box_item)'),'KDS renders only ordinary drinks in mixed orders');
 assert(store.includes("yt_store_box_cashier_request")&&store.includes("cashier_managed=true"));
 assert(store.includes("status='unclaimed' and b.cashier_managed"));
 for(const part of ['pos','owner','cashier','staff']){
