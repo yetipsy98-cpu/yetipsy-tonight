@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const url=require('node:url');
+const read=p=>fs.readFileSync(p,'utf8');
 (async()=>{
  const src=fs.readFileSync('play/pos/moon-code-editor.js','utf8');
  // Import actual browser module in Node; use minimal fake DOM to simulate the Owner drawer.
