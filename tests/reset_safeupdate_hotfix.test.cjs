@@ -3,7 +3,7 @@ const root=fs.readFileSync('play/pos/factory-reset.js','utf8');
 const sql=fs.readFileSync('sql/050_repair_owner_reset_where_guards.sql','utf8');
 const client=fs.readFileSync('play/pos/pos.js','utf8');
 const consoleSrc=fs.readFileSync('play/pos/console.js','utf8');
-assert(client.includes('console.js?v=20261013-lucky-v2') || /console\\.js\\?v=20261012-/.test(client));
+assert(client.includes('console.js?v=20261013-cashier-qr-v1') || /console\\.js\\?v=20261012-/.test(client));
 assert.match(consoleSrc,/factory-reset\.js\?v=20261012-reset-fix-v23/);
 assert.match(root,/reset_database_error/);
 assert.match(root,/reset_confirmation_expired/);
