@@ -33,7 +33,7 @@ function harness(role='staff') {
  const rpc=async(name,args={})=>{
   backend.calls.push({name,args:structuredClone(args)});
   let data;
-  if(name==='yt_pos_preorder_summary'){
+  if(name==='yt_moon_preorder_summary'){
    const g=args.p_cart.reduce((n,i)=>n+28*i.quantity,0),d=backend.holds.filter(h=>h.state==='chosen').reduce((n,h)=>n+h.discount_rm,0);
    data={gross_rm:g,reserved_discount_rm:d,payable_rm:g-d,unresolved_count:backend.holds.filter(h=>h.state==='pending').length,holds:structuredClone(backend.holds),can_submit:backend.holds.every(h=>h.state==='chosen')&&g-d>0};
    if(backend.summaryResolvers)return new Promise(resolve=>backend.summaryResolvers.push(()=>resolve({data,error:null})));

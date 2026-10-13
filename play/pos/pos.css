@@ -136,3 +136,8 @@ body.sheet-open{overflow:hidden}
 .cashier-prep-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
 .cashier-prep-grid label{display:flex;flex-direction:column;gap:5px}
 .cashier-prep-grid input{max-width:100%;padding:9px}
+
+/* Search and category chips share one row on desktop, scrolling on narrow screens. */
+.filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.filters #searchProduct{flex:1 1 225px;min-width:170px}
+.filters .category-button-strip{flex:2 1 260px;min-width:0;max-width:100%}

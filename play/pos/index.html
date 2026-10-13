@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-Hans">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · 工作台</title><link rel="stylesheet" href="../pos/pos.css?v=20261012-v22"><link rel="stylesheet" href="../reward-binding.css?v=20261010-storebox-v16-1">
-<link rel="stylesheet" href="../pos/console.css?v=20261012-moon-manual-v1"><link rel="modulepreload" href="../pos/pos.js?v=20261013-lucky-v2"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · 工作台</title><link rel="stylesheet" href="../pos/pos.css?v=20261013-unified-pos-v1"><link rel="stylesheet" href="../reward-binding.css?v=20261010-storebox-v16-1">
+<link rel="stylesheet" href="../pos/console.css?v=20261012-moon-manual-v1"><link rel="modulepreload" href="../pos/pos.js?v=20261013-unified-pos-v1"></head>
 <body data-entry="work" data-unified="true">
 <header class="site-head"><div class="logo">YE<span>·</span>TIPSY<small>POINT OF SALE · KLUANG</small></div><div class="site-head-actions"><span id="accountName" class="account-tag">WORK ACCOUNT</span><details id="accountMenu" class="account-menu hidden"><summary>账号 ⌄</summary><div><button type="button" class="hidden" data-cashier-tool="dayclose">营业日结</button><button type="button" data-go-tab="reset">顾客 PIN 重设</button><button type="button" id="logout" class="quiet hidden">退出登录</button></div></details></div></header>
 <main class="root">
@@ -13,7 +13,7 @@
  <section id="tab-create" class="tab-view">
    <div class="two-column">
     <article class="card"><div class="block-head"><div><p class="kicker">CREATE NEW ORDER</p><h2>选择产品</h2></div><span class="mini-chip">按产品计价</span></div>
-     <div class="filters"><input id="searchProduct" type="search" placeholder="搜索饮品 / 产品系列" aria-label="搜索产品"><select id="categoryProduct" class="category-native-select" aria-label="产品类别"><option value="">全部类别</option></select></div><div id="categoryProductButtons" class="category-button-strip" role="group" aria-label="产品系列快捷筛选"></div>
+     <div class="filters"><input id="searchProduct" type="search" placeholder="搜索饮品 / 产品系列" aria-label="搜索产品"><select id="categoryProduct" class="category-native-select" aria-label="产品类别"><option value="">全部类别</option></select><div id="categoryProductButtons" class="category-button-strip" role="group" aria-label="产品系列快捷筛选"></div></div>
      <div id="catalog" class="catalog"><div class="empty">正在加载产品…</div></div>
     </article>
     <article class="card checkout-card" id="checkoutDrawer" role="region" aria-label="本次开单"><div class="cart-grip" aria-hidden="true"></div><div class="block-head"><div><p class="kicker">CURRENT BILL</p><h2>本次开单</h2></div><div class="cart-head-controls"><span id="cartCount" class="mini-chip">0 件</span><button type="button" id="cartCloseBtn" class="cart-close" aria-label="关闭购物车">✕</button></div></div>

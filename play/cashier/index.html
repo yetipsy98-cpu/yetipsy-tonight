@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-Hans">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · 工作台</title><link rel="stylesheet" href="../pos/pos.css?v=20261012-v22"><link rel="stylesheet" href="../reward-binding.css?v=20261010-storebox-v16-1">
-<link rel="stylesheet" href="../pos/console.css?v=20261012-moon-manual-v1"><link rel="modulepreload" href="../pos/pos.js?v=20261013-lucky-v2"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111614"><meta name="robots" content="noindex,nofollow"><title>Yetipsy · 工作台</title><link rel="stylesheet" href="../pos/pos.css?v=20261013-unified-pos-v1"><link rel="stylesheet" href="../reward-binding.css?v=20261010-storebox-v16-1">
+<link rel="stylesheet" href="../pos/console.css?v=20261012-moon-manual-v1"><link rel="modulepreload" href="../pos/pos.js?v=20261013-unified-pos-v1"></head>
 <body data-entry="work" data-unified="true">
 <header class="site-head"><div class="logo">YE<span>·</span>TIPSY<small>POINT OF SALE · KLUANG</small></div><div class="site-head-actions"><span id="accountName" class="account-tag">WORK ACCOUNT</span><details id="accountMenu" class="account-menu hidden"><summary>账号 ⌄</summary><div><button type="button" class="hidden" data-cashier-tool="dayclose">营业日结</button><button type="button" data-go-tab="reset">顾客 PIN 重设</button><button type="button" id="logout" class="quiet hidden">退出登录</button></div></details></div></header>
 <main class="root">
@@ -13,7 +13,7 @@
  <section id="tab-create" class="tab-view">
    <div class="two-column">
     <article class="card"><div class="block-head"><div><p class="kicker">CREATE NEW ORDER</p><h2>选择产品</h2></div><span class="mini-chip">按产品计价</span></div>
-     <div class="filters"><input id="searchProduct" type="search" placeholder="搜索饮品 / 产品系列" aria-label="搜索产品"><select id="categoryProduct" aria-label="产品类别"><option value="">全部类别</option></select></div>
+     <div class="filters"><input id="searchProduct" type="search" placeholder="搜索饮品 / 产品系列" aria-label="搜索产品"><select id="categoryProduct" class="category-native-select" aria-label="产品类别"><option value="">全部类别</option></select><div id="categoryProductButtons" class="category-button-strip" role="group" aria-label="产品系列快捷筛选"></div></div>
      <div id="catalog" class="catalog"><div class="empty">正在加载产品…</div></div>
     </article>
     <article class="card checkout-card" id="checkoutDrawer" role="region" aria-label="本次开单"><div class="cart-grip" aria-hidden="true"></div><div class="block-head"><div><p class="kicker">CURRENT BILL</p><h2>本次开单</h2></div><div class="cart-head-controls"><span id="cartCount" class="mini-chip">0 件</span><button type="button" id="cartCloseBtn" class="cart-close" aria-label="关闭购物车">✕</button></div></div>
@@ -21,9 +21,9 @@
      <div id="cartRows" class="cart-rows"><div class="empty">请先选择产品。</div></div>
      <div id="draftRewardRows" class="draft-reward-rows" aria-live="polite"></div>
      <div class="draft-redeem"><div class="draft-redeem-title"><div><p class="kicker">REDEEM BEFORE ORDER</p><h3>本次点单 · 使用奖励</h3></div><span class="mini-chip">下单前</span></div>
-      <div class="draft-scan-input"><input id="draftRedeemToken" autocomplete="off" spellcheck="false" placeholder="输入 8 位兑换码（如 7K3M-9X2P）" aria-label="8 位兑换码" autocapitalize="characters"><button type="button" id="draftRedeemScan" class="quiet">扫码</button><button type="button" id="draftRedeemCheck" class="primary">使用</button></div>
+      <div class="draft-scan-input"><input id="draftRedeemToken" autocomplete="off" spellcheck="false" placeholder="8 位奖励码 / YT-MOON-XXXXXXXX / 扫码" aria-label="奖励与 Moon 兑换码" autocapitalize="characters"><button type="button" id="draftRedeemScan" class="quiet">扫码</button><button type="button" id="draftRedeemCheck" class="primary">使用</button></div>
       <video id="draftRedeemVideo" class="hidden" playsinline muted autoplay></video><div id="draftRewardChoices" class="cart-redeem-choices"></div>
-      <p class="minimum-rule">必须购买至少一杯付费饮品；赠饮及全额抵扣的饮品不计入。</p>
+      <p class="minimum-rule">会员奖励和 Moon 兑换码统一在这里使用。至少保留一杯付费饮品；下单后锁码、结账正式核销。</p>
      </div>
      <div class="draft-totals"><div><span>商品原价（含赠饮）</span><b id="draftGross">RM0.00</b></div><div class="discount"><span>奖励优惠</span><b id="draftDiscount">−RM0.00</b></div></div>
      <div class="summary"><span>预计应收</span><strong id="cartTotal">RM0.00</strong></div><div class="draft-status-row"><p id="draftStatus" class="field-note" role="status"></p><button id="draftRefresh" type="button" class="quiet">重新核对</button></div>
@@ -65,7 +65,7 @@
      <div class="block-head order-cart-head"><div><p class="kicker">ORDER DISCOUNTS · CHECKOUT</p><h2 id="orderCartTitle">优惠与结账</h2></div><button type="button" id="orderCartClose" class="quiet">✕ 返回</button></div>
      <div class="order-cart-scroll">
        <div id="orderCartItems" class="cart-preview-list"></div>
-       <div id="orderCartHolds" class="order-cart-holds"></div>
+       <div id="orderCartHolds" class="order-cart-holds"></div><section id="cashierPackagePrep" class="cashier-prep-panel hidden"><h3>Package / Challenge · 首次出杯</h3><p class="field-note">Cashier 现场选择先出多少杯：Package 可选数量，Challenge 固定 1 杯。结账自动发送 KDS，顾客不需要扫码。</p><div id="cashierPackagePrepItems"></div></section>
        <section id="moonGuestPanel" class="moon-guest-panel"><h3>Moon 旧码兑换 · 无需会员</h3><p class="muted">员工直接输入旧 YT-MOON- 兑换码。赠品会加入本单及吧台 KDS，结账后才核销。</p>
         <div class="pair"><label>Moon 兑换码<input id="moonGuestCode" placeholder="YT-MOON-XXXXXXXX" autocomplete="off" maxlength="32" autocapitalize="characters"></label><button id="moonGuestCheck" type="button" class="primary">验证并加入</button></div>
         <div id="moonGuestChoice" class="hidden"><label id="moonGuestChoiceTitle" for="moonGuestDrink">实际赠品饮品</label><input id="moonGuestDrink" maxlength="110" placeholder="如：See You Tomorrow"><button type="button" id="moonGuestConfirm" class="main-button">加入免费赠饮</button></div>

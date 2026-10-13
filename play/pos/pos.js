@@ -721,7 +721,7 @@ async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  const bill=unpack(receipt),q=unpack(summary);
  $('orderCartTitle').textContent='#'+(q.order_no||bill.order_no)+' · 优惠与结账';
  $('orderCartItems').innerHTML=(bill.items||[]).map(item=>`<div class="cart-preview-item"><strong>${esc(item.item_name)} × ${Number(item.quantity)}</strong><span>${money(item.quantity*item.unit_price_rm)}</span></div>`).join('');
- $('moonGuestPanel').classList.toggle('hidden',q.payment_status!=='unpaid');
+ $('moonGuestPanel').classList.add('hidden'); // Moon is now handled in the shared pre-order redemption field.
  $('moonGuestRows').innerHTML=(q.moon_codes||[]).map(x=>'<div class="cart-discount-line"><div><strong>'+esc(x.kind==='R0'?'RM5 Voucher':x.kind==='R3'?'彩虹 Shot 赠品':x.kind==='R5'?'断片指南赠品':'微醺特调赠品')+'</strong><small>'+esc(x.code)+' · 已预留，收款后核销</small></div><b>'+ (x.kind==='R0'?'−RM5.00':'FREE') +'</b><button type="button" class="quiet" data-moon-release="'+esc(x.id)+'">释放</button></div>').join('');
  $('orderCartHolds').innerHTML=(q.holds||[]).length?q.holds.map(h=>`<div class="cart-discount-line"><div><strong>− ${esc(h.reward_name)}</strong><small>${h.can_checkout?'已预留':h.state==='reserved'?'待选择商品':'已超时'} · ${stamp(h.expires_at)}</small></div><b>−${money(h.discount_rm)}</b>${q.payment_status==='unpaid'?`<button type="button" class="quiet" data-release-hold="${esc(h.id)}">释放</button>`:''}</div>`).join(''):'<p class="muted">无预留奖励</p>';
  $('orderCartGross').textContent=money(q.gross_rm);
