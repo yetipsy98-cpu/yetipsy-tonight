@@ -29,7 +29,7 @@ const msgMap={game_points_already_used:'本单积分已花费或到期，不能�
   invalid_line:'订单产品无效',invalid_order:'订单资料不正确',invalid_channel:'下单渠道无效',invalid_checkout_mode:'付款安排不正确',invalid_filter:'订单筛选条件无效',
   order_not_found:'找不到这张订单',request_conflict:'重复请求出现冲突，请重新开单',invalid_payment_method:'请选择正确的收款方式',
   order_cannot_cancel:'这张订单不能直接取消，已出品／已付款订单必须走人工处理流程',
-  invalid_credentials:'账号或密码错误',owner_only:'只有 Owner 才能更改此设置',too_many_attempts:'错误尝试太多，请稍后再试',
+  invalid_credentials:'账号或密码错误',invalid_reward_name:'奖励名称需为2至120个字',reward_not_found:'找不到该奖励',owner_only:'只有 Owner 才能更改此设置',too_many_attempts:'错误尝试太多，请稍后再试',
   reason_required:'请填写至少两个字的取消／拒绝原因',
    pos_redemption_required:'这个奖品必须在 POS 中选择匹配商品兑换',reward_pos_disabled:'Owner 已暂停这份奖励兑换',
    reward_product_mismatch:'这份奖品不能兑换所选择的商品或系列',item_already_redeemed:'这一杯已经使用过奖励',item_already_assigned:'这杯已领取其他权益，不能再抵扣',
@@ -345,6 +345,7 @@ async function loadRewardRules(){
 }
 function updateRewardMapForm(){
  const r=state.rewardRules?.find(x=>x.reward_id===$('mapReward').value);
+ $('mapRewardName').value=r?.reward_name||'';$('saveRewardName').disabled=!r;
  $('mapMode').value=['product','series','any_drink','disabled'].includes(r?.mode)?r.mode:'product';
  $('mapProduct').value=r?.product_id||'';
  $('mapSeries').value=r?.series_id||'';
@@ -352,6 +353,16 @@ function updateRewardMapForm(){
  $('mapMinDrinks').value=r?.min_paid_drinks??1;$('mapMinSpend').value=r?.min_spend_rm??0;
  toggleMapInputs();
 }
+async function saveRewardName(){const btn=$('saveRewardName');await busy(btn,async()=>{
+ if(!isOwner())throw Error('owner_only');
+ const id=$('mapReward').value,name=$('mapRewardName').value.trim();
+ if(!id)throw Error('请先选择奖品');
+ if(name.length<2||name.length>120)throw Error('invalid_reward_name');
+ const {error}=await db.rpc('yt_owner_rename_reward',{p_reward:id,p_name:name});if(error)throw error;
+ await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();await loadOwnerRewardOffers();
+ showNotice('奖励名称已保存；兑奖绑定和已发放记录不变');
+ }).catch(()=>{});}
+
 function toggleMapInputs(){
  const mode=$('mapMode').value;
  const free=$('mapDiscountType').options[0];if(free)free.disabled=mode==='any_drink';
@@ -958,7 +969,7 @@ function bind(){
    const benefit=e.target.closest('[data-benefits]');if(benefit)showTab('benefits',benefit.dataset.benefits);});
   $('editClose').onclick=closeEditDialog;$('editForm').onsubmit=submitEditOrder;$('editSettlementForm').onsubmit=submitAdjustment;$('editCancelOrder').onchange=()=>{state.editDirty=true;$('editSettlement').classList.add('hidden');previewOwnerEdit();};$('editRevokeBenefits').onchange=()=>{state.editDirty=true;$('editSettlement').classList.add('hidden');};
  $('receiptClose').onclick=closeReceipt;$('receiptPrint').onclick=()=>window.print();$('receiptOverlay').onclick=e=>{if(e.target===$('receiptOverlay'))closeReceipt();};
- $('mapReward').onchange=updateRewardMapForm;$('mapMode').onchange=toggleMapInputs;$('mapDiscountType').onchange=toggleMapInputs;$('rewardMapForm').onsubmit=saveRewardMap;
+ $('mapReward').onchange=updateRewardMapForm;$('saveRewardName').onclick=()=>saveRewardName();$('mapMode').onchange=toggleMapInputs;$('mapDiscountType').onchange=toggleMapInputs;$('rewardMapForm').onsubmit=saveRewardMap;
  $('rewardMappingList').onclick=e=>{const b=e.target.closest('[data-reward-map]');if(b){$('mapReward').value=b.dataset.rewardMap;updateRewardMapForm();$('mapReward').scrollIntoView({behavior:'smooth',block:'center'});}};
  $('resetPinForm').onsubmit=preparePinReset;document.querySelectorAll('[data-go-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.goTab));
  document.addEventListener('keydown',e=>{if(e.key==='Tab'&&!$('editOverlay').classList.contains('hidden')){const list=[...$('editOverlay').querySelectorAll('button,input,select,textarea,summary')].filter(x=>!x.disabled&&x.getClientRects().length);const first=list[0],last=list.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}if(e.key==='Escape'){if(!$('editOverlay').classList.contains('hidden')){if(!state.editBusy&&!state.editPending&&!state.adjustmentPending)closeEditDialog();return;}if(document.body.classList.contains('cart-open'))closeCartDrawer();else if(!$('orderCartOverlay').classList.contains('hidden'))escapeOrderCart();else if(!$('receiptOverlay').classList.contains('hidden'))closeReceipt();}});
