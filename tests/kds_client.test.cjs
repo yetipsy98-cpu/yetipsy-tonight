@@ -19,7 +19,7 @@ test('KDS and settlement queues are separated by order state',()=>{
  assert.match(js,/row\.status==='fulfilled'\|\|\(row\.status==='confirmed'&&row\.store_box_only\)/);
  assert.match(js,/renderKdsOrder/);
  assert.match(js,/目前没有待付款挂单/);
- assert.match(js,/yt_pos_create_order_with_rewards_v2/);
+ assert.match(js,/yt_pos_create_order_with_rewards_v3/);
  assert.match(js,/p_checkout_mode:/);
 });
 
