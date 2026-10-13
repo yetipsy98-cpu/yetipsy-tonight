@@ -4,7 +4,7 @@ import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261013-lucky-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
-import {createStoreBox} from './store-box.js?v=20261012-kds-v17';
+import {createStoreBox} from './store-box.js?v=20261013-cashier-followup-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -925,7 +925,7 @@ function bind(){
  document.addEventListener('pointerdown',unlockAudio,{once:true});
  $('signinForm').addEventListener('submit',e=>{unlockAudio();login(e).catch(()=>{});});window.YT_WORK_READY=true;
  $('paidDateForm').onsubmit=e=>{e.preventDefault();refreshOrders(false);};$('paidToday').onclick=async()=>{try{const c=unpack(await db.rpc('yt_business_context'));state.businessDay=c.day;$('paidDate').value=c.day;await refreshOrders(false);}catch(e){showNotice(errorText(e),true);}};
- storeBox=createStoreBox({db,ownerRoot:$('storeBoxOwnerRoot'),staffRoot:$('storeBoxStaffRoot'),orderRoot:$('storeBoxOrderQueue'),isOwner,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onQueueChange:updateStoreBoxQueue});
+ storeBox=createStoreBox({db,ownerRoot:$('storeBoxOwnerRoot'),staffRoot:$('storeBoxStaffRoot'),orderRoot:$('storeBoxOrderQueue'),isOwner,isCashier,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onQueueChange:updateStoreBoxQueue});
  if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,loadStoreBoxOwner:()=>storeBox.loadOwner(),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onOwnerEdit:openEditDialog,onOrdersChanged:()=>refreshOrders(false),onReset:async(scopes)=>{
   stopPolling();if(scopes?.includes('records')){state.cart.clear();state.pendingSubmit=null;state.draftSummary=null;for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('yt-pos-'))sessionStorage.removeItem(key);}}
   showNotice('所选范围已重置',false,true);location.reload();

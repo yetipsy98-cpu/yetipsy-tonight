@@ -141,3 +141,8 @@ body.sheet-open{overflow:hidden}
 .filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .filters #searchProduct{flex:1 1 225px;min-width:170px}
 .filters .category-button-strip{flex:2 1 260px;min-width:0;max-width:100%}
+
+.cashier-followup{display:grid;gap:10px;border-top:1px solid #4d604b;padding-top:12px;margin-top:12px}
+.cashier-followup-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px}
+.cashier-followup-inputs label{display:flex;flex-direction:column;gap:4px}
+.cashier-followup-inputs input{max-width:100%;padding:9px}
