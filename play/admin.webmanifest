@@ -1,0 +1,1 @@
+{"name":"Yetipsy 管理工作台","short_name":"Yetipsy POS","start_url":"./owner/","scope":"./","display":"standalone","theme_color":"#111614","background_color":"#111614","lang":"zh-Hans","description":"Yetipsy cashier and management workspace","icons":[{"src":"./admin-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
