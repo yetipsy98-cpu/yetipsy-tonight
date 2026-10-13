@@ -22,9 +22,9 @@ ALTER TABLE public.yt_lite_device_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.yt_lite_risk_events ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.yt_lite_device_links FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON public.yt_lite_risk_events FROM PUBLIC, anon, authenticated;
--- These tables are intentionally server-only. A trusted backend must hash
--- identifiers using a server-side secret, enforce request limits and write events.
--- Do not insert device identifiers or IP addresses directly from the browser.
+-- Tables remain server-only; the authenticated RPC performs guarded inserts.
+-- Client-generated digests are weak signals, not trusted device attestation.
+-- A server-side keyed digest is required before enabling punitive enforcement.
 CREATE OR REPLACE FUNCTION private.yt_owner_lite_risk_summary()
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
 AS $$
