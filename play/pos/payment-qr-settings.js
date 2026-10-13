@@ -1,0 +1,18 @@
+export function createPaymentQrSettings({db,root,isOwner,notice}){
+ const bucket='yetipsy-payment-qr';let imagePath=null,file=null,previewUrl=null,epoch=0;
+ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const unpack=r=>{if(r.error)throw r.error;return r.data;};
+ const url=p=>db.storage.from(bucket).getPublicUrl(p).data.publicUrl;
+ function draw(){
+  const src=imagePath?url(imagePath):'';
+  root.innerHTML='<article class="card"><p class="kicker">OWNER · CASHIER PAYMENT</p><h2>DuitNow 收款二维码</h2><p class="field-note">Cashier 在待审核订单收款或挂单结账时，会默认显示这张二维码。只允许 Owner 上传或更换。</p><form id="paymentQrForm" class="stack"><img id="paymentQrPreview" alt="DuitNow 收款二维码预览" style="width:min(100%,320px);max-height:360px;object-fit:contain;margin:0 auto;background:#fff;padding:10px;border-radius:12px;'+(src?'':'display:none;')+'" src="'+esc(src)+'"><label>二维码图片（PNG / JPG / WebP，最大 5 MB）<input id="paymentQrFile" type="file" accept="image/png,image/jpeg,image/webp"></label><div class="button-row"><button class="main-button" type="submit">上传并保存</button><button id="paymentQrRemove" class="quiet" type="button" '+(imagePath?'':'disabled')+'>移除二维码</button></div><p id="paymentQrStatus" class="field-note" role="status"></p></form></article>';
+  const form=root.querySelector('#paymentQrForm'),input=root.querySelector('#paymentQrFile'),img=root.querySelector('#paymentQrPreview'),status=root.querySelector('#paymentQrStatus');
+  input.onchange=()=>{file=input.files?.[0]||null;if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=file?URL.createObjectURL(file):null;if(previewUrl){img.src=previewUrl;img.style.display='block';}status.textContent=file?'已选择新二维码，点击上传并保存后 Cashier 就会使用它。':'';};
+  form.onsubmit=save;root.querySelector('#paymentQrRemove').onclick=remove;
+ }
+ async function load(){if(!isOwner())throw Error('owner_only');const n=++epoch;root.innerHTML='<article class="card"><div class="empty">正在读取收款二维码设置…</div></article>';const s=unpack(await db.rpc('yt_receipt_settings_get'));if(n!==epoch)return;imagePath=s?.duitnow_qr_path||null;draw();}
+ async function save(e){e.preventDefault();if(!isOwner())throw Error('owner_only');const button=e.submitter,status=root.querySelector('#paymentQrStatus');button.disabled=true;try{let path=imagePath;if(file){const ext={'image/png':'png','image/jpeg':'jpg','image/webp':'webp'}[file.type];if(!ext||file.size>5*1024*1024)throw Error('请选择不超过 5 MB 的 PNG、JPG 或 WebP 图片');path='qr/'+crypto.randomUUID()+'.'+ext;status.textContent='正在上传二维码…';const up=await db.storage.from(bucket).upload(path,file,{contentType:file.type,cacheControl:'31536000',upsert:false});if(up.error)throw up.error;}status.textContent='正在保存设置…';const saved=unpack(await db.rpc('yt_owner_payment_qr_save',{p_path:path}));imagePath=saved?.duitnow_qr_path||null;file=null;if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;}draw();notice('DuitNow 收款二维码已保存');}catch(err){status.textContent=err.message||'保存失败';notice(err.message||'保存失败',true);}finally{if(button?.isConnected)button.disabled=false;}}
+ async function remove(){if(!isOwner()||!imagePath||!window.confirm('确定移除 DuitNow 收款二维码？Cashier 将不再显示二维码。'))return;try{const saved=unpack(await db.rpc('yt_owner_payment_qr_save',{p_path:null}));imagePath=saved?.duitnow_qr_path||null;file=null;draw();notice('DuitNow 收款二维码已移除');}catch(err){notice(err.message||'移除失败',true);}}
+ function cancel(){epoch++;}function clear(){cancel();imagePath=null;file=null;if(previewUrl)URL.revokeObjectURL(previewUrl);previewUrl=null;root.replaceChildren();}
+ return {load,cancel,clear};
+}

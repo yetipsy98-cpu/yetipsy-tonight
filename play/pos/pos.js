@@ -2,7 +2,7 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261013-lucky-v2';
+import {createConsole} from './console.js?v=20261013-cashier-qr-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261013-cashier-followup-v1';
 
@@ -22,7 +22,7 @@ const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
    series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0,
-  ownerDashboard:null,ownerDashboardDay:null,ownerDashboardLoading:false};
+  ownerDashboard:null,ownerDashboardDay:null,ownerDashboardLoading:false,duitnowQrPath:null,duitnowQrLoaded:false,duitnowQrError:null};
 const msgMap={game_points_already_used:'本单积分已花费或到期，不能撤销；可保留权益后改单',benefits_current_day_only:'只能分配当前营业日订单的 GamePass',pass_already_claimed:'顾客已领取，不能取消或再次发码',pass_changed_reload:'二维码已更新，请刷新后再取消',invalid_pass_cancellation:'请填写至少两个字的取消原因',default_campaign_not_available:'默认活动需已开放并包含可用游戏',order_not_editable:'该订单已取消或退款，不能再次改单',invalid_revision_price:'单价需为0至5000，最多两位小数',issued_reward_already_redeemed:'关联奖励已经核销，不能撤销；可关闭撤销选项保留权益',issued_reward_locked:'关联奖励已锁在其他订单，请先释放后再撤销',issued_points_balance_insufficient:'会员积分余额不足，不能撤回；可保留权益并记录人工处理',invalid_adjustment_payment:'请填写有效金额、收退款方式及说明',adjustment_exceeds_balance:'金额超过当前待补收／退款余额，请刷新核对',order_payment_adjustment_pending:'本单还有补收／退款未完成，暂不能发 GamePass',pass_revoked:'这次游戏权益已由 Owner 撤销',aged_order_owner_required:'这张订单已超过72小时，需要 Owner 批准处理',aged_orders_block_day_close:'有超过72小时未完成的订单，Owner 处理后才能完成 Closing',invalid_cutoff:'请选择有效的截止时间',invalid_business_day:'营业日日期不正确',day_close_changed_reload:'收款或订单状态已变化，请刷新 Daily Statement 后再确认',business_day_already_closed:'本营业日已经完成 Closing',day_close_note_required:'有未完成款项时请填写 Closing 备注',cash_out_exceeds_expected:'现金记录不正确',invalid_day_close:'Daily Statement 内容无效，请刷新后重试',business_day_not_closed:'本营业日尚未完成 Closing',order_not_unpaid:'该订单已经处理，请刷新',invalid_reset_scope:'请先选择有效的清空范围，旧页面请刷新后再试',reset_scope_conflict:'本次确认的范围已经锁定，请取消后重新选择',active_order_bundle_exists:'这张订单已有整单 QR，请从原设备找回，或等待到期',no_eligible_bundle_units:'这张订单没有尚可分配的 Game Pass',bundle_request_conflict:'发码请求不一致，请刷新核对',reset_confirmation_expired:'本次重置确认已过期，请从第一次密码确认重新开始',reset_cleanup_pending:'上一次重置的账号清理尚未完成，请继续清理',reset_cleanup_failed:'旧账号或广告文件清理暂未完成，请稍后重试',invalid_reset_request:'重置确认无效，请重新开始',short_code_invalid_or_expired:'兑换码不正确或已过期，请顾客重新生成',short_code_rate_limited:'输入次数过多，请一分钟后再试，或扫描二维码',minimum_paid_drink_required:'最低消费必须包含至少一杯付费饮品',minimum_one_paid_drink:'使用奖励必须至少购买一杯优惠后仍需付费的饮品',minimum_purchase_not_met:'请保留至少一杯付费饮品，并满足奖励最低消费',cart_requires_paid_drink:'先选择至少一杯付费饮品，再使用奖励',token_invalid_rescan_wallet:'兑奖码已失效，请让顾客在 Wallet 重新生成',reward_reserved_by_another_order:'这份奖励已锁定在另一张订单，请先取消原订单',draft_already_submitted:'这份购物车已提交，请到订单页面核对',paid_cart_item_already_discounted:'这杯已经使用其他优惠，请选择另一杯',paid_cart_item_missing:'原优惠饮品已不在购物车，请移除奖励后重新选择',cart_price_changed_rescan:'商品价格已变化，请移除奖励并重新扫码',preorder_coupon_not_ready_or_expired:'奖励未选好或已过期，请移除后重新扫码',too_many_cart_rewards:'单笔最多使用二十份奖励',staff_only:'需要有效员工账号',cashier_only:'需要 Cashier 权限',not_authenticated:'登录已过期，请重新登录',
   order_not_pending:'订单不在待接受状态',order_not_accepted:'订单必须先由 Cashier 接受',order_not_served:'请先完成出品，之后才能收款',
   product_unavailable:'这款产品已停止销售，请重新选择',order_too_large:'单笔订单金额或数量过大',
@@ -672,7 +672,7 @@ function editDialogChange(input){if(state.editPending||state.editBusy||state.adj
  state.editDirty=true;$('editSettlement').classList.add('hidden');renderEditRows();
 }
 function renderAdjustment(row){const balance=Number(row.balance_rm||0);state.adjustmentBalance=balance;$('editSettlement').classList.toggle('hidden',!isOwner()||row.payment_status!=='paid'||balance===0||!!state.editDirty);
- $('editSettlementTitle').textContent=balance>0?'待补收 '+money(balance):'待退款 '+money(-balance);$('editSettlementAmount').value=Math.abs(balance).toFixed(2);$('editSettlementAmount').max=Math.abs(balance).toFixed(2);$('editSettlementConfirmed').checked=false;$('editSettlementNote').value='';$('editSettlementMethod').value=row.payment_method&&['cash','duitnow','foodcourt','bank_transfer','card','other'].includes(row.payment_method)?row.payment_method:'cash';$('editSettlementConfirmText').textContent=balance>0?'确认已经实际收到这笔补款':'确认已经实际退回这笔款项';$('editSettlementSubmit').textContent=balance>0?'记录实际补收':'记录实际退款';
+ $('editSettlementTitle').textContent=balance>0?'待补收 '+money(balance):'待退款 '+money(-balance);$('editSettlementAmount').value=Math.abs(balance).toFixed(2);$('editSettlementAmount').max=Math.abs(balance).toFixed(2);$('editSettlementConfirmed').checked=false;$('editSettlementNote').value='';$('editSettlementMethod').value=row.payment_method&&['cash','duitnow','foodcourt','bank_transfer','card','other'].includes(row.payment_method)?row.payment_method:'duitnow';$('editSettlementConfirmText').textContent=balance>0?'确认已经实际收到这笔补款':'确认已经实际退回这笔款项';$('editSettlementSubmit').textContent=balance>0?'记录实际补收':'记录实际退款';
 }
 async function openEditDialog(id){let row;if(isOwner()){row=unpack(await db.rpc('yt_pos_owner_order_context',{p_order:id}));}else{row=state.active.find(x=>x.id===id);if(!row)throw Error('请先刷新现场订单');if(!state.identity.can_edit_orders)throw Error('order_edit_permission_required');}
  editPreviousFocus=document.activeElement;state.editOrder=row;state.editPending=null;state.adjustmentPending=null;state.editDirty=false;state.editBusy=false;state.editPreview=null;
@@ -712,7 +712,7 @@ async function submitAdjustment(e){e.preventDefault();const btn=e.submitter;awai
 function escapeOrderCart(){stopRedeemCamera();state.selectedOrderCart=null;cashierPackageQuote=null;cashierPackageOrder=null;state.activeRewardHold=null;
  $('orderCartOverlay').classList.add('hidden');document.body.classList.remove('sheet-open');}
 async function openOrderCart(id){
- state.selectedOrderCart=id;cashierPackageQuote=null;cashierPackageOrder=null;state.activeRewardHold=null;$('cartRedeemToken').value='';$('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
+ state.selectedOrderCart=id;cashierPackageQuote=null;cashierPackageOrder=null;state.activeRewardHold=null;state.duitnowQrLoaded=false;state.duitnowQrError=null;$('cartRedeemToken').value='';$('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
  $('cartRedeemChoices').innerHTML='';$('orderCartClaims').replaceChildren();$('orderCartClaims').classList.add('hidden');$('orderCartOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');await refreshOrderCart();
 }
@@ -735,8 +735,16 @@ async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  await loadCashierPackagePrep(id,q);
  $('cartCheckoutControls').classList.toggle('hidden',!isCashier()||q.payment_status==='paid');
  $('cartCheckoutBtn').disabled=!q.can_pay;$('cartCheckoutBtn').textContent=q.store_box_only?'确认收款并生成领取码':'确认收款并正式核销奖励';
- $('cartCheckoutPayment').value='foodcourt';
+ $('cartCheckoutPayment').value='duitnow';
+ await refreshDuitNowQr();
 }
+function renderDuitNowQr(){
+ const panel=$('cashierDuitNowQr'),image=$('cashierDuitNowQrImage'),status=$('cashierDuitNowQrStatus');if(!panel||!image||!status)return;
+ const show=isCashier()&&$('cartCheckoutPayment').value==='duitnow';panel.classList.toggle('hidden',!show);if(!show)return;
+ image.classList.toggle('hidden',!state.duitnowQrPath);image.onerror=()=>{image.classList.add('hidden');status.textContent='二维码暂时无法显示，请联系 Owner 检查上传文件。';};
+ if(state.duitnowQrPath){image.src=db.storage.from('yetipsy-payment-qr').getPublicUrl(state.duitnowQrPath).data.publicUrl;status.textContent='请顾客扫描此 DuitNow 二维码；确认款项到账后再点击收款。';}else status.textContent=state.duitnowQrError||'Owner 尚未上传 DuitNow 收款二维码，请联系 Owner 设置。';
+}
+async function refreshDuitNowQr(){if(!isCashier()||$('cartCheckoutPayment').value!=='duitnow'){renderDuitNowQr();return;}if(!state.duitnowQrLoaded){const status=$('cashierDuitNowQrStatus');if(status)status.textContent='正在读取收款二维码…';try{const settings=unpack(await db.rpc('yt_receipt_settings_get'));state.duitnowQrPath=settings?.duitnow_qr_path||null;state.duitnowQrError=null;}catch(error){state.duitnowQrError='无法读取收款二维码：'+errorText(error);state.duitnowQrPath=null;}state.duitnowQrLoaded=true;}renderDuitNowQr();}
 
 async function moonGuestLookup(){
  const code=$('moonGuestCode').value.trim(),order=state.selectedOrderCart;if(!order)throw Error('invalid_order');
@@ -843,7 +851,7 @@ async function checkoutOrderCart(){const btn=$('cartCheckoutBtn');await busy(btn
  const q=unpack(await db.rpc('yt_pos_cart_summary',{p_order:state.selectedOrderCart}));
  if(!q.can_pay)throw Error('coupon_hold_not_ready_or_expired');
  const method=$('cartCheckoutPayment').value;
- if(!window.confirm(`确认已实际收到 ${money(q.payable_rm)}？\n本单优惠：−${money(q.reserved_discount_rm)}\n\n确认后才正式核销所有预留奖励，此动作不能随意撤销。`))return;
+ if(!window.confirm(`确认已实际收到 ${money(q.payable_rm)}？\n收款方式：${method.toUpperCase()}${method==='duitnow'?'\n请先确认 DuitNow 款项已到账。':''}\n本单优惠：−${money(q.reserved_discount_rm)}\n\n确认后才正式核销所有预留奖励，此动作不能随意撤销。`))return;
  const prepEnabled=cashierPackageOrder===state.selectedOrderCart&&!!cashierPackageQuote?.items?.length;
  const result=unpack(await db.rpc(prepEnabled?'yt_pos_checkout_with_prep':'yt_pos_action',
   prepEnabled?{p_order:state.selectedOrderCart,p_method:method,p_preps:cashierPackageSelections()}:
@@ -973,7 +981,7 @@ function bind(){
  $('orderCartOverlay').onclick=e=>{if(e.target===$('orderCartOverlay'))escapeOrderCart();};
  $('cartReserveBtn').onclick=reserveInCart;
  $('cartScanCamera').onclick=()=>startRedeemCamera().catch(e=>showNotice(errorText(e),true));
- $('cartCheckoutBtn').onclick=checkoutOrderCart;
+ $('cartCheckoutBtn').onclick=checkoutOrderCart;$('cartCheckoutPayment').onchange=()=>{renderDuitNowQr();refreshDuitNowQr();};
  $('moonGuestCheck').onclick=()=>busy($('moonGuestCheck'),moonGuestLookup).catch(()=>{});
  $('moonGuestConfirm').onclick=()=>busy($('moonGuestConfirm'),()=>moonGuestReserve($('moonGuestDrink').value.trim())).catch(()=>{});
  $('moonGuestRows').onclick=e=>{const button=e.target.closest('[data-moon-release]');if(button)moonGuestRelease(button.dataset.moonRelease).catch(error=>showNotice(errorText(error),true));};
