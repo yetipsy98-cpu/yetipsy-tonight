@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const source=fs.readFileSync('play/pos/pos.js','utf8');
 const db=fs.readFileSync('sql/060_unified_moon_preorder_submit.sql','utf8');
+const storeBox=fs.readFileSync('play/pos/store-box.js','utf8');
 for(const page of ['pos','owner','staff','cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
  for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);
@@ -18,6 +19,10 @@ assert(source.includes("yt_moon_preorder_release"),'Moon release');
 assert(source.includes("yt_pos_checkout_with_prep"),'Cashier preps at checkout');
 assert(source.includes("if(item.mode==='challenge'&&count!==1)"),'Challenge client validation');
 assert(source.includes("p_preps:cashierPackageSelections()"),'Cashier KDS preps sent atomically');
+assert(storeBox.includes("if(action==='serve'&&box?.cashier_managed&&!box.customer_id"),'cashier package claim waits for first-pour KDS completion');
+assert(storeBox.includes("p_order_item:box.source_order_item_id")&&storeBox.includes('p_minutes:15'),'remaining package claim QR generated for customer');
+assert(storeBox.includes('生成剩余存酒箱 QR'),'cashier can retry customer QR issuance');
+assert(storeBox.includes('remaining>0'),'do not generate an empty remainder box');
 assert(db.includes('private.yt_moon_preorder_attach'),'Moon holds attached before payment');
 assert(db.includes("if not coalesce((data->>'idempotent')::boolean,false)"),'avoid re-attaching retries');
 assert(db.includes('private.yt_moon_preorder_summary'),'Moon pre-order minimum spend');
