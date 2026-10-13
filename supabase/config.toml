@@ -1,0 +1,9 @@
+# Keep custom token validation in the Edge Functions themselves.
+[functions.yt-pin-auth]
+verify_jwt = false
+
+[functions.yt-work-auth]
+verify_jwt = false
+
+[functions.yt-owner-reset]
+verify_jwt = false
