@@ -144,11 +144,13 @@ async function loadOwnerDashboard(force=false){
  finally{state.ownerDashboardLoading=false;}
 }
 async function loadCatalog(){const [products,series]=await Promise.all([db.rpc('yt_pos_catalog'),db.rpc('yt_pos_series_catalog')]);state.catalog=unpack(products)||[];state.series=unpack(series)||[];
- const category=$('categoryProduct');const chosen=category.value;category.replaceChildren(new Option('全部类别',''));
- const cats=[...new Set(state.catalog.filter(x=>x.active).map(x=>x.category))].sort();for(const c of cats)category.add(new Option(c,c));category.value=cats.includes(chosen)?chosen:'';
+ const category=$('categoryProduct'),chosen=category.dataset.selected||'';
+ const cats=[...new Set(state.catalog.filter(x=>x.active).map(x=>x.category))].sort();
+ category.dataset.selected=cats.includes(chosen)?chosen:'';
+ category.innerHTML=[['','全部'],...cats.map(c=>[c,c])].map(([id,name])=>'<button type="button" class="pos-category-btn'+(category.dataset.selected===id?' active':'')+'" data-category="'+esc(id)+'" aria-pressed="'+String(category.dataset.selected===id)+'">'+esc(name)+'</button>').join('');
   const sel=$('productSeries');const value=sel.value;sel.replaceChildren(new Option('未配置系列（不发权益）',''));for(const row of state.series)sel.add(new Option(row.name+' · '+row.benefit_mode,row.id));sel.value=state.series.some(x=>x.id===value)?value:'';
   renderCatalog();renderCart();if(isOwner()){renderProductAdmin();renderSeriesAdmin();}}
-function renderCatalog(){const root=$('catalog'),search=$('searchProduct').value.trim().toLowerCase(),category=$('categoryProduct').value;
+function renderCatalog(){const root=$('catalog'),search=$('searchProduct').value.trim().toLowerCase(),category=$('categoryProduct').dataset.selected||'';
  const list=state.catalog.filter(p=>p.active&&(!category||p.category===category)&&(!search||(`${p.name} ${p.category}`).toLowerCase().includes(search)));
  root.innerHTML=list.length?list.map(p=>`<button class="product" data-add="${esc(p.id)}" type="button"><strong>${esc(p.name)}</strong><small>${esc(p.category)}</small><b>${money(p.price_rm)}</b><em>+ 加入</em></button>`).join(''):'<div class="empty">没有符合条件的产品。Owner 可以先到「Owner 设置」创建菜单。</div>';}
 
@@ -876,7 +878,10 @@ function bind(){
  }});
   $('firstPasswordForm').onsubmit=changeCashierFirstPassword;$('firstPasswordBack').onclick=()=>{db.auth.signOut().finally(resetLogin);};
  $('logout').onclick=async()=>{saveDraft();stopRedeemCamera();stopPolling();if(db)await db.auth.signOut();resetLogin();};
- $('searchProduct').oninput=renderCatalog;$('categoryProduct').onchange=renderCatalog;
+ $('searchProduct').oninput=renderCatalog;$('categoryProduct').onclick=e=>{const b=e.target.closest('button[data-category]');if(!b)return;
+   $('categoryProduct').dataset.selected=b.dataset.category||'';
+   for(const chip of $('categoryProduct').querySelectorAll('button[data-category]')){const active=chip===b;chip.classList.toggle('active',active);chip.setAttribute('aria-pressed',String(active));}
+   renderCatalog();};
  $('catalog').onclick=e=>{const btn=e.target.closest('[data-add]');if(btn)adjustCart(btn.dataset.add,1);};
  $('cartRows').onclick=e=>{const btn=e.target.closest('[data-dec],[data-inc]');if(btn)adjustCart(btn.dataset.dec||btn.dataset.inc,btn.dataset.inc?1:-1);};
  $('createOrderBtn').onclick=()=>createOrder();
