@@ -74,13 +74,26 @@ Deno.serve(async(req:Request)=>{
   if(typeof body!=='object'||!body)return send({ok:false,error:'invalid_request'},400,origin);
   const action=body.action;
 
-  if(!['register','login','check','preview','prizes','rules','referral_check','reset_prepare','reset_finish','change_pin'].includes(action))
+  if(!['register','login','check','preview','prizes','rules','referral_check','reset_prepare','reset_finish','change_pin','device_link'].includes(action))
     return send({ok:false,error:'unknown_action'},400,origin);
 
 
   // Public prize notice: whitelist only reward, gameplay and redemption copy.
   // Never serialize the internal probability-bearing rows to clients.
 
+  if(action==='device_link'){
+    const authToken=(req.headers.get('Authorization')||'').replace(/^Bearer\\s+/i,'');
+    const {data:who,error:whoError}=await admin.auth.getUser(authToken);
+    if(whoError||!who.user)return send({ok:false,error:'not_authenticated'},401,origin);
+    const deviceToken=String(body.device_token||'');
+    if(!/^[0-9a-f-]{36}$/i.test(deviceToken))return send({ok:false,error:'invalid_device_token'},400,origin);
+    const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(await pepper()),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+    const signature=new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode('yt-lite-device-v1:'+deviceToken)));
+    const digest=Array.from(signature,x=>x.toString(16).padStart(2,'0')).join('');
+    const {data,error}=await admin.rpc('yt_lite_register_device',{p_user:who.user.id,p_digest:digest});
+    if(error)return send({ok:false,error:'device_link_unavailable'},403,origin);
+    return send({ok:true,result:data},200,origin);
+  }
   if(action==='referral_check'){
     const code=String(body.code||'').trim().toUpperCase();
     if(!/^YT[A-Z0-9]{8}$/.test(code))return send({ok:true,valid:false},200,origin);
