@@ -360,7 +360,7 @@ async function saveRewardName(){const btn=$('saveRewardName');await busy(btn,asy
  if(name.length<2||name.length>120)throw Error('invalid_reward_name');
  const {error}=await db.rpc('yt_owner_rename_reward',{p_reward:id,p_name:name});if(error)throw error;
  await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();await loadOwnerRewardOffers();
- showNotice('奖励名称已保存；兑奖绑定和已发放记录不变');
+ showNotice('奖励名称已保存，兑奖规则未更改');
  }).catch(()=>{});}
 
 function toggleMapInputs(){
