@@ -1,0 +1,27 @@
+name: Yetipsy Lite Protection checks
+on:
+  push:
+    branches: [main, feature/lite-protection-v1]
+    paths:
+      - 'sql/07*_lite_*.sql'
+      - 'play/lite-protection.js'
+      - 'play/lite-owner-panel.js'
+      - 'supabase/functions/yt-pin-auth/index.ts'
+      - 'tests/lite_protection*.test.cjs'
+      - '.github/workflows/lite-protection.yml'
+  pull_request:
+    paths:
+      - 'sql/07*_lite_*.sql'
+      - 'play/lite-protection.js'
+      - 'play/lite-owner-panel.js'
+      - 'supabase/functions/yt-pin-auth/index.ts'
+      - 'tests/lite_protection*.test.cjs'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test tests/lite_protection*.test.cjs
