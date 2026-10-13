@@ -391,12 +391,6 @@ async function saveRewardMap(e){e.preventDefault();const btn=e.submitter;await b
  await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();showNotice('兑奖规则已保存');
  }).catch(()=>{});}
 
-async function saveRM5Preset(){return busy($('mapRM5Preset'),async()=>{
- const id=$('mapReward').value;if(!id)throw Error('请先选择奖品');
- unpack(await db.rpc('yt_pos_owner_save_reward_v43',{p_reward:id,p_mode:'any_drink',p_product:null,p_series:null,p_type:'fixed',p_value:5,p_min_drinks:1,p_min_spend:0}));
- await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();await loadOwnerRewardOffers();showNotice('已保存：任意饮品抵扣 RM5，至少一杯优惠后仍需付费的饮品');
- }).catch(()=>{});}
-
 async function preparePinReset(e){e.preventDefault();await busy(e.submitter,async()=>{
  if(!$('resetConfirmed').checked)throw Error('请先在现场核对顾客身份');
  const country=$('resetCountry').value;
@@ -964,7 +958,7 @@ function bind(){
    const benefit=e.target.closest('[data-benefits]');if(benefit)showTab('benefits',benefit.dataset.benefits);});
   $('editClose').onclick=closeEditDialog;$('editForm').onsubmit=submitEditOrder;$('editSettlementForm').onsubmit=submitAdjustment;$('editCancelOrder').onchange=()=>{state.editDirty=true;$('editSettlement').classList.add('hidden');previewOwnerEdit();};$('editRevokeBenefits').onchange=()=>{state.editDirty=true;$('editSettlement').classList.add('hidden');};
  $('receiptClose').onclick=closeReceipt;$('receiptPrint').onclick=()=>window.print();$('receiptOverlay').onclick=e=>{if(e.target===$('receiptOverlay'))closeReceipt();};
- $('mapReward').onchange=updateRewardMapForm;$('mapMode').onchange=toggleMapInputs;$('mapDiscountType').onchange=toggleMapInputs;$('rewardMapForm').onsubmit=saveRewardMap;$('mapRM5Preset').onclick=saveRM5Preset;
+ $('mapReward').onchange=updateRewardMapForm;$('mapMode').onchange=toggleMapInputs;$('mapDiscountType').onchange=toggleMapInputs;$('rewardMapForm').onsubmit=saveRewardMap;
  $('rewardMappingList').onclick=e=>{const b=e.target.closest('[data-reward-map]');if(b){$('mapReward').value=b.dataset.rewardMap;updateRewardMapForm();$('mapReward').scrollIntoView({behavior:'smooth',block:'center'});}};
  $('resetPinForm').onsubmit=preparePinReset;document.querySelectorAll('[data-go-tab]').forEach(b=>b.onclick=()=>showTab(b.dataset.goTab));
  document.addEventListener('keydown',e=>{if(e.key==='Tab'&&!$('editOverlay').classList.contains('hidden')){const list=[...$('editOverlay').querySelectorAll('button,input,select,textarea,summary')].filter(x=>!x.disabled&&x.getClientRects().length);const first=list[0],last=list.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}if(e.key==='Escape'){if(!$('editOverlay').classList.contains('hidden')){if(!state.editBusy&&!state.editPending&&!state.adjustmentPending)closeEditDialog();return;}if(document.body.classList.contains('cart-open'))closeCartDrawer();else if(!$('orderCartOverlay').classList.contains('hidden'))escapeOrderCart();else if(!$('receiptOverlay').classList.contains('hidden'))closeReceipt();}});
