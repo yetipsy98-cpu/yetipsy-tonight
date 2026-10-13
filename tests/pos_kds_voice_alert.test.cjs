@@ -8,6 +8,6 @@ assert(pos.includes('added.filter(row=>row.request_customer_id)'), 'only custome
 assert(queue.includes('r.customer_id request_customer_id'),'KDS queue identifies caller, not box owner');
 for(const page of ['pos','owner','staff','cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
- assert(html.includes('pos.js?v=20261013-kds-voice-v1'),'fresh JS cache '+page);
+ assert(html.includes('pos.js?v=20261013-cashier-qr-v1'),'fresh JS cache '+page);
 }
 console.log('PASS KDS new-order voice for staff/customer work, excluding Cashier-created work');
