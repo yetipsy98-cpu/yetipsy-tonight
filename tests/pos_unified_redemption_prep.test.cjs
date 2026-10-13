@@ -6,14 +6,16 @@ for(const page of ['pos','owner','staff','cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
  for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);
  assert(html.includes('pos.css?v=20261013-mobile-pos-v1'),'category styles cache freshness '+page);
- assert(html.includes('pos.js?v=20261013-owner-storebox-voice-v1'),'active JS entry freshness '+page);
+ assert(html.includes('pos.js?v=20261013-moon-shared-reward-v1'),'active JS entry freshness '+page);
 }
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
 assert(source.includes("$('categoryProductButtons').onclick"),'category buttons should handle clicks');
 const css=fs.readFileSync('play/pos/pos.css','utf8');
 assert(css.includes('#tab-create .filters #categoryProduct'),'native select visually hidden');
 assert(css.includes('#tab-create .filters .category-button-strip'),'chips next to search');
-assert(source.includes("yt_moon_preorder_scan"),'Moon uses single preorder field');
+assert(source.includes("yt_pos_preorder_scan_auto"),'Moon codes auto-detected from the single redemption field');
+assert(source.includes("requires_product"),'Moon gift uses bound product choices');
+assert(!source.includes('moonGuestDrink')&&!fs.readFileSync('play/pos/index.html','utf8').includes('moonGuestPanel'),'no separate Moon entry or staff text input');
 assert(source.includes("yt_moon_preorder_summary"),'Moon subtotal merged');
 assert(source.includes("yt_moon_preorder_release"),'Moon release');
 assert(source.includes("yt_pos_checkout_with_prep"),'Cashier preps at checkout');

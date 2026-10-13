@@ -37,8 +37,8 @@ function harness(role='staff') {
    const g=args.p_cart.reduce((n,i)=>n+28*i.quantity,0),d=backend.holds.filter(h=>h.state==='chosen').reduce((n,h)=>n+h.discount_rm,0);
    data={gross_rm:g,reserved_discount_rm:d,payable_rm:g-d,unresolved_count:backend.holds.filter(h=>h.state==='pending').length,holds:structuredClone(backend.holds),can_submit:backend.holds.every(h=>h.state==='chosen')&&g-d>0};
    if(backend.summaryResolvers)return new Promise(resolve=>backend.summaryResolvers.push(()=>resolve({data,error:null})));
-  } else if(name==='yt_pos_preorder_scan'||name==='yt_pos_preorder_scan_code'){
-   if(name==='yt_pos_preorder_scan_code'&&backend.shortError)return {data:{error_code:backend.shortError},error:null};
+  } else if(name==='yt_pos_preorder_scan'||name==='yt_pos_preorder_scan_code'||name==='yt_pos_preorder_scan_auto'){
+   if((name==='yt_pos_preorder_scan_code'||name==='yt_pos_preorder_scan_auto')&&backend.shortError)return {data:{error_code:backend.shortError},error:null};
    data={id:webcrypto.randomUUID(),reward_name:'RM5 Voucher',state:'pending',discount_type:'fixed',discount_value:5,discount_rm:0,valid:false,products:[{product_id:P,name:'Test drink',price_rm:28}]};backend.holds.push(structuredClone(data));
   } else if(name==='yt_pos_preorder_choose'){
    Object.assign(backend.holds.find(h=>h.id===args.p_hold),{state:'chosen',discount_rm:5,chosen_product_id:args.p_product,chosen_unit:args.p_unit,chosen_product_name:'Test drink',valid:true});data={ok:true};
@@ -84,9 +84,9 @@ async function run(){
  // Browser without BarcodeDetector uses decoded pixel data rather than losing camera support.
  h=harness();let decoded=false;h.context.window.jsQR=(pixels,width,height)=>{decoded=pixels.length===16&&width===640&&height===480;return {data:'redeem:'+T};};const decode=await h.api.qrDecoder();assert.equal(await decode({videoWidth:1280,videoHeight:960}),'redeem:'+T);assert(decoded);
  assert(!h.backend.calls.some(c=>c.name==='yt_pos_cart_reserve'),'cart flow must not use post-order reservation');
- // Manual short codes use their own RPC; errors preserve the code for correction.
+ // Short codes are auto-routed to Moon or existing rewards; errors preserve the code for correction.
  h=harness();h.api.state.cart.set(P,1);h.e.draftRedeemToken.value=' 7k3m-9x2p ';await h.api.scanDraftReward();
- const manual=h.backend.calls.find(c=>c.name==='yt_pos_preorder_scan_code');assert.equal(manual.args.p_code,'7K3M9X2P');assert(!('p_token' in manual.args));
+ const manual=h.backend.calls.find(c=>c.name==='yt_pos_preorder_scan_auto');assert.equal(manual.args.p_code,'7K3M9X2P');assert(!('p_token' in manual.args));
  await h.e.draftRewardChoices.children[0].onclick();assert.equal(h.e.cartTotal.textContent,'RM23.00');
  h=harness();h.api.state.cart.set(P,1);h.e.draftRedeemToken.value='7K3M9X2P';h.backend.shortError='short_code_invalid_or_expired';
  await assert.rejects(h.api.scanDraftReward(),/short_code_invalid_or_expired/);assert.equal(h.e.draftRedeemToken.value,'7K3M9X2P');assert.equal(h.api.state.draftSelection,null);assert.match(h.e.notice.textContent,/兑换码不正确/);

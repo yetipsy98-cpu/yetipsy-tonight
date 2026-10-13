@@ -43,7 +43,7 @@ const msgMap={game_points_already_used:'本单积分已花费或到期，不能�
    token_invalid:'请让顾客在 Wallet 重新生成兑奖 QR；已经成功预留的奖励不受 QR 图片过期影响',reward_unavailable:'奖品还不能兑换或已过期',role_mismatch:'请使用正确的 Cashier／Staff 登录入口',
   reward_pos_binding_required:'该奖励尚未由 Owner 绑定 POS 商品或系列',redeem_order_not_ready:'先让 Cashier 接受订单，且订单必须尚未结账',
   reward_reserved_by_other_order:'此奖品正预留在另一张订单，请取消之前的预留或等待到期',
-  moon_invalid_code:'Moon 旧码格式不正确',moon_code_not_found:'找不到该 Moon 兑换码，请 Owner 先手动登记',moon_already_redeemed:'这张 Moon 码已经使用过',moon_reserved_elsewhere:'这张 Moon 码已经锁定在其他订单，请先释放',moon_expired:'Moon 码已过期',moon_not_started:'还未到领取日期',moon_drink_required:'请填写要送出的实际饮品名称',moon_minimum_payable:'抵扣 RM5 后必须仍有付费饮品金额',moon_release_unavailable:'订单已经出品或收款，无法直接释放赠品',
+  moon_invalid_code:'Moon 旧码格式不正确',moon_reward_not_bound:'Moon 奖励尚未在 Owner 的现有兑奖规则中绑定',moon_code_not_found:'找不到该 Moon 兑换码，请 Owner 先手动登记',moon_already_redeemed:'这张 Moon 码已经使用过',moon_reserved_elsewhere:'这张 Moon 码已经锁定在其他订单，请先释放',moon_expired:'Moon 码已过期',moon_not_started:'还未到领取日期',moon_drink_required:'请填写要送出的实际饮品名称',moon_minimum_payable:'抵扣 RM5 后必须仍有付费饮品金额',moon_release_unavailable:'订单已经出品或收款，无法直接释放赠品',
   hold_expired_rescan:'预留已过期，请让顾客重新出示 Wallet QR 以续期',coupon_hold_not_ready_or_expired:'购物车仍有未选择商品或已过期的兑奖预留，请先处理',
   choose_reward_product:'请先选择奖品对应的赠饮',choose_discount_item:'请选择一项符合奖品条件的订单商品',
   reward_binding_changed_rescan:'Owner 已修改兑奖规则，请重新核对这张奖券',discount_amount_invalid:'优惠金额计算失败',
@@ -197,32 +197,43 @@ async function refreshDraftSummary(){const epoch=++state.draftEpoch;
  finally{if(epoch===state.draftEpoch){state.draftLoading=false;updateDraftControls();}}
 }
 async function draftOperation(fn){if(state.draftSaving||state.pendingSubmit||state.draftMutating)return;state.draftMutating=true;updateDraftControls();try{await fn();}catch(e){showNotice(errorText(e),true);throw e;}finally{state.draftMutating=false;updateDraftControls();}}
+function extractMoonCode(raw){
+ const text=String(raw||'').trim().toUpperCase();
+ const full=text.match(/YT[\s-]*MOON[\s-]*([A-Z0-9]{8})/);
+ if(full)return full[1];
+ if(/^[A-Z0-9]{8}$/.test(text))return text;
+ return null;
+}
 async function scanDraftReward(){return draftOperation(async()=>{
- if(!state.cart.size)throw Error('cart_requires_paid_drink');const raw=$('draftRedeemToken').value.trim(),short=raw.replace(/[\s-]/g,'').toUpperCase();
- if(/^YT-MOON-/i.test(raw)){
-  const info=unpack(await db.rpc('yt_moon_preorder_scan',{p_draft:state.draftId,p_code:raw,p_cart:draftItems(),p_drink:null}));
-  if(info?.error_code)throw Error(info.error_code);
-  if(info?.requires_drink){state.draftSelection={...info,source:'moon'};renderDraftChoices(state.draftSelection);return;}
-  $('draftRedeemToken').value='';state.draftSelection=null;saveDraft();await refreshDraftSummary();$('draftRewardChoices').replaceChildren();showNotice('Moon 奖励已预留，结账才核销');return;
+ if(!state.cart.size)throw Error('cart_requires_paid_drink');
+ const raw=$('draftRedeemToken').value.trim(),moonCode=extractMoonCode(raw);
+ let h=null;
+ if(moonCode)h=unpack(await db.rpc('yt_pos_preorder_scan_auto',{p_draft:state.draftId,p_code:moonCode,p_request:crypto.randomUUID(),p_cart:draftItems()}));
+ else{
+  const short=raw.replace(/[\s-]/g,'').toUpperCase(),manual=/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short);
+  const args={p_draft:state.draftId,p_request:crypto.randomUUID(),p_cart:draftItems(),...(manual?{p_code:short}:{p_token:parseRedeemToken(raw)})};
+  h=unpack(await db.rpc(manual?'yt_pos_preorder_scan_code':'yt_pos_preorder_scan',args));
  }
- const manual=/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short);
- const args={p_draft:state.draftId,p_request:crypto.randomUUID(),p_cart:draftItems(),...(manual?{p_code:short}:{p_token:parseRedeemToken(raw)})};
- const h=unpack(await db.rpc(manual?'yt_pos_preorder_scan_code':'yt_pos_preorder_scan',args));
  if(h?.error_code)throw Error(h.error_code);
+ if(h?.source==='moon'&&h?.requires_product){state.draftSelection=h;renderDraftChoices(h);return;}
+ if(h?.source==='moon'){ $('draftRedeemToken').value='';state.draftSelection=null;saveDraft();await refreshDraftSummary();$('draftRewardChoices').replaceChildren();showNotice(h.kind==='R0'?'Moon 抵扣已预留，结账才核销':'Moon 奖励已预留，结账才核销');return; }
  $('draftRedeemToken').value='';state.draftSelection=h;saveDraft();await refreshDraftSummary();renderDraftChoices(h);
 });}
 function renderDraftChoices(h){const root=$('draftRewardChoices');root.replaceChildren();
- if(h.source==='moon'&&h.requires_drink){
-  const label=document.createElement('label');label.textContent=h.label+' · 赠饮名称';
-  const input=document.createElement('input');input.maxLength=110;input.placeholder='请输入实际赠饮，例如 See You Tomorrow';
-  const btn=document.createElement('button');btn.type='button';btn.className='primary';btn.textContent='确认使用 Moon 奖励';
-  btn.onclick=()=>draftOperation(async()=>{
-   if(input.value.trim().length<2)throw Error('请输入实际赠饮名称');
-   const info=unpack(await db.rpc('yt_moon_preorder_scan',{p_draft:state.draftId,p_code:h.code,p_cart:draftItems(),p_drink:input.value.trim()}));
-   if(info?.error_code)throw Error(info.error_code);
-   $('draftRedeemToken').value='';state.draftSelection=null;root.replaceChildren();saveDraft();await refreshDraftSummary();showNotice('已预留 Moon 赠饮，结账后才正式核销');
-  }).catch(()=>{});
-  label.append(input);root.append(label,btn);return;
+ if(h.source==='moon'&&h.requires_product){
+  root.innerHTML='<p class="field-note">'+esc(h.reward_name)+' · 请选择已绑定商品</p>';
+  for(const product of h.products||[]){
+   const b=document.createElement('button');b.type='button';b.className='reward-choice';
+   b.textContent='＋ '+product.name+' · '+money(product.price_rm)+' → Moon 赠饮';
+   b.onclick=()=>draftOperation(async()=>{
+    const info=unpack(await db.rpc('yt_pos_preorder_scan_auto',{p_draft:state.draftId,p_code:h.code,p_request:crypto.randomUUID(),p_cart:draftItems(),p_product:product.product_id}));
+    if(info?.error_code)throw Error(info.error_code);
+    $('draftRedeemToken').value='';state.draftSelection=null;root.replaceChildren();saveDraft();await refreshDraftSummary();showNotice('Moon 奖励已按绑定商品预留，结账才核销');
+   }).catch(()=>{});
+   root.append(b);
+  }
+  if(!(h.products||[]).length)root.insertAdjacentHTML('beforeend','<p class="field-note">此 Moon 奖励尚未在 Owner 的现有兑奖规则中绑定商品或系列。</p>');
+  return;
  }
  if(h.state==='chosen'){root.innerHTML='<p class="field-note">这份奖励已经选好，请在上方核对。</p>';return;}
  root.innerHTML=`<p class="field-note">${esc(h.reward_name)} · ${h.discount_type==='free'?'选择一杯赠饮':'选择要抵扣的一杯'}</p>`;
@@ -321,7 +332,8 @@ async function loadRewardRules(){
  if(!isOwner())return;
  state.rewardRules=await rewardBindingEditor.load();
  const select=$('mapReward');const old=select.value;select.replaceChildren(new Option('请选择奖品',''));
- for(const r of state.rewardRules)select.add(new Option(`${r.reward_name}${!r.active?'（已停用）':''}`,r.reward_id));
+ const moonKinds={'Yetipsy Lucky Box · RM5 Voucher':'R0','RAINBOW SHOT X1':'R3','Yetipsy Lucky Box · 指定微醺特调':'R4','Yetipsy Lucky Box · 指定经典鸡尾酒':'R5'};
+ for(const r of state.rewardRules){const moon=moonKinds[r.reward_name];select.add(new Option(`${r.reward_name}${moon?' · Moon '+moon:''}${!r.active?'（已停用）':''}`,r.reward_id));}
  if(state.rewardRules.some(r=>r.reward_id===old))select.value=old;
  const product=$('mapProduct'),ps=product.value;product.replaceChildren(new Option('选择具体产品',''));
  for(const item of state.catalog)if(item.active)product.add(new Option(`${item.name} · ${money(item.price_rm)}`,item.id));
@@ -355,7 +367,9 @@ function renderRewardMappings(){
   const series=state.series.find(p=>p.id===r.series_id)?.name;
   const info=r.mode==='product'?'✓ 指定商品：'+(product||'已停售商品'):r.mode==='series'?'✓ 指定系列：'+(series||'历史系列'):r.mode==='any_drink'?'✓ 任意饮品抵扣':r.mode==='disabled'?'暂停兑奖':'未绑定 · 禁止发放和核销';
   const discount=['product','series','any_drink'].includes(r.mode)?' · '+(r.discount_type==='fixed'?'RM'+r.discount_value+' 抵扣':r.discount_type==='percent'?r.discount_value+'% 折扣':'免费一杯'):'';
-  return `<button class="reward-map-item" type="button" data-reward-map="${esc(r.reward_id)}"><strong>${esc(r.reward_name)}</strong><small>${esc(info+discount+` · 最少 ${r.min_paid_drinks??1} 杯付费饮品`+(Number(r.min_spend_rm)>0?' · 净消费 ≥ RM'+r.min_spend_rm:''))}</small></button>`;
+  const moonKinds={'Yetipsy Lucky Box · RM5 Voucher':'R0','RAINBOW SHOT X1':'R3','Yetipsy Lucky Box · 指定微醺特调':'R4','Yetipsy Lucky Box · 指定经典鸡尾酒':'R5'};
+  const moon=moonKinds[r.reward_name];
+  return `<button class="reward-map-item" type="button" data-reward-map="${esc(r.reward_id)}"><strong>${esc(r.reward_name)}${moon?' · Moon '+moon:''}</strong><small>${esc(info+discount+` · 最少 ${r.min_paid_drinks??1} 杯付费饮品`+(Number(r.min_spend_rm)>0?' · 净消费 ≥ RM'+r.min_spend_rm:'')+(moon?' · Moon 兑换共用此绑定':''))}</small></button>`;
  }).join('');
  const pending=(state.rewardRules||[]).filter(r=>!['product','series','any_drink'].includes(r.mode)).length;
  $('rewardBindingSummary').textContent=pending?`${pending} 种奖品待绑定。`:'所有奖品已绑定。';
@@ -712,7 +726,7 @@ async function submitAdjustment(e){e.preventDefault();const btn=e.submitter;awai
 function escapeOrderCart(){stopRedeemCamera();state.selectedOrderCart=null;cashierPackageQuote=null;cashierPackageOrder=null;state.activeRewardHold=null;
  $('orderCartOverlay').classList.add('hidden');document.body.classList.remove('sheet-open');}
 async function openOrderCart(id){
- state.selectedOrderCart=id;cashierPackageQuote=null;cashierPackageOrder=null;state.activeRewardHold=null;state.duitnowQrLoaded=false;state.duitnowQrError=null;$('cartRedeemToken').value='';$('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
+ state.selectedOrderCart=id;cashierPackageQuote=null;cashierPackageOrder=null;state.activeRewardHold=null;state.duitnowQrLoaded=false;state.duitnowQrError=null;$('cartRedeemToken').value='';
  $('cartRedeemChoices').innerHTML='';$('orderCartClaims').replaceChildren();$('orderCartClaims').classList.add('hidden');$('orderCartOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');await refreshOrderCart();
 }
@@ -723,9 +737,7 @@ async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  const bill=unpack(receipt),q=unpack(summary);
  $('orderCartTitle').textContent='#'+(q.order_no||bill.order_no)+' · 优惠与结账';
  $('orderCartItems').innerHTML=(bill.items||[]).map(item=>`<div class="cart-preview-item"><strong>${esc(item.item_name)} × ${Number(item.quantity)}</strong><span>${money(item.quantity*item.unit_price_rm)}</span></div>`).join('');
- $('moonGuestPanel').classList.add('hidden'); // Moon is now handled in the shared pre-order redemption field.
- $('moonGuestRows').innerHTML=(q.moon_codes||[]).map(x=>'<div class="cart-discount-line"><div><strong>'+esc(x.kind==='R0'?'RM5 Voucher':x.kind==='R3'?'彩虹 Shot 赠品':x.kind==='R5'?'断片指南赠品':'微醺特调赠品')+'</strong><small>'+esc(x.code)+' · 已预留，收款后核销</small></div><b>'+ (x.kind==='R0'?'−RM5.00':'FREE') +'</b><button type="button" class="quiet" data-moon-release="'+esc(x.id)+'">释放</button></div>').join('');
- $('orderCartHolds').innerHTML=(q.holds||[]).length?q.holds.map(h=>`<div class="cart-discount-line"><div><strong>− ${esc(h.reward_name)}</strong><small>${h.can_checkout?'已预留':h.state==='reserved'?'待选择商品':'已超时'} · ${stamp(h.expires_at)}</small></div><b>−${money(h.discount_rm)}</b>${q.payment_status==='unpaid'?`<button type="button" class="quiet" data-release-hold="${esc(h.id)}">释放</button>`:''}</div>`).join(''):'<p class="muted">无预留奖励</p>';
+ $('orderCartHolds').innerHTML=(q.moon_codes||[]).map(x=>'<div class="cart-discount-line"><div><strong>'+esc(x.reward_name||(x.kind==='R0'?'RM5 Voucher':x.kind==='R3'?'彩虹 Shot 赠品':x.kind==='R5'?'断片指南赠品':'微醺特调赠品'))+'</strong><small>'+esc(x.code)+' · 已预留，收款后核销</small></div><b>'+ (x.kind==='R0'?'−'+money(x.discount_rm||5):'FREE') +'</b><button type="button" class="quiet" data-moon-release="'+esc(x.id)+'">释放</button></div>').join('')+((q.holds||[]).length?q.holds.map(h=>`<div class="cart-discount-line"><div><strong>− ${esc(h.reward_name)}</strong><small>${h.can_checkout?'已预留':h.state==='reserved'?'待选择商品':'已超时'} · ${stamp(h.expires_at)}</small></div><b>−${money(h.discount_rm)}</b>${q.payment_status==='unpaid'?`<button type="button" class="quiet" data-release-hold="${esc(h.id)}">释放</button>`:''}</div>`).join(''):'<p class="muted">无预留奖励</p>');
  $('orderCartGross').textContent=money(q.gross_rm);
  $('orderCartDiscount').textContent='−'+money(q.reserved_discount_rm);
  $('orderCartPayable').textContent=money(q.payable_rm);
@@ -746,24 +758,6 @@ function renderDuitNowQr(){
 }
 async function refreshDuitNowQr(){if(!isCashier()||$('cartCheckoutPayment').value!=='duitnow'){renderDuitNowQr();return;}if(!state.duitnowQrLoaded){const status=$('cashierDuitNowQrStatus');if(status)status.textContent='正在读取收款二维码…';try{const settings=unpack(await db.rpc('yt_receipt_settings_get'));state.duitnowQrPath=settings?.duitnow_qr_path||null;state.duitnowQrError=null;}catch(error){state.duitnowQrError='无法读取收款二维码：'+errorText(error);state.duitnowQrPath=null;}state.duitnowQrLoaded=true;}renderDuitNowQr();}
 
-async function moonGuestLookup(){
- const code=$('moonGuestCode').value.trim(),order=state.selectedOrderCart;if(!order)throw Error('invalid_order');
- if(!code)throw Error('moon_invalid_code');
- const info=unpack(await db.rpc('yt_moon_lookup',{p_order:order,p_code:code}));
- if(info.status==='reserved'){showNotice('此旧码已经在本订单预留，无需重复添加');await refreshOrderCart();return;}
- if(info.kind==='R5'||info.kind==='R4'){
-  $('moonGuestChoice').classList.remove('hidden');$('moonGuestChoiceTitle').textContent=(info.kind==='R5'?'断片指南':'微醺特调')+' · 输入实际要出的赠饮名称';
-  $('moonGuestDrink').focus();return;
- }
- await moonGuestReserve(null);
-}
-async function moonGuestReserve(drink=null){
- const code=$('moonGuestCode').value.trim(),order=state.selectedOrderCart;
- const result=unpack(await db.rpc('yt_moon_reserve',{p_order:order,p_code:code,p_drink:drink}));
- $('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
- await refreshOrderCart();await refreshOrders(false);
- showNotice(result.kind==='R0'?'Moon RM5 优惠已预留，结账才核销':'Moon 赠品已加入订单和 KDS，结账才核销');
-}
 async function moonGuestRelease(id){
  if(!window.confirm('释放这张 Moon 旧码？取消预留后顾客仍能再次使用。'))return;
  unpack(await db.rpc('yt_moon_release',{p_id:id}));
@@ -982,10 +976,7 @@ function bind(){
  $('cartReserveBtn').onclick=reserveInCart;
  $('cartScanCamera').onclick=()=>startRedeemCamera().catch(e=>showNotice(errorText(e),true));
  $('cartCheckoutBtn').onclick=checkoutOrderCart;$('cartCheckoutPayment').onchange=()=>{renderDuitNowQr();refreshDuitNowQr();};
- $('moonGuestCheck').onclick=()=>busy($('moonGuestCheck'),moonGuestLookup).catch(()=>{});
- $('moonGuestConfirm').onclick=()=>busy($('moonGuestConfirm'),()=>moonGuestReserve($('moonGuestDrink').value.trim())).catch(()=>{});
- $('moonGuestRows').onclick=e=>{const button=e.target.closest('[data-moon-release]');if(button)moonGuestRelease(button.dataset.moonRelease).catch(error=>showNotice(errorText(error),true));};
- $('orderCartHolds').onclick=e=>{const b=e.target.closest('button[data-release-hold]');if(b)releaseCartHold(b.dataset.releaseHold).catch(err=>showNotice(errorText(err),true));};
+ $('orderCartHolds').onclick=e=>{const moon=e.target.closest('button[data-moon-release]');if(moon){moonGuestRelease(moon.dataset.moonRelease).catch(error=>showNotice(errorText(error),true));return;}const b=e.target.closest('button[data-release-hold]');if(b)releaseCartHold(b.dataset.releaseHold).catch(err=>showNotice(errorText(err),true));};
  $('ownerSendGift').onclick=ownerDirectGift;$('ownerIssueGiftQR').onclick=ownerGiftClaimQR;$('ownerNewRewardForm').onsubmit=ownerCreateNewReward;
  document.body.addEventListener('click',e=>{const btn=e.target.closest('[data-order-cart]');if(btn)openOrderCart(btn.dataset.orderCart).catch(err=>showNotice(errorText(err),true));});
 

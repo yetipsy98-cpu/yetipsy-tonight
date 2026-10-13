@@ -10,14 +10,19 @@ assert.match(integration,/moon_codes/);
 assert.match(integration,/status='available',reserved_order_id=NULL/);
 for(const page of ['pos','owner','cashier','staff']){
  const html=read('play/'+page+'/index.html');
- for(const id of ['moonGuestPanel','moonGuestCheck','moonGuestCode','moonGuestDrink','moonGuestConfirm','moonGuestRows']){
-  assert(html.includes('id="'+id+'"'),page+' missing '+id);
- }
+ assert(!html.includes('moonGuestPanel')&&!html.includes('moonGuestDrink'),page+' must use shared redemption UI');
+ assert(html.includes('draftRedeemToken'),page+' shared Moon code input missing');
  const ids=[...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]);
  assert.equal(ids.length,new Set(ids).size,page+' duplicate ids');
 }
 assert.match(read('play/pos/console.js'),/moon-code-editor\.js/);
-assert.match(read('play/pos/pos.js'),/yt_moon_reserve/);
-assert.match(read('play/pos/pos.js'),/yt_moon_lookup/);
+assert.match(read('play/pos/pos.js'),/yt_pos_preorder_scan_auto/);
+assert.match(read('play/pos/pos.js'),/requires_product/);
 assert.match(read('play/pos/pos.js'),/yt_moon_release/);
-console.log('PASS Moon guest-code manual entry, no customer login, KDS and payment settlement contracts');
+const unified=read('sql/064_moon_shared_reward_binding_auto_scan.sql'),moonRainbow=read('sql/065_moon_rainbow_existing_pos_binding.sql');
+assert.match(unified,/private\.yt_moon_reward_name/);
+assert.match(unified,/private\.yt_pos_reward_rules/);
+assert.match(unified,/yt_pos_preorder_scan_auto/);
+assert.match(unified,/product_id/);
+assert.match(moonRainbow,/RAINBOW SHOT X1/);
+console.log('PASS Moon short-code auto-detection, shared reward binding, KDS and payment settlement contracts');
