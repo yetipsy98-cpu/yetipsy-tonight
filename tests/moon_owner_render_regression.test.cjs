@@ -43,7 +43,7 @@ const url=require('node:url');
  assert.doesNotMatch(posCode,/mapRM5Preset|saveRM5Preset/);
  assert.match(read('play/pos/index.html'),/id="mapRewardName"/);
  assert.match(posCode,/yt_owner_rename_reward/);
- assert.match(posCode,/奖励名称已保存；兑奖绑定和已发放记录不变/);
+ assert.match(posCode,/奖励名称已保存，兑奖规则未更改/);
  for(const page of ['pos','owner','staff','cashier'])assert.match(fs.readFileSync('play/'+page+'/index.html','utf8'),/pos\.js\?v=20261013-moon-code-reward-v5/);
  console.log('PASS Moon Owner loads form, keeps contents on refresh, shows error state, cache keys updated.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
