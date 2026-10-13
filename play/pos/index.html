@@ -21,9 +21,9 @@
      <div id="cartRows" class="cart-rows"><div class="empty">请先选择产品。</div></div>
      <div id="draftRewardRows" class="draft-reward-rows" aria-live="polite"></div>
      <div class="draft-redeem"><div class="draft-redeem-title"><div><p class="kicker">REDEEM BEFORE ORDER</p><h3>本次点单 · 使用奖励</h3></div><span class="mini-chip">下单前</span></div>
-      <div class="draft-scan-input"><input id="draftRedeemToken" autocomplete="off" spellcheck="false" placeholder="输入 8 位兑换码（如 7K3M-9X2P）" aria-label="8 位兑换码" autocapitalize="characters"><button type="button" id="draftRedeemScan" class="quiet">扫码</button><button type="button" id="draftRedeemCheck" class="primary">使用</button></div>
-      <video id="draftRedeemVideo" class="hidden" playsinline muted autoplay></video><div id="draftRewardChoices" class="cart-redeem-choices"></div>
-      <p class="minimum-rule">必须购买至少一杯付费饮品；赠饮及全额抵扣的饮品不计入。</p>
+      <div class="draft-scan-input"><input id="draftRedeemToken" autocomplete="off" spellcheck="false" placeholder="8 位兑换码／YT-MOON-XXXXXXXX／Wallet QR" aria-label="奖励兑换码，包括 Moon" autocapitalize="characters"><button type="button" id="draftRedeemScan" class="quiet">扫码</button><button type="button" id="draftRedeemCheck" class="primary">使用</button></div>
+      <video id="draftRedeemVideo" class="hidden" playsinline muted autoplay></video><div id="moonDraftChoice" class="moon-draft-choice hidden"><label id="moonDraftChoiceLabel" for="moonDraftDrink">填写 Moon 指定赠饮</label><div class="draft-scan-input"><input id="moonDraftDrink" maxlength="110" placeholder="例如 See You Tomorrow"><button type="button" class="primary" id="moonDraftConfirm">确认加入</button></div></div><div id="draftRewardChoices" class="cart-redeem-choices"></div>
+      <p class="minimum-rule">支持 Moon 旧码、8 位兑奖码及 Wallet QR。必须购买至少一杯付费饮品；赠饮及全额抵扣饮品不计入。</p>
      </div>
      <div class="draft-totals"><div><span>商品原价（含赠饮）</span><b id="draftGross">RM0.00</b></div><div class="discount"><span>奖励优惠</span><b id="draftDiscount">−RM0.00</b></div></div>
      <div class="summary"><span>预计应收</span><strong id="cartTotal">RM0.00</strong></div><div class="draft-status-row"><p id="draftStatus" class="field-note" role="status"></p><button id="draftRefresh" type="button" class="quiet">重新核对</button></div>
@@ -65,8 +65,8 @@
      <div class="block-head order-cart-head"><div><p class="kicker">ORDER DISCOUNTS · CHECKOUT</p><h2 id="orderCartTitle">优惠与结账</h2></div><button type="button" id="orderCartClose" class="quiet">✕ 返回</button></div>
      <div class="order-cart-scroll">
        <div id="orderCartItems" class="cart-preview-list"></div>
-       <div id="orderCartHolds" class="order-cart-holds"></div>
-       <section id="moonGuestPanel" class="moon-guest-panel"><h3>Moon 旧码兑换 · 无需会员</h3><p class="muted">员工直接输入旧 YT-MOON- 兑换码。赠品会加入本单及吧台 KDS，结账后才核销。</p>
+       <div id="orderCartHolds" class="order-cart-holds"></div><div id="cartStoreBoxPrep" class="cashier-prep-wrap hidden" aria-live="polite"></div>
+       <section id="moonGuestPanel" class="moon-guest-panel hidden"><h3>Moon 旧码兑换 · 无需会员</h3><p class="muted">员工直接输入旧 YT-MOON- 兑换码。赠品会加入本单及吧台 KDS，结账后才核销。</p>
         <div class="pair"><label>Moon 兑换码<input id="moonGuestCode" placeholder="YT-MOON-XXXXXXXX" autocomplete="off" maxlength="32" autocapitalize="characters"></label><button id="moonGuestCheck" type="button" class="primary">验证并加入</button></div>
         <div id="moonGuestChoice" class="hidden"><label id="moonGuestChoiceTitle" for="moonGuestDrink">实际赠品饮品</label><input id="moonGuestDrink" maxlength="110" placeholder="如：See You Tomorrow"><button type="button" id="moonGuestConfirm" class="main-button">加入免费赠饮</button></div>
         <div id="moonGuestRows"></div></section>
