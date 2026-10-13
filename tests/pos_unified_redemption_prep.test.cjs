@@ -8,7 +8,7 @@ for(const page of ['pos','owner','staff','cashier']){
  assert(html.includes('pos.js?v=20261013-catalog-buttons-v3'),'active JS entry freshness '+page);
 }
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
-assert(source.includes("categoryProductButtons')).onclick"),'category buttons should handle clicks');
+assert(source.includes("$('categoryProductButtons').onclick"),'category buttons should handle clicks');
 const css=fs.readFileSync('play/pos/pos.css','utf8');
 assert(css.includes('#tab-create .filters #categoryProduct'),'native select visually hidden');
 assert(css.includes('#tab-create .filters .category-button-strip'),'chips next to search');
