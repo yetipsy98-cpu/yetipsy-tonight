@@ -119,3 +119,24 @@
 
 /* Published Owner home shortcuts */
 .home-owner-links{display:grid;gap:10px;margin:12px 20px}.home-owner-links:empty{display:none}.home-owner-links a{display:block;color:#f3dfb8;text-decoration:none;border:1px solid #d7ac7155;border-radius:13px;padding:14px 16px;background:#243128;font-size:13px;font-weight:650}
+
+
+/* Mobile finish: keep the member experience comfortable on compact screens. */
+@media(max-width:520px){
+ .topbar{height:auto;min-height:72px;padding:15px 18px 10px;gap:12px}
+ .brand{font-size:17px;letter-spacing:.16em}
+ .brand-sub{font-size:8px;letter-spacing:.22em}
+ .edition{font-size:8px;letter-spacing:.08em}
+ .auth-view{padding:8px 18px 0}
+ .auth-view h1{font-size:clamp(28px,8vw,34px);line-height:1.25}
+ .auth-ornament{width:128px;height:128px;margin-bottom:15px;font-size:66px}
+ .auth-card{padding:17px;border-radius:20px}
+ .site-footer{padding:22px 16px calc(22px + env(safe-area-inset-bottom))}
+}
+@media(max-width:380px){
+ .topbar{padding-inline:14px}
+ .header-controls{gap:5px}
+ .auth-view{padding-inline:14px}
+ .auth-card{padding:14px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
