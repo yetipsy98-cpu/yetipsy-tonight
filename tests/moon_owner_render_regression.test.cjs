@@ -39,6 +39,6 @@ const url=require('node:url');
  const posCode=fs.readFileSync('play/pos/pos.js','utf8');
  assert.match(consoleCode,/moon-code-editor\.js\?v=(?:20261012-moon-manual-v2|20261013-cashier-only-voice-v1)/);
  assert(posCode.includes('console.js?v=20261013-cashier-qr-v1'));
- for(const page of ['pos','owner','staff','cashier'])assert.match(fs.readFileSync('play/'+page+'/index.html','utf8'),/pos\.js\?v=(?:20261012-moon-manual-v2|20261013-cashier-kds-reset-fix-v1)/);
+ for(const page of ['pos','owner','staff','cashier'])assert.match(fs.readFileSync('play/'+page+'/index.html','utf8'),/pos\.js\?v=(?:20261012-moon-manual-v2|20261013-owner-storebox-voice-v1)/);
  console.log('PASS Moon Owner loads form, keeps contents on refresh, shows error state, cache keys updated.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
