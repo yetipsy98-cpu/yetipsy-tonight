@@ -3,11 +3,12 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const labels={R5:'断片指南 · 任一杯',R4:'微醺特调 · 任一杯',R3:'彩虹 Shot ×1',R0:'RM5 抵扣券'};
 const stateLabels={available:'可使用',reserved:'已锁定在订单',redeemed:'已核销'};
 export function createMoonCodeEditor({db,root,isOwner,notice}){
- let saving=false;let records=[];
+ let saving=false;let records=[];let bindings=[];
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  function mount(){
   root.innerHTML='<article class="card"><p class="kicker">MOON GAME · LEGACY CODES</p><h2>手动录入旧 Moon 兑换码</h2>'+
    '<p class="muted">不用顾客注册。把顾客原本收到的 YT-MOON-XXXXXXXX 逐张输入即可；旧系统已经兑换的代码请勾选，防止重复使用。</p>'+
+   '<div id="moonBindingStatus" class="field-note"></div>' +
    '<form id="moonCodeForm" class="stack"><label>旧兑换码<input id="moonCodeInput" required autocomplete="off" maxlength="32" autocapitalize="characters" spellcheck="false" placeholder="YT-MOON-A1B2C3D4"></label>'+
    '<label>奖励类型<select id="moonKind"><option value="R5">R5 · 断片指南任一杯</option><option value="R4">R4 · 微醺特调任一杯</option><option value="R3">R3 · 彩虹 Shot</option><option value="R0">R0 · RM5 Voucher</option></select></label>'+
    '<div class="pair"><label>原领取日期<input id="moonIssued" type="date" required></label><label>有效期至<input id="moonUntil" type="date" required></label></div>'+
@@ -29,7 +30,7 @@ export function createMoonCodeEditor({db,root,isOwner,notice}){
   // Render the form before the asynchronous RPC. Without mount() the drawer
   // is empty, and list() throws when it tries to access #moonCount.
   if(!root.querySelector('#moonCodeForm'))mount();
-  const listRoot=root.querySelector('#moonList'),status=root.querySelector('#moonFormStatus');
+  const listRoot=root.querySelector('#moonList'),status=root.querySelector('#moonFormStatus');\n  try{const result=await db.rpc('yt_moon_owner_reward_bindings');if(result.error)throw result.error;bindings=Array.isArray(result.data)?result.data:[];root.querySelector('#moonBindingStatus').textContent=['R5','R4','R3','R0'].map(kind=>{const x=bindings.find(b=>b.kind===kind);return kind+'：'+(x?.reward_name||'尚未关联')}).join(' · ');}catch(e){root.querySelector('#moonBindingStatus').textContent='Moon 奖励尚未关联到 POS 规则，可在「现有奖励与兑奖规则」里选择 Moon 类型。';}
   try{
    const res=await db.rpc('yt_moon_owner_list');if(res.error)throw res.error;
    records=Array.isArray(res.data)?res.data:[];list();

@@ -331,9 +331,14 @@ async function loadRights(){if(!isOwner())return;const staff=unpack(await db.rpc
 async function loadRewardRules(){
  if(!isOwner())return;
  state.rewardRules=await rewardBindingEditor.load();
- const select=$('mapReward');const old=select.value;select.replaceChildren(new Option('请选择奖品',''));
- const moonKinds={'Yetipsy Lucky Box · RM5 Voucher':'R0','RAINBOW SHOT X1':'R3','Yetipsy Lucky Box · 指定微醺特调':'R4','Yetipsy Lucky Box · 指定经典鸡尾酒':'R5'};
- for(const r of state.rewardRules){const moon=moonKinds[r.reward_name];select.add(new Option(`${r.reward_name}${moon?' · Moon '+moon:''}${!r.active?'（已停用）':''}`,r.reward_id));}
+ const moonBindings=unpack(await db.rpc('yt_moon_owner_reward_bindings'))||[];
+ window.__YT_MOON_BINDINGS__=Object.fromEntries(moonBindings.map(x=>[x.reward_id,x.kind]));
+ const select=$('mapReward');
+ let moonSelect=$('mapMoonKind');
+ if(!moonSelect){moonSelect=document.createElement('select');moonSelect.id='mapMoonKind';moonSelect.setAttribute('aria-label','Moon奖励类型');moonSelect.innerHTML='<option value="">同时绑定 Moon 类型（选填）</option><option value="R0">R0 · RM5 抵扣券</option><option value="R3">R3 · 彩虹 Shot ×1</option><option value="R4">R4 · 微醺特调任一杯</option><option value="R5">R5 · 断片指南任一杯</option>';select.parentElement.append(moonSelect);}
+ const old=select.value;select.replaceChildren(new Option('请选择奖品',''));
+ const moonKindsById=window.__YT_MOON_BINDINGS__||{};
+ for(const r of state.rewardRules){const moon=moonKindsById[r.reward_id];select.add(new Option(`${r.reward_name}${moon?' · Moon '+moon:''}${!r.active?'（已停用）':''}`,r.reward_id));}
  if(state.rewardRules.some(r=>r.reward_id===old))select.value=old;
  const product=$('mapProduct'),ps=product.value;product.replaceChildren(new Option('选择具体产品',''));
  for(const item of state.catalog)if(item.active)product.add(new Option(`${item.name} · ${money(item.price_rm)}`,item.id));
@@ -351,6 +356,7 @@ function updateRewardMapForm(){
  $('mapDiscountType').value=r?.discount_type||'free';$('mapDiscountValue').value=r?.discount_value||5;
  $('mapMinDrinks').value=r?.min_paid_drinks??1;$('mapMinSpend').value=r?.min_spend_rm??0;
  toggleMapInputs();
+ const moonSelect=$('mapMoonKind');if(moonSelect){moonSelect.value=Object.entries(window.__YT_MOON_BINDINGS__||{}).find(([id])=>id===(r?.reward_id||''))?.[1]||'';}
 }
 function toggleMapInputs(){
  const mode=$('mapMode').value;
@@ -368,7 +374,7 @@ function renderRewardMappings(){
   const info=r.mode==='product'?'✓ 指定商品：'+(product||'已停售商品'):r.mode==='series'?'✓ 指定系列：'+(series||'历史系列'):r.mode==='any_drink'?'✓ 任意饮品抵扣':r.mode==='disabled'?'暂停兑奖':'未绑定 · 禁止发放和核销';
   const discount=['product','series','any_drink'].includes(r.mode)?' · '+(r.discount_type==='fixed'?'RM'+r.discount_value+' 抵扣':r.discount_type==='percent'?r.discount_value+'% 折扣':'免费一杯'):'';
   const moonKinds={'Yetipsy Lucky Box · RM5 Voucher':'R0','RAINBOW SHOT X1':'R3','Yetipsy Lucky Box · 指定微醺特调':'R4','Yetipsy Lucky Box · 指定经典鸡尾酒':'R5'};
-  const moon=moonKinds[r.reward_name];
+  const moon=moonKindsById[r.reward_id];
   return `<button class="reward-map-item" type="button" data-reward-map="${esc(r.reward_id)}"><strong>${esc(r.reward_name)}${moon?' · Moon '+moon:''}</strong><small>${esc(info+discount+` · 最少 ${r.min_paid_drinks??1} 杯付费饮品`+(Number(r.min_spend_rm)>0?' · 净消费 ≥ RM'+r.min_spend_rm:'')+(moon?' · Moon 兑换共用此绑定':''))}</small></button>`;
  }).join('');
  const pending=(state.rewardRules||[]).filter(r=>!['product','series','any_drink'].includes(r.mode)).length;
@@ -389,7 +395,10 @@ async function saveRewardMap(e){e.preventDefault();const btn=e.submitter;await b
  unpack(await db.rpc('yt_pos_owner_save_reward_v43',{
   p_reward:id,p_mode:mode,p_product:product||null,p_series:series||null,
   p_type:discountType,p_value:discountValue,p_min_drinks:minDrinks,p_min_spend:minSpend
- }));await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();showNotice('兑奖规则已保存');
+ }));
+ const moonKind=$('mapMoonKind')?.value||'';
+ if(moonKind){unpack(await db.rpc('yt_moon_owner_bind_reward',{p_kind:moonKind,p_reward:id}));window.__YT_MOON_BINDINGS__={...(window.__YT_MOON_BINDINGS__||{}),[id]:moonKind};}
+ await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();showNotice('兑奖规则已保存');
  }).catch(()=>{});}
 
 async function saveRM5Preset(){return busy($('mapRM5Preset'),async()=>{
