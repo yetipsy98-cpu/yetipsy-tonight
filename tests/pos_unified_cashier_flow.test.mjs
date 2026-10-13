@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const source=fs.readFileSync('play/pos/cashier-prep.js','utf8');
+const {renderCheckoutPrep,readCheckoutPrep,cashierBoxControls,readCashierBoxRequest}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+const quote={can_prepare:true,items:[{item_id:'pkg',name:'Package 6杯',mode:'package',capacity:6,available:[{key:'default',name:'A',quantity:6}]},{item_id:'challenge',name:'挑战四杯',mode:'challenge',capacity:4,available:[{key:'a',name:'A',quantity:2},{key:'b',name:'B',quantity:2}]}]};
+const root={classList:{toggle(){}},innerHTML:'',replaceChildren(){this.innerHTML='';},querySelector(sel){return sel.includes('challenge')?{value:'b'}:null;},querySelectorAll(){return [{dataset:{prepItem:'pkg',prepKey:'default'},value:'2'}];}};
+renderCheckoutPrep(root,quote);
+assert.match(root.innerHTML,/Package · 可选择先出数量/);
+assert.match(root.innerHTML,/挑战 · 每次限 1 杯/);
+const picked=readCheckoutPrep(root,quote);
+assert.deepEqual(picked,[{item_id:'pkg',selections:[{key:'default',quantity:2}]},{item_id:'challenge',selections:[{key:'b',quantity:1}]}]);
+root.querySelectorAll=()=>[{dataset:{prepItem:'pkg',prepKey:'default'},value:'7'}];
+assert.throws(()=>readCheckoutPrep(root,quote),/先出数量不能超过/);
+const box={id:'box',cashier_managed:true,customer_id:null,status:'unclaimed',mode:'package',remaining_units:4,components:[{key:'default',name:'A',total_units:6,served_units:2}]};
+assert.match(cashierBoxControls(box),/发送到吧台 KDS/);
+assert.equal(cashierBoxControls({...box,active_request_id:'req'}),'');
+assert.deepEqual(readCashierBoxRequest({querySelectorAll:()=>[{dataset:{boxServeKey:'default'},value:'3'}]},box),[{key:'default',quantity:3}]);
+assert.deepEqual(readCashierBoxRequest({querySelector:()=>({value:'a'})},{...box,mode:'challenge',components:[{key:'a',total_units:3,served_units:0}]}),[{key:'a',quantity:1}]);
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+const moon=fs.readFileSync('sql/060_moon_unified_preorder.sql','utf8');
+const store=fs.readFileSync('sql/061_cashier_package_first_pour.sql','utf8');
+for(const s of ['yt_moon_preorder_scan','yt_moon_preorder_summary','yt_moon_preorder_release','yt_pos_create_order_with_rewards_v3','yt_pos_checkout_with_prep','renderCheckoutPrep','readCheckoutPrep']) assert(pos.includes(s),s);
+assert(moon.includes('yt_moon_preorder_attach')&&moon.includes("status='attached'"));
+assert(moon.includes("status='reserved'")&&moon.includes('reserved_order_id=p_order'));
+assert(store.includes('challenge_one_cup_only')&&store.includes("status='cancelled',claim_token=null"));
+assert(store.includes("yt_store_box_cashier_request")&&store.includes("cashier_managed=true"));
+assert(store.includes("status='unclaimed' and b.cashier_managed"));
+for(const part of ['pos','owner','cashier','staff']){
+ const html=fs.readFileSync('play/'+part+'/index.html','utf8');
+ assert.match(html,/id="categoryProduct" class="pos-category-rail"/);
+ assert.match(html,/id="moonDraftChoice"/);
+ assert.match(html,/id="cartStoreBoxPrep"/);
+ assert.match(html,/id="moonGuestPanel" class="moon-guest-panel hidden"/);
+}
+console.log('PASS series chips, unified Moon, package first-pour, Challenge 1 cup and no forced customer QR');
