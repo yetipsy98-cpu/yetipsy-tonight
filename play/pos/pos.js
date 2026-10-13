@@ -707,10 +707,10 @@ async function submitAdjustment(e){e.preventDefault();const btn=e.submitter;awai
 
 // POS V4 - Cart-integrated reward preflight. The 60-second Wallet QR only authenticates
 // the reservation; actual user_rewards redemption is committed by DB checkout trigger.
-function escapeOrderCart(){stopRedeemCamera();state.selectedOrderCart=null;state.activeRewardHold=null;
+function escapeOrderCart(){stopRedeemCamera();state.selectedOrderCart=null;cashierPackageQuote=null;cashierPackageOrder=null;state.activeRewardHold=null;
  $('orderCartOverlay').classList.add('hidden');document.body.classList.remove('sheet-open');}
 async function openOrderCart(id){
- state.selectedOrderCart=id;state.activeRewardHold=null;$('cartRedeemToken').value='';$('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
+ state.selectedOrderCart=id;cashierPackageQuote=null;cashierPackageOrder=null;state.activeRewardHold=null;$('cartRedeemToken').value='';$('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
  $('cartRedeemChoices').innerHTML='';$('orderCartClaims').replaceChildren();$('orderCartClaims').classList.add('hidden');$('orderCartOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');await refreshOrderCart();
 }
@@ -730,6 +730,7 @@ async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  $('orderCartStatus').textContent=q.unresolved_count?'请先处理奖励。':q.minimum_met===false?'需保留至少一杯付费饮品。':q.status==='pending'?'等待 Cashier 接单。':q.payment_status==='paid'&&q.status==='confirmed'?'已收款，订单仍在吧台 KDS 等待出品。':q.payment_status==='paid'?'已结账。':q.status==='confirmed'&&q.store_box_only?'可直接结账；完成后立即生成顾客领取码。':q.status==='confirmed'?'可先收款；订单仍会保留在吧台 KDS。':'可结账。';
  $('orderCartStatus').classList.toggle('warn',q.unresolved_count>0||q.minimum_met===false);
  $('cartRedeemForm').classList.add('hidden');
+ await loadCashierPackagePrep(id,q);
  $('cartCheckoutControls').classList.toggle('hidden',!isCashier()||q.payment_status==='paid');
  $('cartCheckoutBtn').disabled=!q.can_pay;$('cartCheckoutBtn').textContent=q.store_box_only?'确认收款并生成领取码':'确认收款并正式核销奖励';
  $('cartCheckoutPayment').value='foodcourt';
@@ -805,15 +806,49 @@ async function releaseCartHold(id){
  state.activeRewardHold=null;$('cartRedeemChoices').replaceChildren();
  await refreshOrderCart();await refreshOrders(false);showNotice('已释放预留，顾客奖品仍可使用');
 }
+let cashierPackageQuote=null,cashierPackageOrder=null;
+async function loadCashierPackagePrep(id,q){
+ const panel=$('cashierPackagePrep'),root=$('cashierPackagePrepItems');
+ if(!isCashier()||q.payment_status!=='unpaid'){cashierPackageQuote=null;cashierPackageOrder=null;panel.classList.add('hidden');return;}
+ const quote=unpack(await db.rpc('yt_store_box_checkout_prep_quote',{p_order:id}));
+ if(state.selectedOrderCart!==id)return;
+ cashierPackageQuote=quote;cashierPackageOrder=id;
+ const items=quote.can_prepare?quote.items||[]:[];
+ panel.classList.toggle('hidden',items.length===0);
+ root.innerHTML=items.map(item=>{
+  const choices=(item.available||[]).map((part,index)=>{
+   const value=item.mode==='challenge'&&index===0?1:0,max=Number(part.quantity||0);
+   return '<label>'+esc(part.name)+' <small>最多 '+max+' 杯</small><input type="number" data-prep-item="'+esc(item.item_id)+'" data-prep-key="'+esc(part.key)+'" min="'+value+'" max="'+Math.min(99,max)+'" step="1" value="'+value+'" '+(item.mode==='challenge'?'readonly':'')+'></label>';
+  }).join('');
+  return '<article class="cashier-prep-item"><strong>'+esc(item.name)+' · '+(item.mode==='challenge'?'挑战 · 仅先出 1 杯':'Package')+'</strong><div class="cashier-prep-grid">'+choices+'</div><small>此套餐共 '+Number(item.capacity)+' 杯 · 其余保留存酒箱</small></article>';
+ }).join('');
+}
+function cashierPackageSelections(){
+ if(!cashierPackageQuote?.items?.length)return[];
+ const all=[...$('cashierPackagePrepItems').querySelectorAll('input[data-prep-item]')];
+ return cashierPackageQuote.items.map(item=>{
+  const selected=all.filter(el=>el.dataset.prepItem===item.item_id);
+  if(selected.some(el=>!Number.isInteger(Number(el.value))||Number(el.value)<0||Number(el.value)>Number(el.max)))throw Error('Package 出杯数量不正确');
+  const selections=selected.map(el=>({key:el.dataset.prepKey,quantity:Number(el.value)})).filter(s=>s.quantity>0);
+  const count=selections.reduce((sum,s)=>sum+s.quantity,0);
+  if(item.mode==='challenge'&&count!==1)throw Error('challenge_one_cup_only');
+  if(count>Number(item.capacity)||count>99)throw Error('store_box_quantity_unavailable');
+  return {item_id:item.item_id,selections};
+ });
+}
 async function checkoutOrderCart(){const btn=$('cartCheckoutBtn');await busy(btn,async()=>{
  if(!isCashier())throw Error('cashier_only');
  const q=unpack(await db.rpc('yt_pos_cart_summary',{p_order:state.selectedOrderCart}));
  if(!q.can_pay)throw Error('coupon_hold_not_ready_or_expired');
  const method=$('cartCheckoutPayment').value;
  if(!window.confirm(`确认已实际收到 ${money(q.payable_rm)}？\n本单优惠：−${money(q.reserved_discount_rm)}\n\n确认后才正式核销所有预留奖励，此动作不能随意撤销。`))return;
- const result=unpack(await db.rpc('yt_pos_action',{p_order:state.selectedOrderCart,p_action:'paid',p_method:method,p_reason:null}));
+ const prepEnabled=cashierPackageOrder===state.selectedOrderCart&&!!cashierPackageQuote?.items?.length;
+ const result=unpack(await db.rpc(prepEnabled?'yt_pos_checkout_with_prep':'yt_pos_action',
+  prepEnabled?{p_order:state.selectedOrderCart,p_method:method,p_preps:cashierPackageSelections()}:
+  {p_order:state.selectedOrderCart,p_action:'paid',p_method:method,p_reason:null}));
  await refreshOrderCart();await refreshOrders(false);
- if(result.store_box_claims?.length){await showCheckoutStoreBoxClaims(result.store_box_claims);showNotice('已结账，顾客领取码已生成');}
+ if(result.cashier_managed_packages){showNotice('已收款，Package / Challenge 已由 Cashier 排进 KDS，无需顾客扫码');}
+ else if(result.store_box_claims?.length){await showCheckoutStoreBoxClaims(result.store_box_claims);showNotice('已结账，顾客领取码已生成');}
  else showNotice('Foodcourt／Cashier 收款已登记，奖券已随结账正式核销');
  }).catch(()=>{});}
 async function showCheckoutStoreBoxClaims(claims){
