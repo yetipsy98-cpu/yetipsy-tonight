@@ -30,7 +30,8 @@ export function createMoonCodeEditor({db,root,isOwner,notice}){
   // Render the form before the asynchronous RPC. Without mount() the drawer
   // is empty, and list() throws when it tries to access #moonCount.
   if(!root.querySelector('#moonCodeForm'))mount();
-  const listRoot=root.querySelector('#moonList'),status=root.querySelector('#moonFormStatus');\n  try{const result=await db.rpc('yt_moon_owner_reward_bindings');if(result.error)throw result.error;bindings=Array.isArray(result.data)?result.data:[];root.querySelector('#moonBindingStatus').textContent=['R5','R4','R3','R0'].map(kind=>{const x=bindings.find(b=>b.kind===kind);return kind+'：'+(x?.reward_name||'尚未关联')}).join(' · ');}catch(e){root.querySelector('#moonBindingStatus').textContent='Moon 奖励尚未关联到 POS 规则，可在「现有奖励与兑奖规则」里选择 Moon 类型。';}
+  const listRoot=root.querySelector('#moonList'),status=root.querySelector('#moonFormStatus');
+  try{const result=await db.rpc('yt_moon_owner_reward_bindings');if(result.error)throw result.error;bindings=Array.isArray(result.data)?result.data:[];root.querySelector('#moonBindingStatus').textContent=['R5','R4','R3','R0'].map(kind=>{const x=bindings.find(b=>b.kind===kind);return kind+'：'+(x?.reward_name||'尚未关联')}).join(' · ');}catch(e){root.querySelector('#moonBindingStatus').textContent='Moon 奖励尚未关联到 POS 规则，可在「现有奖励与兑奖规则」里选择 Moon 类型。';}
   try{
    const res=await db.rpc('yt_moon_owner_list');if(res.error)throw res.error;
    records=Array.isArray(res.data)?res.data:[];list();

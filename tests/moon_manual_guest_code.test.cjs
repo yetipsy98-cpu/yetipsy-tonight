@@ -15,12 +15,12 @@ for(const page of ['pos','owner','cashier','staff']){
  const ids=[...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]);
  assert.equal(ids.length,new Set(ids).size,page+' duplicate ids');
 }
-assert.match(read('play/pos/console.js'),/moon-code-editor\.js/);
+assert.match(read('play/pos/console.js'),/moon-code-editor\.js/);\nassert.match(read('play/pos/pos.js'),/yt_moon_owner_bind_reward/);
 assert.match(read('play/pos/pos.js'),/yt_pos_preorder_scan_auto/);
 assert.match(read('play/pos/pos.js'),/requires_product/);
 assert.match(read('play/pos/pos.js'),/yt_moon_release/);
 const unified=read('sql/064_moon_shared_reward_binding_auto_scan.sql'),moonRainbow=read('sql/065_moon_rainbow_existing_pos_binding.sql');
-assert.match(unified,/private\.yt_moon_reward_name/);
+assert.match(unified,/private\.yt_moon_reward_name/);\nassert.match(read('sql/066_moon_reward_bindings.sql'),/yt_moon_reward_bindings/);
 assert.match(unified,/public\.yt_pos_reward_rules/);
 assert.match(unified,/yt_pos_preorder_scan_auto/);
 assert.match(unified,/product_id/);
