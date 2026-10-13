@@ -2,7 +2,7 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261012-lucky-owner-v2';
+import {createConsole} from './console.js?v=20261013-lucky-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261012-kds-v17';
 
@@ -53,7 +53,7 @@ const msgMap={game_points_already_used:'本单积分已花费或到期，不能�
   unit_already_reserved:'这杯饮品已被其他优惠占用',unit_not_available:'这杯商品已领取其他权益，无法再使用折扣',
   cannot_remove_prepared_reward_item:'赠饮已经出品，不能直接撤销预留；请先联系 Cashier 处理订单',
   coupon_no_longer_available:'奖品已失效，请让顾客再次核对',coupon_cart_item_missing:'赠饮／优惠商品已被修改，请检查订单',
-  gamepass_mode_disabled:'Owner 已关闭 GamePass 发码',lucky_minimum_spend:'这张订单未达到 Lucky Box 最低有效消费',lucky_box_already_opened:'顾客已打开礼物箱，无法重新生成这个 QR',lucky_requires_paid_pos:'Lucky Box 仅限有效 POS 付费订单',
+  gamepass_mode_disabled:'Owner 已关闭 GamePass 发码',lucky_minimum_spend:'这张订单未达到 Lucky Box 最低有效消费',lucky_daily_budget_reached:'今日 Lucky Box 奖励预算已满，已发出的 QR 不受影响',gamepass_order_mode_mismatch:'这张订单已经绑定另一种游戏模式，不能更换玩法',lucky_box_already_opened:'顾客已打开礼物箱，无法重新生成这个 QR',lucky_requires_paid_pos:'Lucky Box 仅限有效 POS 付费订单',
   store_box_claim_already_active:'这个存酒箱已有领取码，请显示或先取消原码',store_box_already_claimed:'顾客已经领取这个存酒箱',store_box_product_not_configured:'Owner 尚未设置这个商品的存酒规则',store_box_after_payment_only:'订单完成出品并付款后才能生成存酒箱',store_box_request_already_active:'这个存酒箱已有叫酒请求',store_box_quantity_unavailable:'叫酒数量超过可用数量或单次上限',store_box_not_available:'这个存酒箱目前不能叫酒'};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>'RM'+Number(v||0).toFixed(2);
@@ -464,9 +464,9 @@ async function loadBenefits(preferred=null,poll=false){
  state.luckyMode=stateResp;
  const modeHint=$('benefitModeHint');
  if(modeHint)modeHint.textContent=stateResp.mode==='lucky'?'当前为 Lucky Box：扫码直接开箱抽积分，整单一个箱子或按单杯分别开。最低合资格实付 RM'+Number(stateResp.minimum_spend_rm).toFixed(2)+
-  '。':stateResp.mode==='off'?'Owner 已暂停新游戏码发放；之前已发的 QR 不受影响。':'当前为 Game Mode：照旧发放 GamePass 供顾客选择游戏。';
+  '。发码不需要绑定游戏、系列或活动。':stateResp.mode==='off'?'Owner 已暂停新游戏码发放；之前已发的 QR 不受影响。':'当前为 Game Mode：照旧发放 GamePass 供顾客选择游戏。';
  const ticket=state.benefitListEpoch=(state.benefitListEpoch||0)+1;const existing=preferred||$('benefitOrderSelect').value;
- const actor=state.identity?.username;const response=unpack(await db.rpc('yt_pos_benefit_orders'));if(state.identity?.username!==actor||ticket!==state.benefitListEpoch)return;state.businessDay=response.business_day;const list=response.orders||[];
+ const actor=state.identity?.username;const response=unpack(await db.rpc(state.luckyMode?.mode==='lucky'?'yt_lucky_pos_benefit_orders':'yt_pos_benefit_orders'));if(state.identity?.username!==actor||ticket!==state.benefitListEpoch)return;state.businessDay=response.business_day;const list=response.orders||[];
  const select=$('benefitOrderSelect');select.replaceChildren(new Option('请选择当天仍可分配的订单',''));
  for(const r of list)select.add(new Option(`#${r.order_no} · ${r.table_label||'Walk-in'} · ${money(r.amount_rm)}`,r.id));
  if(list.some(x=>x.id===existing))select.value=existing;
@@ -474,6 +474,7 @@ async function loadBenefits(preferred=null,poll=false){
  await loadSelectedPaidUnits(poll);
 }
 async function loadBenefitCampaigns(){
+ if(state.luckyMode?.mode==='lucky'){$('benefitCampaign').replaceChildren(new Option('Lucky Box · 无需选择活动',''));return;}
  const selected=$('benefitCampaign').value,actor=state.identity?.username;
  const r=unpack(await db.from('campaigns').select('id,name,active,is_default,starts_at,ends_at').eq('active',true).order('created_at',{ascending:false}))||[];
  if(state.identity?.username!==actor)return;const sel=$('benefitCampaign');sel.replaceChildren(new Option('请选择活动',''));
@@ -487,7 +488,7 @@ function benefitMode(mode){state.benefitMode=mode;$('benefitWhole').classList.to
 function renderBundleQuote(id,quote){$('cancelWholePass').classList.toggle('hidden',!quote.active_bundle);
  const pair=cachedBundle(id),active=quote.active_bundle;
  const recover=active&&pair?.raw&&pair.request===active.request_id;
- $('benefitWholeInfo').textContent=active?(recover?`已生成 ${active.pass_count} 份 Game Pass，可找回原码。`:'已有整单 QR 待领取，请在原设备找回，或等到期后重新生成。'):`${quote.eligible_units} / ${quote.total_units} 份可分配。整单 QR 由一名会员一次领取。`;
+ $('benefitWholeInfo').textContent=active?(recover?`已生成 ${active.pass_count} 份 Game Pass，可找回原码。`:'已有整单 QR 待领取，请在原设备找回，或等到期后重新生成。'):`${quote.eligible_units} / ${quote.total_units} 份可分配。${state.luckyMode?.mode==='lucky'?(quote.note||'整单一个 Lucky Box，可分杯开箱'):'整单 QR 由一名会员一次领取。'}`;
  $('issueWholePass').textContent=recover?'重新显示整单 QR':`生成整单 QR${quote.eligible_units?' · '+quote.eligible_units+' 份':''}`;
  $('issueWholePass').disabled=!(recover||quote.can_issue)||(state.luckyMode?.mode==='off'&&!recover);
 }
@@ -495,7 +496,7 @@ async function loadSelectedPaidUnits(preserveQR=false){
  const epoch=++benefitEpoch,id=$('benefitOrderSelect').value,root=$('benefitUnits');root.replaceChildren();state.benefitOrder=null;state.bundleQuote=null;if(!preserveQR)$('benefitQR').classList.add('hidden');$('issueWholePass').disabled=true;
  $('benefitWholeInfo').textContent=id?'正在核对可分配权益…':'请选择已付款订单。';
  if(!id){$('benefitQR').classList.add('hidden');$('cancelWholePass').classList.add('hidden');root.innerHTML='<div class="empty">请选择已付款订单。</div>';return;}
- const [units,quote]=await Promise.all([db.rpc('yt_pos_paid_units',{p_order:id}),db.rpc('yt_pos_bundle_quote',{p_order:id})]);
+ const [units,quote]=await Promise.all([db.rpc(state.luckyMode?.mode==='lucky'?'yt_lucky_pos_paid_units':'yt_pos_paid_units',{p_order:id}),db.rpc(state.luckyMode?.mode==='lucky'?'yt_lucky_bundle_quote':'yt_pos_bundle_quote',{p_order:id})]);
  if(epoch!==benefitEpoch||id!==$('benefitOrderSelect').value)return;
  const result=unpack(units);state.benefitOrder=result;state.bundleQuote=unpack(quote);renderBundleQuote(id,state.bundleQuote);const shown=state.shownBenefit;if(preserveQR&&shown){const stillValid=shown.orderId===id&&Date.parse(shown.deadline)>Date.now()&&(shown.bundleId?state.bundleQuote.active_bundle?.id===shown.bundleId:result.units?.some(u=>u.game_pass_id===shown.passId&&u.pass_status==='issued'&&Date.parse(u.pass_expires_at)>Date.now()));if(!stillValid){$('benefitQR').classList.add('hidden');state.shownBenefit=null;}}
  if(!result.units?.length){root.innerHTML='<div class="empty">这个订单没有可以处理的单杯权益。</div>';return;}
@@ -530,8 +531,8 @@ async function qrLibrary(){
 async function showUnitQR(token,pass,unit,kind='claim'){
  const root=$('benefitQR');root.classList.remove('hidden');root.replaceChildren();clearInterval(state.benefitTimer);const deadline=pass?.expires_at||unit?.pass_expires_at;state.shownBenefit={orderId:$('benefitOrderSelect').value,passId:pass?.pass_id||unit?.game_pass_id,bundleId:kind==='bundle'?pass.id:null,deadline};
  const url=portalClientUrl();url.searchParams.set(kind,token);
- const title=document.createElement('h3');title.textContent=kind==='bundle'?`整单 · ${pass.pass_count} 份 Game Pass`:`${unit.product_name} · 第 ${unit.unit_number} 份 QR`;
- const text=document.createElement('p');text.className='muted';text.textContent=kind==='bundle'?'由一名会员确认领取；领取后3天内有效。':`${money(unit.unit_price_rm)} · 每份独立领取，扫码后进入 Yetipsy Play。`;
+ const title=document.createElement('h3');title.textContent=state.luckyMode?.mode==='lucky'?(kind==='bundle'?`整单 Lucky Box · ${pass.pass_count} 杯`:`${unit.product_name} · Lucky Box #${unit.unit_number}`):(kind==='bundle'?`整单 · ${pass.pass_count} 份 Game Pass`:`${unit.product_name} · 第 ${unit.unit_number} 份 QR`);
+ const text=document.createElement('p');text.className='muted';text.textContent=state.luckyMode?.mode==='lucky'?(kind==='bundle'?'整单一个 Lucky Box · 扫码开箱后登录领取积分。':'一杯一箱 · 扫码开箱后登录领取积分。'):(kind==='bundle'?'由一名会员确认领取；领取后3天内有效。':`${money(unit.unit_price_rm)} · 每份独立领取，扫码后进入 Yetipsy Play。`);
  const square=document.createElement('div');square.className='qr-screen';
  const link=document.createElement('a');link.href=url.href;link.className='qr-link';link.textContent=url.href;link.target='_blank';link.rel='noreferrer';
  const copyBtn=document.createElement('button');copyBtn.type='button';copyBtn.className='quiet';copyBtn.textContent='复制领取链接';copyBtn.onclick=()=>navigator.clipboard?.writeText(url.href).then(()=>showNotice('已复制'));
@@ -539,7 +540,7 @@ async function showUnitQR(token,pass,unit,kind='claim'){
  root.append(title,text,square,link,copyBtn,badge);
  let shown=false;if(await qrLibrary()){new window.QRCode(square,{text:url.href,width:206,height:206,colorDark:'#1d251f',colorLight:'#ffffff',correctLevel:window.QRCode.CorrectLevel.M});shown=true;}
  if(!shown)square.textContent='QR 图片暂不可用，可以复制上面的顾客领取链接。';
- try{let valid;if(kind==='bundle'){valid=unpack(await db.rpc('yt_pos_bundle_preview',{p_token:token}))?.valid;}else{const response=await fetch(conf.url+'/functions/v1/yt-pin-auth',{
+ try{let valid;if(state.luckyMode?.mode==='lucky'){valid=unpack(await db.rpc('yt_lucky_preview',{p_token:token,p_kind:kind}))?.valid;}else if(kind==='bundle'){valid=unpack(await db.rpc('yt_pos_bundle_preview',{p_token:token}))?.valid;}else{const response=await fetch(conf.url+'/functions/v1/yt-pin-auth',{
    method:'POST',headers:{'Content-Type':'application/json','apikey':conf.publishableKey},
    body:JSON.stringify({action:'preview',kind:'claim',token}),cache:'no-store'
   });const data=await response.json();valid=data.ok&&data.preview?.valid;}
@@ -552,17 +553,17 @@ async function cancelBenefitCode(code,button){await busy(button,async()=>{const 
 async function issueWholePass(button){
  const orderId=$('benefitOrderSelect').value;if(!orderId||state.benefitOrder?.order_id!==orderId)throw Error('请先选择已付款订单');
  await busy(button,async()=>{
-  const quote=unpack(await db.rpc('yt_pos_bundle_quote',{p_order:orderId}));let pair=cachedBundle(orderId);
+  const lucky=state.luckyMode?.mode==='lucky';const quote=unpack(await db.rpc(lucky?'yt_lucky_bundle_quote':'yt_pos_bundle_quote',{p_order:orderId}));let pair=cachedBundle(orderId);
   if(quote.active_bundle){if(pair?.raw&&pair.request===quote.active_bundle.request_id){await showUnitQR(pair.raw,quote.active_bundle,null,'bundle');return;}throw Error('active_order_bundle_exists');}
   if(state.luckyMode?.mode==='off')throw Error('gamepass_mode_disabled');
   if(!quote.can_issue)throw Error('no_eligible_bundle_units');if(pair?.id&&!quote.active_bundle){sessionStorage.removeItem(bundleKey(orderId));pair=null;}
   if(pair?.expires_at&&Date.parse(pair.expires_at)<=Date.now()){sessionStorage.removeItem(bundleKey(orderId));pair=null;}
-  if(!pair){const mins=2,campaign=$('benefitCampaign').value;if(!campaign)throw Error('请先选择活动');if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('QR 有效分钟为 1–60');pair={raw:crypto.randomUUID(),request:crypto.randomUUID(),campaign,mins};sessionStorage.setItem(bundleKey(orderId),JSON.stringify(pair));}
-  const pass=unpack(await db.rpc('yt_pos_bundle_issue',{p_order:orderId,p_campaign:pair.campaign,p_token:pair.raw,p_request:pair.request,p_minutes:pair.mins}));
+  if(!pair){const mins=2,campaign=lucky?null:$('benefitCampaign').value;if(!lucky&&!campaign)throw Error('请先选择活动');if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('QR 有效分钟为 1–60');pair={raw:crypto.randomUUID(),request:crypto.randomUUID(),campaign,mins};sessionStorage.setItem(bundleKey(orderId),JSON.stringify(pair));}
+  const pass=unpack(await db.rpc(lucky?'yt_lucky_bundle_issue':'yt_pos_bundle_issue',lucky?{p_order:orderId,p_token:pair.raw,p_request:pair.request,p_minutes:pair.mins}:{p_order:orderId,p_campaign:pair.campaign,p_token:pair.raw,p_request:pair.request,p_minutes:pair.mins}));
   pair={...pair,...pass};sessionStorage.setItem(bundleKey(orderId),JSON.stringify(pair));
   if(pass.status!=='issued'||Date.parse(pass.expires_at)<=Date.now()){sessionStorage.removeItem(bundleKey(orderId));throw Error('原码已领取或过期，请刷新后重新分配');}
   if($('benefitOrderSelect').value!==orderId)return;
-  await loadSelectedPaidUnits();await showUnitQR(pair.raw,pass,null,'bundle');showNotice(`已生成 ${pass.pass_count} 份 Game Pass 的整单领取码`);
+  await loadSelectedPaidUnits();await showUnitQR(pair.raw,pass,null,'bundle');showNotice(`已生成整单 ${lucky?'Lucky Box':'Game Pass'} QR · ${pass.pass_count} 份`);
  }).catch(()=>{});
 }
 async function issuePaidUnit(itemId,unitNumber,button){const orderId=$('benefitOrderSelect').value;
@@ -575,19 +576,19 @@ async function issuePaidUnit(itemId,unitNumber,button){const orderId=$('benefitO
  if(state.luckyMode?.mode==='off')throw Error('gamepass_mode_disabled');
  if(unit.game_pass_id&&(unit.pass_status==='expired'||(unit.pass_status==='issued'&&unit.pass_expires_at&&Date.parse(unit.pass_expires_at)<=Date.now()))){pair=null;try{sessionStorage.removeItem(key)}catch{}}
  await busy(button,async()=>{
-  const campaign=pair?.campaign||$('benefitCampaign').value;
+  const lucky=state.luckyMode?.mode==='lucky';const campaign=lucky?null:(pair?.campaign||$('benefitCampaign').value);
   const mins=2;
-  if(!campaign)throw Error('请先选择活动');
+  if(!lucky&&!campaign)throw Error('请先选择活动');
   if(!Number.isInteger(mins)||mins<1||mins>60)throw Error('QR 有效分钟为 1–60');
   if(!pair){pair={raw:crypto.randomUUID(),request:crypto.randomUUID(),campaign};sessionStorage.setItem(key,JSON.stringify(pair));}
-  const rows=unpack(await db.rpc('yt_pos_issue_unit_pass',{
-   p_order:orderId,p_item:itemId,p_unit:unitNumber,p_campaign:campaign,
+  const rows=unpack(await db.rpc(lucky?'yt_lucky_issue_unit_pass':'yt_pos_issue_unit_pass',{
+   p_order:orderId,p_item:itemId,p_unit:unitNumber,...(lucky?{}:{p_campaign:campaign}),
    p_token:pair.raw,p_request:pair.request,p_minutes:mins
   }));
   if(!rows?.length)throw Error('服务器未发出领取码');
   await loadSelectedPaidUnits();
   if($('benefitOrderSelect').value===orderId)await showUnitQR(pair.raw,rows[0],unit);
-  showNotice(`已按订单产品生成 Game Pass · ${unit.product_name}`);
+  showNotice(`已生成 ${lucky?'Lucky Box':'Game Pass'} · ${unit.product_name}`);
  }).catch(()=>{});
 }
 function parseRedeemToken(raw){const text=String(raw||'').trim();let token=text;
