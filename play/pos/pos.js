@@ -201,7 +201,7 @@ function extractMoonCode(raw){
  const text=String(raw||'').trim().toUpperCase();
  const full=text.match(/YT[\s-]*MOON[\s-]*([A-Z0-9]{8})/);
  if(full)return full[1];
- if(/^[A-Z0-9]{8}$/.test(text))return text;
+ const compact=text.replace(/[\s-]/g,'');if(/^[A-Z0-9]{8}$/.test(compact))return compact;
  return null;
 }
 async function scanDraftReward(){return draftOperation(async()=>{

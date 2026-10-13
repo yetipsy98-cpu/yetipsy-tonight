@@ -21,7 +21,7 @@ assert.match(read('play/pos/pos.js'),/requires_product/);
 assert.match(read('play/pos/pos.js'),/yt_moon_release/);
 const unified=read('sql/064_moon_shared_reward_binding_auto_scan.sql'),moonRainbow=read('sql/065_moon_rainbow_existing_pos_binding.sql');
 assert.match(unified,/private\.yt_moon_reward_name/);
-assert.match(unified,/private\.yt_pos_reward_rules/);
+assert.match(unified,/public\.yt_pos_reward_rules/);
 assert.match(unified,/yt_pos_preorder_scan_auto/);
 assert.match(unified,/product_id/);
 assert.match(moonRainbow,/RAINBOW SHOT X1/);

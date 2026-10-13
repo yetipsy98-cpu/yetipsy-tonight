@@ -37,6 +37,9 @@ function harness(role='staff') {
    const g=args.p_cart.reduce((n,i)=>n+28*i.quantity,0),d=backend.holds.filter(h=>h.state==='chosen').reduce((n,h)=>n+h.discount_rm,0);
    data={gross_rm:g,reserved_discount_rm:d,payable_rm:g-d,unresolved_count:backend.holds.filter(h=>h.state==='pending').length,holds:structuredClone(backend.holds),can_submit:backend.holds.every(h=>h.state==='chosen')&&g-d>0};
    if(backend.summaryResolvers)return new Promise(resolve=>backend.summaryResolvers.push(()=>resolve({data,error:null})));
+  } else if(name==='yt_pos_preorder_scan_auto'&&args.p_code==='MOON1234'){
+   if(!args.p_product)data={source:'moon',requires_product:true,id:'moon-code-id',code:'YT-MOON-MOON1234',kind:'R4',reward_name:'Moon selected reward',products:[{product_id:P,name:'Test drink',price_rm:28}]};
+   else{data={id:'moon-hold-id',source:'moon',code:'YT-MOON-MOON1234',kind:'R4',reward_name:'Moon selected reward',chosen_product_id:P};backend.holds.push({id:data.id,source:'moon',state:'chosen',discount_rm:0,valid:true});}
   } else if(name==='yt_pos_preorder_scan'||name==='yt_pos_preorder_scan_code'||name==='yt_pos_preorder_scan_auto'){
    if((name==='yt_pos_preorder_scan_code'||name==='yt_pos_preorder_scan_auto')&&backend.shortError)return {data:{error_code:backend.shortError},error:null};
    data={id:webcrypto.randomUUID(),reward_name:'RM5 Voucher',state:'pending',discount_type:'fixed',discount_value:5,discount_rm:0,valid:false,products:[{product_id:P,name:'Test drink',price_rm:28}]};backend.holds.push(structuredClone(data));
@@ -81,6 +84,12 @@ async function run(){
  // A definite database rejection unlocks the draft so the reward can be corrected.
  h=harness('cashier');h.api.state.cart.set(P,1);h.e.cashierDirect.checked=true;await h.api.refreshDraftSummary();h.backend.reject=true;await h.api.createOrder();assert.equal(h.api.state.pendingSubmit,null);assert.equal(h.e.tableInput.disabled,false);assert.equal(h.backend.orders.size,0);
  h.backend.reject=false;await h.api.createOrder();const cashierSubmit=h.backend.calls.filter(c=>c.name==='yt_pos_create_order_with_rewards_v2').at(-1);assert.equal(cashierSubmit.args.p_channel,'cashier');assert.equal(cashierSubmit.args.p_checkout_mode,'pay_later');
+ // Moon short codes auto-detect and offer only products from the existing Owner binding.
+ h=harness();h.api.state.cart.set(P,1);h.e.draftRedeemToken.value='moon1234';await h.api.scanDraftReward();
+ assert.equal(h.e.draftRewardChoices.children.length,1);assert.equal(h.e.draftRewardChoices.children[0].textContent,'＋ Test drink · RM28.00 → Moon 赠饮');
+ await h.e.draftRewardChoices.children[0].onclick();const moonCalls=h.backend.calls.filter(c=>c.name==='yt_pos_preorder_scan_auto');
+ assert.equal(moonCalls[0].args.p_code,'MOON1234');assert.equal(moonCalls[1].args.p_product,P);
+ assert(!h.e.draftRewardChoices.innerHTML.includes('input'),'Moon selection never asks Staff to type a drink');
  // Browser without BarcodeDetector uses decoded pixel data rather than losing camera support.
  h=harness();let decoded=false;h.context.window.jsQR=(pixels,width,height)=>{decoded=pixels.length===16&&width===640&&height===480;return {data:'redeem:'+T};};const decode=await h.api.qrDecoder();assert.equal(await decode({videoWidth:1280,videoHeight:960}),'redeem:'+T);assert(decoded);
  assert(!h.backend.calls.some(c=>c.name==='yt_pos_cart_reserve'),'cart flow must not use post-order reservation');
