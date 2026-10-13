@@ -45,6 +45,6 @@ REVOKE ALL ON FUNCTION private.yt_owner_lite_risk_summary() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION private.yt_owner_lite_risk_summary() TO authenticated;
 CREATE OR REPLACE FUNCTION public.yt_owner_lite_risk_summary()
 RETURNS jsonb LANGUAGE sql SECURITY INVOKER SET search_path TO ''
-AS $ SELECT private.yt_owner_lite_risk_summary(); $;
+AS 'SELECT private.yt_owner_lite_risk_summary();';
 REVOKE ALL ON FUNCTION public.yt_owner_lite_risk_summary() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.yt_owner_lite_risk_summary() TO authenticated;
