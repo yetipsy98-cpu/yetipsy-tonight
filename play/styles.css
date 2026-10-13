@@ -140,3 +140,5 @@
  .auth-card{padding:14px}
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+.pwa-action{min-height:34px;padding:0 12px;border:1px solid #dabc83;border-radius:999px;background:#25271f;color:#f0d39d;font-size:11px;font-weight:750;white-space:nowrap}.pwa-notice{position:fixed;z-index:30;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(92vw,460px);padding:13px 16px;border:1px solid #dabc83;border-radius:14px;background:#202520;color:#f4e6ca;box-shadow:0 12px 36px #0008;font-size:13px;text-align:center}.pwa-notice.hide{display:none!important}@media(max-width:380px){.topbar{gap:8px}.pwa-action{padding-inline:8px;font-size:10px}}
