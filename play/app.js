@@ -98,6 +98,7 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
    if($('nickname').value.trim().length<2)throw Error('请填写你的称呼');
    if(!$('birthday').value)throw Error('请选择完整出生日期');
    extras={birthday:$('birthday').value,referral_code:$('referralCode').value.trim().toUpperCase()};
+   try{extras.device_token=localStorage.getItem('yetipsy:lite-install-v1')||'';}catch{}
   }
   const data=await pinRequest(state.loginMode,phone,pin,$('nickname').value.trim(),extras);
   const {error}=await db.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
