@@ -2,7 +2,7 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261013-moon-bind-v1';
+import {createConsole} from './console.js?v=20261013-moon-code-reward-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261013-cashier-followup-v1';
 
@@ -331,14 +331,9 @@ async function loadRights(){if(!isOwner())return;const staff=unpack(await db.rpc
 async function loadRewardRules(){
  if(!isOwner())return;
  state.rewardRules=await rewardBindingEditor.load();
- const moonBindings=unpack(await db.rpc('yt_moon_owner_reward_bindings'))||[];
- window.__YT_MOON_BINDINGS__=Object.fromEntries(moonBindings.map(x=>[x.reward_id,x.kind]));
  const select=$('mapReward');
- let moonSelect=$('mapMoonKind');
- if(!moonSelect){moonSelect=document.createElement('select');moonSelect.id='mapMoonKind';moonSelect.setAttribute('aria-label','Moon奖励类型');moonSelect.innerHTML='<option value="">同时绑定 Moon 类型（选填）</option><option value="R0">R0 · RM5 抵扣券</option><option value="R3">R3 · 彩虹 Shot ×1</option><option value="R4">R4 · 微醺特调任一杯</option><option value="R5">R5 · 断片指南任一杯</option>';const moonLabel=document.createElement('label');moonLabel.textContent='对应 Moon 旧码奖励类型';moonLabel.append(moonSelect);select.parentElement.after(moonLabel);}
  const old=select.value;select.replaceChildren(new Option('请选择奖品',''));
- const moonKindsById=window.__YT_MOON_BINDINGS__||{};
- for(const r of state.rewardRules){const moon=moonKindsById[r.reward_id];select.add(new Option(`${r.reward_name}${moon?' · Moon '+moon:''}${!r.active?'（已停用）':''}`,r.reward_id));}
+ for(const r of state.rewardRules)select.add(new Option(`${r.reward_name}${!r.active?'（已停用）':''}`,r.reward_id));
  if(state.rewardRules.some(r=>r.reward_id===old))select.value=old;
  const product=$('mapProduct'),ps=product.value;product.replaceChildren(new Option('选择具体产品',''));
  for(const item of state.catalog)if(item.active)product.add(new Option(`${item.name} · ${money(item.price_rm)}`,item.id));
@@ -356,7 +351,6 @@ function updateRewardMapForm(){
  $('mapDiscountType').value=r?.discount_type||'free';$('mapDiscountValue').value=r?.discount_value||5;
  $('mapMinDrinks').value=r?.min_paid_drinks??1;$('mapMinSpend').value=r?.min_spend_rm??0;
  toggleMapInputs();
- const moonSelect=$('mapMoonKind');if(moonSelect){moonSelect.value=Object.entries(window.__YT_MOON_BINDINGS__||{}).find(([id])=>id===(r?.reward_id||''))?.[1]||'';}
 }
 function toggleMapInputs(){
  const mode=$('mapMode').value;
@@ -373,8 +367,7 @@ function renderRewardMappings(){
   const series=state.series.find(p=>p.id===r.series_id)?.name;
   const info=r.mode==='product'?'✓ 指定商品：'+(product||'已停售商品'):r.mode==='series'?'✓ 指定系列：'+(series||'历史系列'):r.mode==='any_drink'?'✓ 任意饮品抵扣':r.mode==='disabled'?'暂停兑奖':'未绑定 · 禁止发放和核销';
   const discount=['product','series','any_drink'].includes(r.mode)?' · '+(r.discount_type==='fixed'?'RM'+r.discount_value+' 抵扣':r.discount_type==='percent'?r.discount_value+'% 折扣':'免费一杯'):'';
-  const moon=(window.__YT_MOON_BINDINGS__||{})[r.reward_id];
-  return `<button class="reward-map-item" type="button" data-reward-map="${esc(r.reward_id)}"><strong>${esc(r.reward_name)}${moon?' · Moon '+moon:''}</strong><small>${esc(info+discount+` · 最少 ${r.min_paid_drinks??1} 杯付费饮品`+(Number(r.min_spend_rm)>0?' · 净消费 ≥ RM'+r.min_spend_rm:'')+(moon?' · Moon 兑换共用此绑定':''))}</small></button>`;
+  return `<button class="reward-map-item" type="button" data-reward-map="${esc(r.reward_id)}"><strong>${esc(r.reward_name)}</strong><small>${esc(info+discount+` · 最少 ${r.min_paid_drinks??1} 杯付费饮品`+(Number(r.min_spend_rm)>0?' · 净消费 ≥ RM'+r.min_spend_rm:''))}</small></button>`;
  }).join('');
  const pending=(state.rewardRules||[]).filter(r=>!['product','series','any_drink'].includes(r.mode)).length;
  $('rewardBindingSummary').textContent=pending?`${pending} 种奖品待绑定。`:'所有奖品已绑定。';
@@ -395,9 +388,6 @@ async function saveRewardMap(e){e.preventDefault();const btn=e.submitter;await b
   p_reward:id,p_mode:mode,p_product:product||null,p_series:series||null,
   p_type:discountType,p_value:discountValue,p_min_drinks:minDrinks,p_min_spend:minSpend
  }));
- const moonKind=$('mapMoonKind')?.value||'';
- if(moonKind&&mode==='disabled')throw Error('Moon 类型不能绑定到暂停兑奖规则');
- if(moonKind){unpack(await db.rpc('yt_moon_owner_bind_reward',{p_kind:moonKind,p_reward:id}));window.__YT_MOON_BINDINGS__={...(window.__YT_MOON_BINDINGS__||{}),[id]:moonKind};}else{const previous=(window.__YT_MOON_BINDINGS__||{})[id];if(previous){unpack(await db.rpc('yt_moon_owner_unbind_reward',{p_kind:previous}));delete window.__YT_MOON_BINDINGS__[id];}}
  await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();showNotice('兑奖规则已保存');
  }).catch(()=>{});}
 

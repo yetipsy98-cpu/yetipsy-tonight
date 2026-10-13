@@ -16,18 +16,21 @@ for(const page of ['pos','owner','cashier','staff']){
  assert.equal(ids.length,new Set(ids).size,page+' duplicate ids');
 }
 assert.match(read('play/pos/console.js'),/moon-code-editor\.js/);
-assert.match(read('play/pos/pos.js'),/yt_moon_owner_bind_reward/);
+assert.doesNotMatch(read('play/pos/pos.js'),/yt_moon_owner_bind_reward|yt_moon_owner_reward_bindings|mapMoonKind/);
+assert.doesNotMatch(read('play/pos/moon-code-editor.js'),/moonKind|moon_owner_reward_bindings/);
+assert.match(read('play/pos/moon-code-editor.js'),/p_reward:rewardId/);
+assert.match(read('play/pos/moon-code-editor.js'),/yt_pos_owner_reward_rules/);
 assert.match(read('play/pos/pos.js'),/yt_pos_preorder_scan_auto/);
 assert.match(read('play/pos/pos.js'),/requires_product/);
 assert.match(read('play/pos/pos.js'),/yt_moon_release/);
 const unified=read('sql/064_moon_shared_reward_binding_auto_scan.sql'),moonRainbow=read('sql/065_moon_rainbow_existing_pos_binding.sql');
 assert.match(unified,/private\.yt_moon_reward_name/);
-assert.match(read('sql/066_moon_reward_bindings.sql'),/yt_moon_reward_bindings/);
-const ownerRpcFix=read('sql/067_moon_owner_rpc_definer_wrappers.sql');
-assert.match(ownerRpcFix,/FUNCTION public\.yt_moon_owner_reward_bindings\(\)[\s\S]*?SECURITY DEFINER/);
-const rpcGrants=read('sql/068_moon_private_rpc_execution_grants.sql');
-assert.match(rpcGrants,/FUNCTION public\.yt_moon_owner_reward_bindings\(\)[\s\S]*?SECURITY INVOKER/);
-assert.match(rpcGrants,/GRANT EXECUTE ON FUNCTION private\.yt_moon_owner_reward_bindings\(\)/);
+assert.match(read('sql/069_moon_codes_use_existing_rewards.sql'),/ADD COLUMN IF NOT EXISTS reward_id/);
+assert.match(read('sql/069_moon_codes_use_existing_rewards.sql'),/p_reward uuid/);
+assert.match(read('sql/069_moon_codes_use_existing_rewards.sql'),/WHERE r.id=v.reward_id/);
+assert.match(read('sql/069_moon_codes_use_existing_rewards.sql'),/DROP TABLE IF EXISTS public\.yt_moon_reward_bindings/);
+assert.doesNotMatch(read('sql/069_moon_codes_use_existing_rewards.sql'),/FROM public\.yt_moon_reward_bindings/);
+
 assert.match(unified,/public\.yt_pos_reward_rules/);
 assert.match(unified,/yt_pos_preorder_scan_auto/);
 assert.match(unified,/product_id/);
