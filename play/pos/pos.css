@@ -102,7 +102,7 @@ body.sheet-open{overflow:hidden}
 @media(min-width:701px){.tabs [data-tab="more"]{display:block}}
 .owner-advanced-link{display:flex;align-items:center;min-height:58px;text-decoration:none;text-align:left;color:#f0e1be!important;border:1px solid #465046;background:#151e17;border-radius:14px;padding:13px;font-weight:650;font-size:12px}
 
-.owner-advanced-link{display:flex;align-items:center;min-height:58px;text-decoration:none;text-align:left;color:#f0e1be!important;border:1px solid #465046;background:#151e17;border-radius:14px;padding:13px;font-weight:650;font-size:12px}
+
 
 
 /* Ordering cart: select rewards before submitting an order. */
