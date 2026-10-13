@@ -146,3 +146,10 @@ body.sheet-open{overflow:hidden}
 .cashier-followup-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px}
 .cashier-followup-inputs label{display:flex;flex-direction:column;gap:4px}
 .cashier-followup-inputs input{max-width:100%;padding:9px}
+
+/* Category buttons next to search: never present a select dropdown in the POS picker. */
+#tab-create .filters{display:flex;align-items:center;flex-wrap:nowrap;gap:10px;min-width:0}
+#tab-create .filters #searchProduct{flex:1 1 220px;min-width:120px;width:0}
+#tab-create .filters .category-button-strip{display:flex;flex:1 1 330px;min-width:0;max-width:100%;overflow-x:auto;flex-wrap:nowrap;white-space:nowrap;padding:6px 2px 9px}
+#tab-create .filters #categoryProduct{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;clip-path:inset(50%)!important}
+@media(max-width:600px){#tab-create .filters{flex-wrap:wrap}#tab-create .filters #searchProduct{flex-basis:100%;width:100%}#tab-create .filters .category-button-strip{flex-basis:100%}}

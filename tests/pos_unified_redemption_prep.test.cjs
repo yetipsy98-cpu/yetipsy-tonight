@@ -4,9 +4,14 @@ const db=fs.readFileSync('sql/060_unified_moon_preorder_submit.sql','utf8');
 for(const page of ['pos','owner','staff','cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
  for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);
- assert(/20261013-unified-pos-v[12]/.test(html),'stale cache '+page);
+ assert(html.includes('pos.css?v=20261013-catalog-buttons-v3'),'category styles cache freshness '+page);
+ assert(html.includes('pos.js?v=20261013-catalog-buttons-v3'),'active JS entry freshness '+page);
 }
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
+assert(source.includes("categoryProductButtons')).onclick"),'category buttons should handle clicks');
+const css=fs.readFileSync('play/pos/pos.css','utf8');
+assert(css.includes('#tab-create .filters #categoryProduct'),'native select visually hidden');
+assert(css.includes('#tab-create .filters .category-button-strip'),'chips next to search');
 assert(source.includes("yt_moon_preorder_scan"),'Moon uses single preorder field');
 assert(source.includes("yt_moon_preorder_summary"),'Moon subtotal merged');
 assert(source.includes("yt_moon_preorder_release"),'Moon release');
