@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const store=fs.readFileSync('play/pos/store-box.js','utf8'),pos=fs.readFileSync('play/pos/pos.js','utf8');
+assert(store.includes('cashierRequestForm(row)'), 'Cashier balance controls');
+assert(store.includes('yt_store_box_cashier_request'), 'server-side KDS flow');
+assert(store.includes("row.cashier_managed&&row.status==='unclaimed'"),'Zero-first-cup Package must stay visible');
+assert(store.includes('cashierManaged?'), 'cashier-managed box must not issue QR');
+assert(store.includes("row.mode==='challenge'&&count!==1"),'Challenge remains one cup');
+assert(pos.includes('orderRoot:$(\'storeBoxOrderQueue\'),isOwner,isCashier'),'pass Cashier capability');
+assert(pos.includes('store-box.js?v=20261013-cashier-followup-v1'),'cache freshness');
+console.log('PASS cashier-managed Package/Challenge follow-up KDS without customer QR');
