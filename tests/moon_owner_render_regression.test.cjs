@@ -41,6 +41,6 @@ const url=require('node:url');
  assert(posCode.includes('console.js?v=20261013-moon-code-reward-v3'));
  assert.doesNotMatch(read('play/pos/index.html'),/mapRM5Preset|设为 RM5 抵扣/);
  assert.doesNotMatch(posCode,/mapRM5Preset|saveRM5Preset/);
- for(const page of ['pos','owner','staff','cashier'])assert.match(fs.readFileSync('play/'+page+'/index.html','utf8'),/pos\.js\?v=20261013-moon-code-reward-v3/);
+ for(const page of ['pos','owner','staff','cashier'])assert.match(fs.readFileSync('play/'+page+'/index.html','utf8'),/pos\.js\?v=20261013-moon-code-reward-v4/);
  console.log('PASS Moon Owner loads form, keeps contents on refresh, shows error state, cache keys updated.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
