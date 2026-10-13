@@ -13,7 +13,7 @@
  <section id="tab-create" class="tab-view">
    <div class="two-column">
     <article class="card"><div class="block-head"><div><p class="kicker">CREATE NEW ORDER</p><h2>选择产品</h2></div><span class="mini-chip">按产品计价</span></div>
-     <div class="filters"><input id="searchProduct" type="search" placeholder="搜索饮品 / 产品系列" aria-label="搜索产品"><select id="categoryProduct" aria-label="产品类别"><option value="">全部类别</option></select></div>
+     <div class="filters"><input id="searchProduct" type="search" placeholder="搜索饮品 / 产品系列" aria-label="搜索产品"><select id="categoryProduct" class="category-native-select" aria-label="产品类别"><option value="">全部类别</option></select></div><div id="categoryProductButtons" class="category-button-strip" role="group" aria-label="产品系列快捷筛选"></div>
      <div id="catalog" class="catalog"><div class="empty">正在加载产品…</div></div>
     </article>
     <article class="card checkout-card" id="checkoutDrawer" role="region" aria-label="本次开单"><div class="cart-grip" aria-hidden="true"></div><div class="block-head"><div><p class="kicker">CURRENT BILL</p><h2>本次开单</h2></div><div class="cart-head-controls"><span id="cartCount" class="mini-chip">0 件</span><button type="button" id="cartCloseBtn" class="cart-close" aria-label="关闭购物车">✕</button></div></div>
