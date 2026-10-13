@@ -167,7 +167,7 @@ function updateDraftControls(){
  $('createOrderBtn').disabled=state.draftSaving||mutating||(!state.pendingSubmit&&(state.draftLoading||!state.cart.size||!state.draftSummary?.can_submit));
  for(const id of ['tableInput','orderNote','cashierDirect','checkoutPayNow','checkoutPayLater'])$(id).disabled=locked;
  const noScan=locked||mutating||state.draftLoading||!state.cart.size||state.draftSummary?.holds?.some(h=>h.state==='pending');
- $('draftRedeemCheck').disabled=!!noScan;$('draftRedeemScan').disabled=locked||mutating||!state.cart.size;$('draftRedeemToken').disabled=locked||mutating;
+ $('draftRedeemCheck').disabled=!!noScan;$('moonDraftConfirm').disabled=!!noScan;$('draftRedeemScan').disabled=locked||mutating||!state.cart.size;$('draftRedeemToken').disabled=locked||mutating;
  for(const b of $('draftRewardRows').querySelectorAll('button'))b.disabled=locked||mutating;
  for(const b of $('draftRewardChoices').querySelectorAll('button'))b.disabled=locked||mutating;
  if(state.pendingSubmit&&!state.draftSaving)$('draftStatus').textContent='提交状态待确认。点击重试会核对原订单，不会重复开单。';
@@ -185,9 +185,9 @@ async function refreshDraftSummary(){const epoch=++state.draftEpoch;
  if(!state.cart.size){state.draftSummary=null;state.draftLoading=false;$('draftRewardRows').replaceChildren();$('draftRewardChoices').replaceChildren();$('draftStatus').textContent='先选择至少一杯付费饮品，再使用奖励。';updateDraftControls();return null;}
  state.draftLoading=true;updateDraftControls();$('draftStatus').textContent='正在核对购物车…';
  try{
-  const q=unpack(await db.rpc('yt_pos_preorder_summary',{p_draft:state.draftId,p_cart:draftItems()}));if(epoch!==state.draftEpoch)return null;
+  const q=unpack(await db.rpc('yt_moon_preorder_summary',{p_draft:state.draftId,p_cart:draftItems()}));if(epoch!==state.draftEpoch)return null;
   state.draftSummary=q;
-  $('draftRewardRows').innerHTML=(q.holds||[]).map(h=>`<div class="draft-reward-row"><div><strong>${esc(h.reward_name)}</strong><small>${h.valid?'已选好 · 下单后锁码':h.state==='pending'?'请选择适用饮品':'选择已失效，请移除后重新扫码'}${h.chosen_product_name?' · '+esc(h.chosen_product_name)+(h.discount_type==='free'?'（赠饮）':''):''}</small></div><b>−${money(h.discount_rm)}</b><button type="button" class="quiet" data-release-draft="${esc(h.id)}">移除</button></div>`).join('');
+  $('draftRewardRows').innerHTML=(q.holds||[]).map(h=>`<div class="draft-reward-row"><div><strong>${esc(h.reward_name)}</strong><small>${h.valid?(h.source==='moon'?'Moon 已预留 · 下单后锁码':'已选好 · 下单后锁码'):h.state==='pending'?'请选择适用饮品':'选择已失效，请移除后重新扫码'}${h.chosen_product_name?' · '+esc(h.chosen_product_name)+(h.discount_type==='free'?'（赠饮）':''):''}</small></div><b>−${money(h.discount_rm)}</b><button type="button" class="quiet" data-release-draft="${esc(h.id)}">移除</button></div>`).join('');
   $('draftGross').textContent=money(q.gross_rm);$('draftDiscount').textContent='−'+money(q.reserved_discount_rm);$('cartTotal').textContent=money(q.payable_rm);$('cartDockTotal').textContent=money(q.payable_rm);
   $('draftStatus').textContent=q.unresolved_count?'请先处理奖励。':!q.can_submit?'需保留一杯付费饮品并满足消费门槛。':q.holds?.length?'奖励已加入。':'可以提交。';
   if(state.draftSelection&&q.holds?.some(h=>h.id===state.draftSelection.id&&h.state==='pending'))renderDraftChoices(state.draftSelection);
@@ -198,6 +198,13 @@ async function refreshDraftSummary(){const epoch=++state.draftEpoch;
 async function draftOperation(fn){if(state.draftSaving||state.pendingSubmit||state.draftMutating)return;state.draftMutating=true;updateDraftControls();try{await fn();}catch(e){showNotice(errorText(e),true);throw e;}finally{state.draftMutating=false;updateDraftControls();}}
 async function scanDraftReward(){return draftOperation(async()=>{
  if(!state.cart.size)throw Error('cart_requires_paid_drink');const raw=$('draftRedeemToken').value.trim(),short=raw.replace(/[\s-]/g,'').toUpperCase();
+ if(/^YTMOON[A-Z0-9]{8}$/.test(short)){
+  const result=unpack(await db.rpc('yt_moon_preorder_scan',{p_draft:state.draftId,p_code:raw,p_cart:draftItems()}));
+  if(result?.error_code)throw Error(result.error_code);
+  if(result.requires_drink){state.moonDraftCode=result.code;$('moonDraftChoiceLabel').textContent=result.label+' · 请填写实际赠饮';$('moonDraftChoice').classList.remove('hidden');$('moonDraftDrink').focus();return;}
+  state.moonDraftCode=null;$('moonDraftChoice').classList.add('hidden');$('draftRedeemToken').value='';
+  await refreshDraftSummary();showNotice('Moon 奖励已预留在本次点单，结账后才核销');return;
+ }
  const manual=/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short);
  const args={p_draft:state.draftId,p_request:crypto.randomUUID(),p_cart:draftItems(),...(manual?{p_code:short}:{p_token:parseRedeemToken(raw)})};
  const h=unpack(await db.rpc(manual?'yt_pos_preorder_scan_code':'yt_pos_preorder_scan',args));
@@ -216,7 +223,15 @@ function renderDraftChoices(h){const root=$('draftRewardChoices');root.replaceCh
  }}
  if(!choices)root.insertAdjacentHTML('beforeend','<p class="field-note">购物车没有可用的饮品，请先移除奖励、调整商品，再重新扫码。</p>');
 }
-async function releaseDraftReward(id){return draftOperation(async()=>{unpack(await db.rpc('yt_pos_preorder_release',{p_hold:id}));if(state.draftSelection?.id===id)state.draftSelection=null;$('draftRewardChoices').replaceChildren();saveDraft();await refreshDraftSummary();showNotice('奖励已移除，顾客奖券仍可使用');});}
+async function confirmDraftMoon(){return draftOperation(async()=>{
+ if(!state.moonDraftCode)throw Error('moon_invalid_code');
+ const drink=$('moonDraftDrink').value.trim();if(drink.length<2)throw Error('moon_drink_required');
+ const result=unpack(await db.rpc('yt_moon_preorder_scan',{p_draft:state.draftId,p_code:state.moonDraftCode,p_drink:drink,p_cart:draftItems()}));
+ if(result?.error_code)throw Error(result.error_code);
+ state.moonDraftCode=null;$('moonDraftChoice').classList.add('hidden');$('moonDraftDrink').value='';$('draftRedeemToken').value='';
+ await refreshDraftSummary();showNotice('Moon 赠饮已预留，付款后才核销');
+});}
+async function releaseDraftReward(id){return draftOperation(async()=>{const moon=state.draftSummary?.holds?.some(h=>h.id===id&&h.source==='moon');unpack(await db.rpc(moon?'yt_moon_preorder_release':'yt_pos_preorder_release',{p_hold:id}));if(state.draftSelection?.id===id)state.draftSelection=null;$('draftRewardChoices').replaceChildren();saveDraft();await refreshDraftSummary();showNotice('奖励已移除，顾客奖券仍可使用');});}
 function openCartDrawer(){if(state.currentTab!=='create'||state.activeView!=='dashboard')return;document.body.classList.add('cart-open');$('cartDock').setAttribute('aria-expanded','true');$('cartCloseBtn').focus({preventScroll:true});refreshDraftSummary().catch(e=>showNotice(errorText(e),true));}
 function closeCartDrawer(){stopRedeemCamera();document.body.classList.remove('cart-open');$('cartDock')?.setAttribute('aria-expanded','false');}
 function adjustCart(id,delta){if(state.draftSaving||state.pendingSubmit||state.draftMutating)return;if(state.draftSummary?.holds?.length||state.draftSelection){showNotice('先移除购物车中的奖励，再修改饮品数量。',true);return;}const p=state.catalog.find(x=>x.id===id&&x.active);if(!p)return;const n=Math.max(0,Math.min(20,(state.cart.get(id)||0)+delta));if(n)state.cart.set(id,n);else state.cart.delete(id);renderCart();}
@@ -224,11 +239,11 @@ async function createOrder(){if(state.draftSaving||state.draftMutating)return;st
  try{
   if(!state.pendingSubmit){if(!state.cart.size)throw Error('请先选择产品');const q=await refreshDraftSummary();if(!q?.can_submit)throw Error('minimum_purchase_not_met');
    state.pendingSubmit={p_request:crypto.randomUUID(),p_table:$('tableInput').value.trim()||null,p_note:$('orderNote').value.trim()||null,p_items:draftItems(),p_channel:isCashier()&&$('cashierDirect').checked?'cashier':'staff',p_draft:state.draftId,p_checkout_mode:$('checkoutPayNow').checked?'pay_now':'pay_later'};saveDraft();updateDraftControls();}
-  data=unpack(await db.rpc('yt_pos_create_order_with_rewards_v2',state.pendingSubmit));
+  data=unpack(await db.rpc('yt_pos_create_order_with_rewards_v3',state.pendingSubmit));
  }catch(e){if(e.code&&(/^[0-9A-Z]{5}$/.test(e.code)||/^PGRST/.test(e.code))){state.pendingSubmit=null;saveDraft();}showNotice(errorText(e),true);$('draftStatus').textContent=state.pendingSubmit?'提交状态待确认，请重试确认原订单。':'提交未完成：'+errorText(e);}
  finally{state.draftSaving=false;updateDraftControls();}
  if(!data)return;
- const attached=Number(data.reward_cart?.attached||0),checkoutMode=state.pendingSubmit.p_checkout_mode;state.pendingSubmit=null;state.cart.clear();state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('orderNote').value='';$('checkoutPayLater').checked=true;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
+ const attached=Number(data.reward_cart?.attached||0),checkoutMode=state.pendingSubmit.p_checkout_mode;state.pendingSubmit=null;state.cart.clear();state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;state.moonDraftCode=null;$('moonDraftChoice').classList.add('hidden');$('moonDraftDrink').value='';$('orderNote').value='';$('checkoutPayLater').checked=true;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
  showNotice(`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'已进入吧台 KDS':'等待 Cashier 接受'}`);
  showTab(data.status==='pending'&&isCashier()?'pending':'orders');try{await refreshOrders(false);if(checkoutMode==='pay_now'&&data.status==='confirmed'&&isCashier())await openOrderCart(data.id);}catch(e){showNotice(`${data.order_no} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
 }
@@ -702,9 +717,10 @@ async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  const bill=unpack(receipt),q=unpack(summary);
  $('orderCartTitle').textContent='#'+(q.order_no||bill.order_no)+' · 优惠与结账';
  $('orderCartItems').innerHTML=(bill.items||[]).map(item=>`<div class="cart-preview-item"><strong>${esc(item.item_name)} × ${Number(item.quantity)}</strong><span>${money(item.quantity*item.unit_price_rm)}</span></div>`).join('');
- $('moonGuestPanel').classList.toggle('hidden',q.payment_status!=='unpaid');
+ $('moonGuestPanel').classList.add('hidden');
  $('moonGuestRows').innerHTML=(q.moon_codes||[]).map(x=>'<div class="cart-discount-line"><div><strong>'+esc(x.kind==='R0'?'RM5 Voucher':x.kind==='R3'?'彩虹 Shot 赠品':x.kind==='R5'?'断片指南赠品':'微醺特调赠品')+'</strong><small>'+esc(x.code)+' · 已预留，收款后核销</small></div><b>'+ (x.kind==='R0'?'−RM5.00':'FREE') +'</b><button type="button" class="quiet" data-moon-release="'+esc(x.id)+'">释放</button></div>').join('');
  $('orderCartHolds').innerHTML=(q.holds||[]).length?q.holds.map(h=>`<div class="cart-discount-line"><div><strong>− ${esc(h.reward_name)}</strong><small>${h.can_checkout?'已预留':h.state==='reserved'?'待选择商品':'已超时'} · ${stamp(h.expires_at)}</small></div><b>−${money(h.discount_rm)}</b>${q.payment_status==='unpaid'?`<button type="button" class="quiet" data-release-hold="${esc(h.id)}">释放</button>`:''}</div>`).join(''):'<p class="muted">无预留奖励</p>';
+ $('orderCartHolds').insertAdjacentHTML('beforeend',(q.moon_codes||[]).map(x=>'<div class="cart-discount-line"><div><strong>'+esc(x.kind==='R0'?'Moon RM5 Voucher':x.kind==='R3'?'Moon 彩虹 Shot 赠品':x.kind==='R5'?'Moon 断片指南赠品':'Moon 微醺特调赠品')+'</strong><small>'+esc(x.code)+' · 订单预留，付款后核销</small></div><b>'+(x.kind==='R0'?'−RM5.00':'FREE')+'</b>'+(q.payment_status==='unpaid'?'<button type="button" class="quiet" data-moon-release="'+esc(x.id)+'">移除</button>':'')+'</div>').join(''));
  $('orderCartGross').textContent=money(q.gross_rm);
  $('orderCartDiscount').textContent='−'+money(q.reserved_discount_rm);
  $('orderCartPayable').textContent=money(q.payable_rm);
@@ -885,7 +901,7 @@ function bind(){
  $('catalog').onclick=e=>{const btn=e.target.closest('[data-add]');if(btn)adjustCart(btn.dataset.add,1);};
  $('cartRows').onclick=e=>{const btn=e.target.closest('[data-dec],[data-inc]');if(btn)adjustCart(btn.dataset.dec||btn.dataset.inc,btn.dataset.inc?1:-1);};
  $('createOrderBtn').onclick=()=>createOrder();
- $('draftRedeemCheck').onclick=()=>scanDraftReward().catch(()=>{});$('draftRedeemScan').onclick=()=>startRedeemCamera().catch(e=>showNotice(errorText(e),true));$('draftRefresh').onclick=()=>refreshDraftSummary().catch(e=>showNotice(errorText(e),true));$('draftRewardRows').onclick=e=>{const b=e.target.closest('[data-release-draft]');if(b)releaseDraftReward(b.dataset.releaseDraft).catch(()=>{});};$('draftRedeemToken').onkeydown=e=>{if(e.key==='Enter'&&!$('draftRedeemCheck').disabled){e.preventDefault();scanDraftReward().catch(()=>{});}};$('tableInput').oninput=saveDraft;$('orderNote').oninput=saveDraft;$('checkoutPayNow').onchange=()=>{saveDraft();updateCreateHint();};$('checkoutPayLater').onchange=()=>{saveDraft();updateCreateHint();};
+ $('draftRedeemCheck').onclick=()=>scanDraftReward().catch(()=>{});$('moonDraftConfirm').onclick=()=>confirmDraftMoon().catch(()=>{});$('draftRedeemScan').onclick=()=>startRedeemCamera().catch(e=>showNotice(errorText(e),true));$('draftRefresh').onclick=()=>refreshDraftSummary().catch(e=>showNotice(errorText(e),true));$('draftRewardRows').onclick=e=>{const b=e.target.closest('[data-release-draft]');if(b)releaseDraftReward(b.dataset.releaseDraft).catch(()=>{});};$('draftRedeemToken').onkeydown=e=>{if(e.key==='Enter'&&!$('draftRedeemCheck').disabled){e.preventDefault();scanDraftReward().catch(()=>{});}};$('tableInput').oninput=saveDraft;$('orderNote').oninput=saveDraft;$('checkoutPayNow').onchange=()=>{saveDraft();updateCreateHint();};$('checkoutPayLater').onchange=()=>{saveDraft();updateCreateHint();};
  $('cartDock').onclick=openCartDrawer;$('cartShade').onclick=closeCartDrawer;$('cartCloseBtn').onclick=closeCartDrawer;
  $('cashierDirect').onchange=()=>{saveDraft();updateCreateHint();};
  $('refreshPending').onclick=()=>refreshOrders(false);$('refreshOrders').onclick=()=>refreshOrders(false);$('refreshUnpaid').onclick=()=>refreshOrders(false);$('refreshHistory').onclick=()=>refreshOrders(false);
@@ -923,7 +939,7 @@ function bind(){
  $('moonGuestCheck').onclick=()=>busy($('moonGuestCheck'),moonGuestLookup).catch(()=>{});
  $('moonGuestConfirm').onclick=()=>busy($('moonGuestConfirm'),()=>moonGuestReserve($('moonGuestDrink').value.trim())).catch(()=>{});
  $('moonGuestRows').onclick=e=>{const button=e.target.closest('[data-moon-release]');if(button)moonGuestRelease(button.dataset.moonRelease).catch(error=>showNotice(errorText(error),true));};
- $('orderCartHolds').onclick=e=>{const b=e.target.closest('button[data-release-hold]');if(b)releaseCartHold(b.dataset.releaseHold).catch(err=>showNotice(errorText(err),true));};
+ $('orderCartHolds').onclick=e=>{const m=e.target.closest('button[data-moon-release]');if(m){moonGuestRelease(m.dataset.moonRelease).catch(err=>showNotice(errorText(err),true));return;}const b=e.target.closest('button[data-release-hold]');if(b)releaseCartHold(b.dataset.releaseHold).catch(err=>showNotice(errorText(err),true));};
  $('ownerSendGift').onclick=ownerDirectGift;$('ownerIssueGiftQR').onclick=ownerGiftClaimQR;$('ownerNewRewardForm').onsubmit=ownerCreateNewReward;
  document.body.addEventListener('click',e=>{const btn=e.target.closest('[data-order-cart]');if(btn)openOrderCart(btn.dataset.orderCart).catch(err=>showNotice(errorText(err),true));});
 
