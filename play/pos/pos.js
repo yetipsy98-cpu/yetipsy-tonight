@@ -4,7 +4,8 @@ import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261013-lucky-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
-import {createStoreBox} from './store-box.js?v=20261012-kds-v17';
+import {createStoreBox} from './store-box.js?v=20261013-cashier-first-pour';
+import {renderCheckoutPrep,readCheckoutPrep} from './cashier-prep.js?v=20261013-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -703,7 +704,7 @@ async function submitAdjustment(e){e.preventDefault();const btn=e.submitter;awai
 
 // POS V4 - Cart-integrated reward preflight. The 60-second Wallet QR only authenticates
 // the reservation; actual user_rewards redemption is committed by DB checkout trigger.
-function escapeOrderCart(){stopRedeemCamera();state.selectedOrderCart=null;state.activeRewardHold=null;
+function escapeOrderCart(){stopRedeemCamera();state.selectedOrderCart=null;state.activeRewardHold=null;state.checkoutPrepQuote=null;
  $('orderCartOverlay').classList.add('hidden');document.body.classList.remove('sheet-open');}
 async function openOrderCart(id){
  state.selectedOrderCart=id;state.activeRewardHold=null;$('cartRedeemToken').value='';$('moonGuestCode').value='';$('moonGuestDrink').value='';$('moonGuestChoice').classList.add('hidden');
@@ -712,9 +713,13 @@ async function openOrderCart(id){
 }
 async function refreshOrderCart(){if(!state.selectedOrderCart)return;
  const id=state.selectedOrderCart;
- const [receipt,summary]=await Promise.all([
-  db.rpc('yt_pos_receipt',{p_order:id}),db.rpc('yt_pos_cart_summary',{p_order:id})]);
+ const [receipt,summary,prep]=await Promise.all([
+  db.rpc('yt_pos_receipt',{p_order:id}),db.rpc('yt_pos_cart_summary',{p_order:id}),
+  isCashier()?db.rpc('yt_store_box_checkout_prep_quote',{p_order:id}):Promise.resolve({data:{items:[],can_prepare:false}})]);
+ if(id!==state.selectedOrderCart)return;
  const bill=unpack(receipt),q=unpack(summary);
+ state.checkoutPrepQuote=unpack(prep);
+ renderCheckoutPrep($('cartStoreBoxPrep'),q.payment_status==='unpaid'?state.checkoutPrepQuote:null);
  $('orderCartTitle').textContent='#'+(q.order_no||bill.order_no)+' · 优惠与结账';
  $('orderCartItems').innerHTML=(bill.items||[]).map(item=>`<div class="cart-preview-item"><strong>${esc(item.item_name)} × ${Number(item.quantity)}</strong><span>${money(item.quantity*item.unit_price_rm)}</span></div>`).join('');
  $('moonGuestPanel').classList.add('hidden');
@@ -808,10 +813,13 @@ async function checkoutOrderCart(){const btn=$('cartCheckoutBtn');await busy(btn
  if(!q.can_pay)throw Error('coupon_hold_not_ready_or_expired');
  const method=$('cartCheckoutPayment').value;
  if(!window.confirm(`确认已实际收到 ${money(q.payable_rm)}？\n本单优惠：−${money(q.reserved_discount_rm)}\n\n确认后才正式核销所有预留奖励，此动作不能随意撤销。`))return;
- const result=unpack(await db.rpc('yt_pos_action',{p_order:state.selectedOrderCart,p_action:'paid',p_method:method,p_reason:null}));
+ const preps=readCheckoutPrep($('cartStoreBoxPrep'),state.checkoutPrepQuote);
+ const result=unpack(await db.rpc('yt_pos_checkout_with_prep',{p_order:state.selectedOrderCart,p_method:method,p_preps:preps}));
  await refreshOrderCart();await refreshOrders(false);
  if(result.store_box_claims?.length){await showCheckoutStoreBoxClaims(result.store_box_claims);showNotice('已结账，顾客领取码已生成');}
+ else if(result.cashier_managed_packages)showNotice('已结账，Package／挑战由 Cashier 管理，首批出杯已进入吧台 KDS；无需顾客扫码。');
  else showNotice('Foodcourt／Cashier 收款已登记，奖券已随结账正式核销');
+ if(result.cashier_managed_packages)await Promise.all([storeBox?.loadOrderQueue(true),storeBox?.loadStaff(true)]);
  }).catch(()=>{});}
 async function showCheckoutStoreBoxClaims(claims){
  const root=$('orderCartClaims');root.replaceChildren();root.classList.remove('hidden');
@@ -887,7 +895,7 @@ function bind(){
  document.addEventListener('pointerdown',unlockAudio,{once:true});
  $('signinForm').addEventListener('submit',e=>{unlockAudio();login(e).catch(()=>{});});window.YT_WORK_READY=true;
  $('paidDateForm').onsubmit=e=>{e.preventDefault();refreshOrders(false);};$('paidToday').onclick=async()=>{try{const c=unpack(await db.rpc('yt_business_context'));state.businessDay=c.day;$('paidDate').value=c.day;await refreshOrders(false);}catch(e){showNotice(errorText(e),true);}};
- storeBox=createStoreBox({db,ownerRoot:$('storeBoxOwnerRoot'),staffRoot:$('storeBoxStaffRoot'),orderRoot:$('storeBoxOrderQueue'),isOwner,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onQueueChange:updateStoreBoxQueue});
+ storeBox=createStoreBox({db,ownerRoot:$('storeBoxOwnerRoot'),staffRoot:$('storeBoxStaffRoot'),orderRoot:$('storeBoxOrderQueue'),isOwner,isCashier,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onQueueChange:updateStoreBoxQueue});
  if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,loadStoreBoxOwner:()=>storeBox.loadOwner(),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onOwnerEdit:openEditDialog,onOrdersChanged:()=>refreshOrders(false),onReset:async(scopes)=>{
   stopPolling();if(scopes?.includes('records')){state.cart.clear();state.pendingSubmit=null;state.draftSummary=null;for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('yt-pos-'))sessionStorage.removeItem(key);}}
   showNotice('所选范围已重置',false,true);location.reload();
