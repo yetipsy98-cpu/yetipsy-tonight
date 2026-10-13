@@ -25,12 +25,12 @@ REVOKE ALL ON public.yt_lite_risk_events FROM PUBLIC, anon, authenticated;
 -- These tables are intentionally server-only. A trusted backend must hash
 -- identifiers using a server-side secret, enforce request limits and write events.
 -- Do not insert device identifiers or IP addresses directly from the browser.
-CREATE OR REPLACE FUNCTION public.yt_owner_lite_risk_summary()
+CREATE OR REPLACE FUNCTION private.yt_owner_lite_risk_summary()
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
 AS $$
 DECLARE v_result jsonb;
 BEGIN
- IF NOT private.yt_has_role('owner') THEN RAISE EXCEPTION 'owner_only'; END IF;
+ IF auth.uid() IS NULL OR NOT private.yt_work_owner() THEN RAISE EXCEPTION 'owner_only'; END IF;
  SELECT jsonb_build_object(
   'linked_devices', (SELECT count(*) FROM public.yt_lite_device_links),
   'multi_account_devices', (SELECT count(*) FROM (
@@ -41,5 +41,10 @@ BEGIN
  ) INTO v_result;
  RETURN v_result;
 END; $$;
+REVOKE ALL ON FUNCTION private.yt_owner_lite_risk_summary() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION private.yt_owner_lite_risk_summary() TO authenticated;
+CREATE OR REPLACE FUNCTION public.yt_owner_lite_risk_summary()
+RETURNS jsonb LANGUAGE sql SECURITY INVOKER SET search_path TO ''
+AS $ SELECT private.yt_owner_lite_risk_summary(); $;
 REVOKE ALL ON FUNCTION public.yt_owner_lite_risk_summary() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.yt_owner_lite_risk_summary() TO authenticated;
