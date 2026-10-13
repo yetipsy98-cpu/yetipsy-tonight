@@ -57,10 +57,10 @@ export function createMoonCodeEditor({db,root,isOwner,notice}){
   try{
    const result=await db.rpc('yt_moon_owner_add',{p_code:raw,p_reward:rewardId,p_issued:root.querySelector('#moonIssued').value,p_until:root.querySelector('#moonUntil').value,p_used:root.querySelector('#moonAlreadyUsed').checked,p_note:root.querySelector('#moonNote').value.trim()});
    if(result.error)throw result.error;
-   const code=result.data?.code||raw;status.textContent='已保存 '+code+'，可以继续输入下一张。';
+   const code=result.data?.code||raw,updated=!!result.data?.updated_existing;status.textContent=updated?'已为历史兑换码 '+code+' 绑定奖励。':'已保存 '+code+'，可以继续输入下一张。';
    root.querySelector('#moonCodeInput').value='';root.querySelector('#moonCodeInput').focus();
    root.querySelector('#moonAlreadyUsed').checked=false;root.querySelector('#moonNote').value='';
-   notice('已登记 '+code);
+   notice(updated?'已为历史码绑定奖励 '+code:'已登记 '+code);
    await load();
   }catch(error){
    const translations={moon_duplicate_code:'这张兑换码已经登记，不会重复建立。',moon_invalid_details:'奖励或日期不正确。',moon_invalid_code:'兑换码格式不正确。'};

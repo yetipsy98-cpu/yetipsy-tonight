@@ -19,6 +19,8 @@ assert.match(read('play/pos/console.js'),/moon-code-editor\.js/);
 assert.doesNotMatch(read('play/pos/pos.js'),/yt_moon_owner_bind_reward|yt_moon_owner_reward_bindings|mapMoonKind/);
 assert.doesNotMatch(read('play/pos/moon-code-editor.js'),/moonKind|moon_owner_reward_bindings/);
 assert.match(read('play/pos/moon-code-editor.js'),/p_reward:rewardId/);
+assert.match(read('play/pos/moon-code-editor.js'),/updated_existing/);
+assert.match(read('sql/072_moon_existing_code_reward_assignment.sql'),/existing_reward IS NOT NULL/);
 assert.match(read('play/pos/moon-code-editor.js'),/yt_pos_owner_reward_rules/);
 assert.match(read('play/pos/pos.js'),/yt_pos_preorder_scan_auto/);
 assert.match(read('play/pos/pos.js'),/requires_product/);
