@@ -32,3 +32,10 @@ Before implementing the backend writer:
 - Risk subsystem failure does not block ordinary orders; costly rewards can be queued for later verification.
 
 No database migration has been applied and no live deployment is part of this branch.
+
+## Live architecture verification (2026-10-13)
+- Connected Supabase project: `cubmzdozyqswoyhshxgl` (Yetipsy-play).
+- Existing live `private.yt_referral_purchase_activated` and `private.yt_referral_sale_trigger` implement paid-sale referral activation.
+- Live `private.yt_loyalty_member_summary` differs from `sql/032_points_integration.sql`; **do not replace live functions from older SQL files**.
+- The new observation tables have NOT been applied to the live database. No production risk enforcement is active.
+- Next implementation must inspect `private.yt_award_promo`, customer signup/PIN flow, owner interface and reward RPCs, then integrate via versioned migrations and integration tests.
