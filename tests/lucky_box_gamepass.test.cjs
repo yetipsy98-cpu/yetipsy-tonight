@@ -18,6 +18,6 @@ assert.match(box,/sessionStorage\.setItem/);
 assert.match(consoleSrc,/createLuckyOwner/);
 assert.match(read('play/pos/lucky-box-owner.js'),/yt_lucky_owner_reset/);
 assert(read('play/pos/pos.js').includes('console.js?v=20261013-lucky-v2'));
-assert.match(read('play/index.html'),/lucky-box\.css\?v=20261013-catalog-buttons-v3/);
+assert(read('play/index.html').includes('lucky-box.css?v=20261013-lucky-v2'));
 for(const p of ['pos','owner','staff','cashier'])assert.match(read('play/'+p+'/index.html'),/pos\.js\?v=20261013-catalog-buttons-v3/);
 console.log('PASS Lucky Box mode, anonymous reveal, wallet credit, Owner config, protected reset, GamePass QR reuse');
