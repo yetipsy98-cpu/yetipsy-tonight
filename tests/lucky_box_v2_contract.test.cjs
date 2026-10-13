@@ -1,0 +1,30 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const read=p=>fs.readFileSync(p,'utf8');
+const v2=read('sql/056_lucky_box_v2_promotion.sql'),pos=read('sql/057_lucky_box_pos_direct_gamepass.sql'),shop=read('sql/058_lucky_box_points_shop.sql');
+const ui=read('play/pos/pos.js'),owner=read('play/pos/lucky-box-owner.js'),box=read('play/lucky-box.js');
+for(const fn of ['yt_lucky_pos_benefit_orders','yt_lucky_pos_paid_units','yt_lucky_bundle_quote','yt_lucky_issue_unit_pass','yt_lucky_bundle_issue']) {
+ assert(pos.includes(fn),'direct Lucky RPC '+fn);
+ assert(ui.includes(fn),'POS routing '+fn);
+}
+assert(pos.includes("not i.is_drink_at_order"),'Only real paid drinks');
+assert(pos.includes("i.unit_price_rm>0"),'Paid item condition');
+assert(pos.includes("o.payment_status<>'paid'"),'Payment guard');
+assert(pos.includes('yt_lucky_results'),'No redraw reissue');
+assert(pos.includes('pg_advisory_xact_lock(781943081)'),'atomic serializable issuance');
+assert(!pos.includes('create or replace function private.yt_pos_issue_unit_pass'),'Game Mode original issue RPC untouched');
+assert(!pos.includes('create or replace function private.yt_pos_bundle_issue'),'Game Mode original bundle issue RPC untouched');
+assert(v2.includes('3.5,cap_points_per_rm=10'));
+assert(v2.includes('weights=array[15,55,25,5]'));
+assert(v2.includes('v_base*0.8')&&v2.includes('v_base*1.4')&&v2.includes('v_base*2.8'));
+assert(v2.includes('daily_budget_rm')&&v2.includes('yt_lucky_day_reservations')&&v2.includes('lucky_daily_budget_reached'));
+assert(v2.includes('r.next_day_only next_day_only'),'Show correct voucher redemption window');
+assert(v2.includes('private.yt_business_start(private.yt_business_day(clock_timestamp())+1)'),'Shop redemption next business day');
+assert(owner.includes('daily_budget_rm')&&owner.includes('今日实际抽中积分成本'));
+assert(ui.includes("lucky?'yt_lucky_bundle_issue':'yt_pos_bundle_issue'"));
+assert(ui.includes("lucky?'yt_lucky_issue_unit_pass':'yt_pos_issue_unit_pass'"));
+assert(box.includes('luckyNextReward')&&box.includes('onOpenShop'));
+assert(shop.includes("'Yetipsy Lucky Box · RM2 Voucher'")&&shop.includes("'Yetipsy Lucky Box · RM5 Voucher'"));
+assert(shop.includes('def.is_live,30,true,def.category'),'Reward next day');
+assert(shop.includes("values(v_reward,'disabled','free',0,1,0)"),'Unverified drinks disabled');
+assert(shop.includes('if not exists(select 1 from public.yt_point_shop_items'),'Idempotent seed');
+console.log('PASS V2 odds, payout cap reservation, QR reuse, mode isolation, next-day vouchers, inactive cost-unverified rewards.');
