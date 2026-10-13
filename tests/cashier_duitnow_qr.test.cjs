@@ -8,7 +8,7 @@ assert.match(pos,/cartCheckoutPayment'\)\.value='duitnow'/);
 assert.match(pos,/yt_receipt_settings_get/);
 assert.match(pos,/yetipsy-payment-qr/);
 assert.match(pos,/getPublicUrl\(state\.duitnowQrPath\)/);
-assert.match(consoleSrc,/data-owner-tool='paymentqr'/);
+assert.match(consoleSrc,/dataset\.ownerTool='paymentqr'/);
 assert.match(consoleSrc,/payment-qr-settings\.js\?v=20261013-cashier-qr-v1/);
 assert.match(owner,/if\(!isOwner\(\)\)throw Error\('owner_only'\)/);
 assert.match(owner,/\.from\(bucket\)\.upload/);
