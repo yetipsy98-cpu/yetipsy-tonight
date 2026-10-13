@@ -31,7 +31,7 @@ begin
  values(v_actor,v_now,1) on conflict(operator_id) do update set
  attempts=case when a.window_started_at<=v_now-interval '1 minute' then 1 else least(a.attempts+1,26) end,
  window_started_at=case when a.window_started_at<=v_now-interval '1 minute' then v_now else a.window_started_at end
- returning attempts into attempts;
+ returning a.attempts into attempts;
  if attempts>25 then return jsonb_build_object('error_code','short_code_rate_limited');end if;
  begin v_code:=private.yt_moon_norm(p_code);
  exception when others then return jsonb_build_object('error_code','moon_invalid_code');end;
