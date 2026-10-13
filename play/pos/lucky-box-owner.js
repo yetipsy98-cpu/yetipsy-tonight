@@ -36,7 +36,9 @@ export function createLuckyOwner({db,root,notice,isOwner}){
    ' 箱 / '+payload.points_credited+' 分';
   const spend=Number(payload.today_eligible_rm||0),award=Number(payload.today_awarded_points||0)/100;
   const costRate=spend>0?award/spend*100:0;
+  const overBudget=costRate>=6;
   $('#luckyOwnerBudgetReport').textContent='今日实际抽中积分成本约 RM'+award.toFixed(2)+'（占合资格消费 '+costRate.toFixed(2)+'%） · 预留最高 RM'+(Number(payload.today_reserved_points||0)/100).toFixed(2)+' · 成本目标 4%，关注线 6% · 每日固定上限：'+(payload.daily_budget_rm==null?'未设置':'RM'+Number(payload.daily_budget_rm).toFixed(2));
+  if(overBudget)$('#luckyOwnerBudgetReport').textContent+=' ⚠ 已超过 6% 成本预警线，请检查中奖预算。';
  }
  async function load(){
   if(!isOwner())throw Error('owner_only');

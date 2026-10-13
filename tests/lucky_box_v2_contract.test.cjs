@@ -27,4 +27,5 @@ assert(shop.includes("'Yetipsy Lucky Box · RM2 Voucher'")&&shop.includes("'Yeti
 assert(shop.includes('def.is_live,30,true,def.category'),'Reward next day');
 assert(shop.includes("values(v_reward,'disabled','free',0,1,0)"),'Unverified drinks disabled');
 assert(shop.includes('if not exists(select 1 from public.yt_point_shop_items'),'Idempotent seed');
+assert(read('sql/059_lucky_internal_campaign_fallback.sql').includes('insert into public.campaigns'),'Legacy campaign FK recovery');
 console.log('PASS V2 odds, payout cap reservation, QR reuse, mode isolation, next-day vouchers, inactive cost-unverified rewards.');
