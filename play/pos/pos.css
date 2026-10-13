@@ -130,3 +130,15 @@ body.sheet-open{overflow:hidden}
 .pos-category-btn:hover{border-color:#d4b777}
 .pos-category-btn.active,.pos-category-btn[aria-pressed="true"]{background:#b99554;color:#141c16;border-color:#e8c78c}
 @media(max-width:700px){.pos-filter-bar{display:block}.pos-filter-bar #searchProduct{width:100%;margin-bottom:8px}.pos-category-rail{width:100%;padding-bottom:11px}.pos-category-btn{min-height:40px;padding:9px 13px}}
+
+/* 2026-10-13: unified Moon redemption and cashier-directed Package first pour. */
+.moon-draft-choice{border:1px solid #728767;background:#1b3025;padding:12px;border-radius:13px;margin-top:11px}
+.moon-draft-choice.hidden{display:none}.moon-draft-choice label{display:block;margin-bottom:8px;color:#ebd3a0;font-size:12px;font-weight:700}
+.moon-draft-choice .draft-scan-input{display:flex;gap:8px;align-items:center}.moon-draft-choice input{min-width:0;flex:1}.moon-draft-choice button{white-space:nowrap}
+.cashier-prep-wrap{margin:13px 0;padding:15px;border:1px solid #728165;border-radius:15px;background:#1e3027}
+.cashier-prep-wrap.hidden{display:none}.cashier-prep-head{display:grid;gap:5px;margin-bottom:11px}.cashier-prep-head strong{font-size:13px;color:#f4d6a0}.cashier-prep-head small{font-size:12px;line-height:1.6;color:#cbd8c9}
+.cashier-prep-item{border:1px solid #4b6552;border-radius:12px;padding:11px;margin-bottom:10px}.cashier-prep-title{display:flex;justify-content:space-between;flex-wrap:wrap;gap:7px;margin-bottom:9px}.cashier-prep-title strong{font-size:14px}.cashier-prep-title span{font-size:11px;color:#b8cbb8}
+.cashier-prep-item label,.storebox-cashier-direct label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#d8e3d6;margin-top:6px}
+.cashier-prep-components{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:8px}.cashier-prep-item input,.cashier-prep-item select,.storebox-cashier-direct input,.storebox-cashier-direct select{width:100%;min-height:41px;max-width:100%;padding:8px;border-radius:9px;border:1px solid #64816b;background:#102219;color:#fff}
+.storebox-cashier-direct{margin-top:12px;padding:12px;border:1px solid #6e806a;background:#1a2d22;border-radius:12px;display:grid;gap:8px}.storebox-cashier-direct>strong{font-size:13px;color:#f4d6a0}.storebox-cashier-direct button{min-height:44px}
+@media(max-width:650px){.cashier-prep-wrap{padding:12px}.moon-draft-choice .draft-scan-input{flex-wrap:wrap}.moon-draft-choice button{width:100%}.cashier-prep-title{display:grid}}
