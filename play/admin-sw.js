@@ -1,0 +1,5 @@
+const CACHE='yetipsy-pos-app-v1';
+const SHELL=['./','./owner/','./owner/index.html','./staff/','./cashier/','./pos/','./admin.webmanifest','./admin-icon.svg','./pos/pos.js','./pos/pos.css','./pos/console.css','./config.js'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('yetipsy-pos-app-')&&key!==CACHE).map(key=>caches.delete(key))))])));
+self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin||url.search)return;event.respondWith(fetch(event.request).then(response=>{if(response.ok&&response.type==='basic')caches.open(CACHE).then(cache=>cache.put(event.request,response.clone()));return response;}).catch(()=>caches.match(event.request)));});
