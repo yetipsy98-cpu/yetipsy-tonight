@@ -175,3 +175,21 @@ body.sheet-open{overflow:hidden}
  .tabs{grid-template-columns:repeat(auto-fit,minmax(56px,1fr))}
  .tabs button{min-height:50px;padding:7px 2px;font-size:11px}
 }
+
+
+/* Mobile finish: keep fixed navigation above browser and device safe areas. */
+@media(max-width:820px){
+ .root{padding-bottom:calc(132px + env(safe-area-inset-bottom))}
+ .tabs{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+ .tabs::-webkit-scrollbar{display:none}
+ .tabs button{flex:1 0 66px;min-height:52px;white-space:nowrap}
+ #tab-create .product em{min-height:42px;display:flex;align-items:center;justify-content:flex-end}
+ .category-button-strip{scroll-snap-type:x proximity}
+ .category-pill{scroll-snap-align:start}
+}
+@media(max-width:600px){
+ .root{padding-left:10px;padding-right:10px}
+ #tab-create .two-column>article:first-child{padding:13px}
+ #tab-create .catalog{gap:7px}
+ #tab-create .product{border-radius:14px}
+}
