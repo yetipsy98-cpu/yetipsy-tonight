@@ -28,8 +28,9 @@ assert.match(unified,/private\.yt_moon_reward_name/);
 assert.match(read('sql/069_moon_codes_use_existing_rewards.sql'),/ADD COLUMN IF NOT EXISTS reward_id/);
 assert.match(read('sql/069_moon_codes_use_existing_rewards.sql'),/p_reward uuid/);
 assert.match(read('sql/069_moon_codes_use_existing_rewards.sql'),/WHERE r.id=v.reward_id/);
-assert.match(read('sql/070_moon_remove_legacy_bindings.sql'),/DROP TABLE IF EXISTS public\\.yt_moon_reward_bindings/);
-assert.doesNotMatch(read('sql/070_moon_remove_legacy_bindings.sql'),/FROM public\\.yt_moon_reward_bindings/);
+assert.match(read('sql/071_moon_summary_select_reward_id.sql'),/c\.reward_id,c\.issued_on/);
+assert.ok(read('sql/070_moon_remove_legacy_bindings.sql').includes('DROP TABLE IF EXISTS public.yt_moon_reward_bindings'));
+assert.doesNotMatch(read('sql/070_moon_remove_legacy_bindings.sql'),/FROM public\.yt_moon_reward_bindings/);
 
 assert.match(unified,/public\.yt_pos_reward_rules/);
 assert.match(unified,/yt_pos_preorder_scan_auto/);
