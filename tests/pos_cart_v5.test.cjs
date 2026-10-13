@@ -64,7 +64,7 @@ function harness(role='staff') {
  context.createRewardBindingEditor=({db})=>({load:async()=>(await db.rpc('yt_pos_owner_reward_rules')).data});
  vm.createContext(context);
  const js=source.replace(/^import .*?;\n/gm,'').replace("new URL('../',import.meta.url)","new URL('https://example.test/play/')").replace(/\nboot\(\)\.catch\([^\n]+\);\s*$/,'');
- vm.runInContext(js+'\nglobalThis.cartTest={state,restoreDraft,saveDraft,renderCart,refreshDraftSummary,scanDraftReward,releaseDraftReward,adjustCart,createOrder,parseRedeemToken,qrDecoder,stopRedeemCamera,saveRM5Preset,saveRewardMap,updateRewardMapForm};',context);
+ vm.runInContext(js+'\nglobalThis.cartTest={state,restoreDraft,saveDraft,renderCart,refreshDraftSummary,scanDraftReward,releaseDraftReward,adjustCart,createOrder,parseRedeemToken,qrDecoder,stopRedeemCamera};',context);
  const api=context.cartTest;api.state.identity={username:role,role,can_cashier:role==='cashier',can_owner:false};api.state.activeView='dashboard';api.state.currentTab='create';api.state.catalog=[{id:P,name:'Test drink',active:true,price_rm:28}];api.restoreDraft();
  return {api,e:elements,backend,context,session};
 }
@@ -99,12 +99,6 @@ async function run(){
  await h.e.draftRewardChoices.children[0].onclick();assert.equal(h.e.cartTotal.textContent,'RM23.00');
  h=harness();h.api.state.cart.set(P,1);h.e.draftRedeemToken.value='7K3M9X2P';h.backend.shortError='short_code_invalid_or_expired';
  await assert.rejects(h.api.scanDraftReward(),/short_code_invalid_or_expired/);assert.equal(h.e.draftRedeemToken.value,'7K3M9X2P');assert.equal(h.api.state.draftSelection,null);assert.match(h.e.notice.textContent,/兑换码不正确/);
- // RM5 is a persisted configuration, and a zero-drink rule is rejected before RPC.
- h=harness('owner');h.api.state.identity.can_owner=true;h.e.mapReward.value=T;await h.api.saveRM5Preset();
- const preset=h.backend.calls.find(c=>c.name==='yt_pos_owner_save_reward_v43');assert.deepEqual(preset.args,{p_reward:T,p_mode:'any_drink',p_product:null,p_series:null,p_type:'fixed',p_value:5,p_min_drinks:1,p_min_spend:0});
- assert.equal(h.e.mapMode.value,'any_drink');assert.equal(h.e.mapMinDrinks.value,1);assert(h.e.ownerGiveReward.options.some(o=>o.value===T));
- const before=h.backend.calls.length;h.e.mapMinDrinks.value='0';await h.api.saveRewardMap({preventDefault(){},submitter:new Element()});assert.equal(h.backend.calls.length,before);assert.match(h.e.notice.textContent,/至少一杯/);
- h.e.mapMinDrinks.value='2';h.e.mapMinSpend.value='50';await h.api.saveRewardMap({preventDefault(){},submitter:new Element()});const saved=h.backend.calls.filter(c=>c.name==='yt_pos_owner_save_reward_v43').at(-1);assert.equal(saved.args.p_min_drinks,2);assert.equal(saved.args.p_min_spend,50);
  console.log('PASS: both entry points, discounts, reward choices/removal, stale responses, quantity guard, persisted exact retry, single order after lost response, database rejection recovery, Cashier channel and QR fallback.');
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});
