@@ -4,7 +4,7 @@ const labels={ordinary:'普通幸运',lucky:'幸运礼物',shining:'闪耀礼物
 const key=(kind,token)=>'yt-lucky-box-v1:'+kind+':'+token;
 function readSaved(kind,token){try{return sessionStorage.getItem(key(kind,token));}catch{return null;}}
 function remember(kind,token,secret){try{sessionStorage.setItem(key(kind,token),secret);}catch{}}
-export function createLuckyBox({db,showSheet,sheetHtml,getUser,onNeedLogin,onClaimed,notify,stripLink}){
+export function createLuckyBox({db,showSheet,sheetHtml,getUser,onNeedLogin,onClaimed,onOpenShop,notify,stripLink}){
  let ongoing=false;
  const rpc=async(name,args)=>{const r=await db.rpc(name,args);if(r.error)throw r.error;return r.data;};
  function startPanel(kind,token,preview){
@@ -54,11 +54,23 @@ export function createLuckyBox({db,showSheet,sheetHtml,getUser,onNeedLogin,onCla
  }
  async function claimSecret(kind,token,secret){
   const data=await rpc('yt_lucky_claim',{p_secret:secret});
-  stripLink(kind);await onClaimed?.();
+  stripLink(kind);try{await onClaimed?.();}catch{}
   showSheet('积分领取成功','YETIPSY · MY POINTS');
   sheetHtml('<div class="sheet-content lucky-box-screen"><div class="lucky-result-glyph">✦</div>'+
    '<h2>已存入会员钱包</h2><div class="lucky-points">+'+Number(data.points||0).toLocaleString('en-MY')+'<small>POINTS</small></div>'+
-   '<p>目前积分余额 '+Number(data.balance||0).toLocaleString('en-MY')+' 分</p><p class="lucky-success">✓ 这张礼物箱已完成领取</p></div>');
+   '<p>目前积分余额 '+Number(data.balance||0).toLocaleString('en-MY')+' 分</p><p class="lucky-success">✓ 这张礼物箱已完成领取</p><div id="luckyNextReward"></div></div>');
+  try{
+   const shop=await rpc('yt_point_shop_list');
+   const first=(shop.items||[]).slice().sort((a,b)=>Number(a.points_cost)-Number(b.points_cost))[0];
+   const slot=document.getElementById('luckyNextReward');
+   if(slot&&first){
+    const gap=Math.max(0,Number(first.points_cost)-Number(shop.balance||data.balance||0));
+    const caption=document.createElement('p');caption.className='lucky-box-note';
+    caption.textContent=gap?'距离「'+first.name+'」还差 '+gap+' 分':'你已经可以兑换「'+first.name+'」';
+    const btn=document.createElement('button');btn.type='button';btn.className='button button-primary wide';
+    btn.textContent='前往积分商城';btn.onclick=()=>onOpenShop?.();slot.append(caption,btn);
+   }
+  }catch{}
   return data;
  }
  async function preview(token,kind){

@@ -14,12 +14,13 @@ export function createLuckyOwner({db,root,notice,isOwner}){
    '<label>每 RM 最高积分<input name="cap_points_per_rm" type="number" min=".1" max="100" step=".1" required></label></div>'+
    '<div class="pair"><label>最低合资格消费 RM<input name="minimum_spend_rm" type="number" min="1" max="5000" step=".01" required></label>'+
    '<label>开箱后认领分钟<input name="claim_minutes" type="number" min="3" max="120" step="1" required></label></div>'+
+   '<label>每日奖励最高预算（RM，可留空）<input name="daily_budget_rm" type="number" min="1" max="100000" step=".01" placeholder="留空 = 不设固定上限"></label><p class="field-note">按订单最大奖励预留每日预算；达到上限停止新发码，旧码不受影响。</p>'+
    '<h3>普通开箱概率（合计 100%）</h3><div class="pair">'+['普通','幸运','闪耀','黄金'].map((s,i)=>'<label>'+s+' %<input name="weight'+i+'" type="number" min="0" max="100" step="1" required></label>').join('')+'</div>'+
    '<h3>整单隐藏大奖概率</h3><div class="pair">'+['RM15–49.99','RM50–99.99','RM100–199.99','RM200+'].map((s,i)=>'<label>'+s+' %<input name="hidden'+i+'" type="number" min="0" max="10" step="1" required></label>').join('')+'</div>'+
-   '<p class="field-note">建议：1 分≈RM0.01 内部奖品成本；平均预算目标约营业额 2%，单笔上限 5%。更改只影响之后新发出的 GamePass，已有结果永久保留。</p>'+
+   '<p class="field-note">建议：1 分≈RM0.01 内部奖品成本；平均奖励成本目标约营业额 4%，单笔最高上限 10%。更改只影响之后新发出的 GamePass，已有结果永久保留。</p>'+
    '<button type="submit" class="main-button">保存活动模式及概率</button></form>'+
    '<button type="button" id="luckyResetDefaults" class="quiet">恢复 Lucky Box 默认设置（不删除记录）</button>'+
-   '<p id="luckyOwnerStatus" role="status" class="field-note">正在读取设置…</p></div>';
+   '<p id="luckyOwnerStatus" role="status" class="field-note">正在读取设置…</p><p id="luckyOwnerBudgetReport" class="field-note"></p></div>';
   $('#luckyOwnerForm').onsubmit=save;
   $('#luckyResetDefaults').onclick=reset;
  }
@@ -27,11 +28,15 @@ export function createLuckyOwner({db,root,notice,isOwner}){
   const f=$('#luckyOwnerForm');
   f.elements.mode.value=payload.mode;
   for(const k of fields)f.elements[k].value=payload[k];
+  f.elements.daily_budget_rm.value=payload.daily_budget_rm??'';
   (payload.weights||[]).forEach((v,i)=>f.elements['weight'+i].value=v);
   (payload.hidden_probabilities||[]).forEach((v,i)=>f.elements['hidden'+i].value=v);
   $('#luckyOwnerStatus').textContent='当前：'+modes.find(x=>x[0]===payload.mode)?.[1]+
    ' · 配置版本 '+payload.version+' · 已开 '+payload.opened+' 箱 · 已领取 '+payload.claimed+
    ' 箱 / '+payload.points_credited+' 分';
+  const spend=Number(payload.today_eligible_rm||0),award=Number(payload.today_awarded_points||0)/100;
+  const costRate=spend>0?award/spend*100:0;
+  $('#luckyOwnerBudgetReport').textContent='今日实际抽中积分成本约 RM'+award.toFixed(2)+'（占合资格消费 '+costRate.toFixed(2)+'%） · 预留最高 RM'+(Number(payload.today_reserved_points||0)/100).toFixed(2)+' · 成本目标 4%，关注线 6% · 每日固定上限：'+(payload.daily_budget_rm==null?'未设置':'RM'+Number(payload.daily_budget_rm).toFixed(2));
  }
  async function load(){
   if(!isOwner())throw Error('owner_only');
@@ -47,6 +52,8 @@ export function createLuckyOwner({db,root,notice,isOwner}){
   if(probabilities.some(x=>!Number.isInteger(x)||x<0||x>10)||probabilities.some((n,i)=>i&&n<probabilities[i-1])){notice('隐藏大奖概率应逐阶不下降且不高于 10%',true);return;}
   const config={mode:f.elements.mode.value,weights,hidden_probabilities:probabilities};
   for(const field of fields)config[field]=toNumber(f.elements[field].value,0);
+  const raw=f.elements.daily_budget_rm.value.trim();config.daily_budget_rm=raw===''?null:Number(raw);
+  if(config.daily_budget_rm!==null&&(!Number.isFinite(config.daily_budget_rm)||config.daily_budget_rm<1||config.daily_budget_rm>100000)){notice('每日上限需 RM1–100000，或留空表示不设上限',true);return;}
   const button=f.querySelector('[type=submit]');busy=true;button.disabled=true;
   try{
    const {data,error}=await db.rpc('yt_lucky_owner_save',{p_settings:config});

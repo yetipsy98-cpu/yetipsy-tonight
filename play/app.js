@@ -1,4 +1,4 @@
-import {createLuckyBox} from './lucky-box.js?v=20261012-lucky-v1';
+import {createLuckyBox} from './lucky-box.js?v=20261013-lucky-v2';
 import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
 import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
@@ -709,7 +709,7 @@ function bindEvents(){
  $('ownerOpenPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('reloadInsights').onclick=e=>pending(e.currentTarget,loadInsights).catch(()=>{});$('staffAccessGrant').onclick=e=>pending(e.currentTarget,grantStaff).catch(()=>{});
 }
-async function boot(){i18n.apply();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
+async function boot(){i18n.apply();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
  db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();shell(false);changeAuthMode('phone');}});
