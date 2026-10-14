@@ -1,5 +1,5 @@
 // Only cache local app shell. Never cache API, Supabase, login, wallets or redemption URLs.
-const CACHE = 'yt-play-v12-20261014-owner-amba-layout-v1';
+const CACHE = 'yt-play-v12-20261014-wallet-qr-rolling-v2';
 const SHELL = ['./','./index.html','./app.js','./styles.css','./config.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('yt-play-v12-')&&k!==CACHE).map(k=>caches.delete(k))))])));
