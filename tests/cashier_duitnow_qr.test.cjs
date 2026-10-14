@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const pos=fs.readFileSync('play/pos/pos.js','utf8'),consoleSrc=fs.readFileSync('play/pos/console.js','utf8'),owner=fs.readFileSync('play/pos/payment-qr-settings.js','utf8'),sql=fs.readFileSync('sql/062_cashier_duitnow_qr.sql','utf8');
-assert.match(pos,/if\(!isCashier\(\)\)throw Error\('cashier_only'\)/);
+assert.match(pos,/if\(!\(isCashier\(\)\|\|isOwner\(\)\)\)throw Error\('cashier_only'\)/);
 assert.match(pos,/if\(isCashier\(\)\)calls\.push\(db\.rpc\('yt_pos_orders',\{p_scope:'pending'/);
 assert.match(pos,/scope==='pending'&&isCashier\(\)&&row\.status==='pending'/);
 assert.match(pos,/action==='accept'&&sourceRow\?\.checkout_mode==='pay_now'&&isCashier\(\)/);
