@@ -11,6 +11,7 @@ const followup = read('sql/088_ambassador_pos_cart_issue_7day.sql');
 const checkout = read('sql/086_ambassador_freeflow_checkout.sql');
 const ownerCancel = read('sql/090_ambassador_pass_owner_cancel.sql');
 const cashierRedeem = read('sql/091_ambassador_cashier_self_redeem.sql');
+const passVoid = read('sql/092_ambassador_pass_void_status.sql');
 const dayClose = read('play/pos/day-close.js');
 
 // Pass scan works with an empty product cart; ordinary rewards retain the drink requirement.
@@ -70,6 +71,7 @@ assert.match(client, /yta-pass-ticket/);
 assert.match(ownerCancel, /yt_ambassador_owner_cancel_pass/);
 assert.match(ownerCancel, /yt_ambassador_assert_owner/);
 assert.match(ownerCancel, /pass_has_orders/);
+assert.match(passVoid, /set status='void'/);
 assert.match(cashierRedeem, /not \(private\.yt_pos_work_cashier\(\) or private\.yt_has_role\('owner'\)\)/);
 assert.match(staff, /yt_ambassador_owner_passes/);
 assert.match(staff, /data-pass-cancel/);
