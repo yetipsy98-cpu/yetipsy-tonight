@@ -19,5 +19,5 @@ assert.match(consoleSrc,/createLuckyOwner/);
 assert.match(read('play/pos/lucky-box-owner.js'),/yt_lucky_owner_reset/);
 assert(read('play/pos/pos.js').includes('console.js?v=20261014-ambassador-pos-sales-v3'));
 assert(read('play/index.html').includes('lucky-box.css?v=20261013-lucky-v2'));
-for(const p of ['pos','owner','staff','cashier'])assert.match(read('play/'+p+'/index.html'),/pos\.js\?v=20261014-ambassador-staffwallet-qr-v2/);
+for(const p of ['pos','owner','staff','cashier'])assert.match(read('play/'+p+'/index.html'),/pos\.js\?v=20261014-ambassador-owner-window-v3/);
 console.log('PASS Lucky Box mode, anonymous reveal, wallet credit, Owner config, protected reset, GamePass QR reuse');
