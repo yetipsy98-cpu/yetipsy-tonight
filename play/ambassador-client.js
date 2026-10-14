@@ -25,7 +25,8 @@ export function createAmbassadorClient({db,toast=()=>{}}){
  const notify=(e)=>toast(errorText(e),true);
  button.onclick=()=>open().catch(notify);
  async function refresh(){
-  if(!db){button.classList.remove('ready');return;}
+  button.classList.remove('ready');data=null;
+  if(!db)return;
   const session=await db.auth.getSession().catch(()=>null);if(!session?.data?.session){button.classList.remove('ready');return;}
   const r=await db.rpc('yt_ambassador_portal');if(r.error){button.classList.remove('ready');return;}
   data=r.data||{};button.classList.toggle('ready',data.enabled===true);return data;
@@ -55,7 +56,7 @@ export function createAmbassadorClient({db,toast=()=>{}}){
   editing=null;openCode=r.data?.id||null;await refresh();render();if(openCode){await ensureQR();render();}
  }
  async function open(){await refresh();if(!data?.enabled)throw Error('ambassador_member_only');modal.classList.add('open');await ensureQR();render();}
- const auth=db?.auth?.onAuthStateChange?.((_e,session)=>{setTimeout(()=>{if(session)refresh().catch(()=>{});else button.classList.remove('ready');},0);});
+ const auth=db?.auth?.onAuthStateChange?.((_e,session)=>{button.classList.remove('ready');data=null;setTimeout(()=>{if(session)refresh().catch(()=>button.classList.remove('ready'));},0);});
  refresh().catch(()=>{});
  return {refresh,open,destroy(){if(auth?.data?.subscription)auth.data.subscription.unsubscribe();button.remove();modal.remove();}};
 }
