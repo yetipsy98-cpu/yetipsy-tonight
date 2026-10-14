@@ -1,4 +1,3 @@
-import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
@@ -217,16 +216,14 @@ function isAmbassadorToken(raw){const text=String(raw||'').trim();if(/^YTAMB\s*:
 async function scanAmbassadorPass(raw){
  if(state.cart.size)throw Error('ambassador_clear_cart_first');
  const p=unpack(await db.rpc('yt_ambassador_pos_pass_lookup',{p_token:raw}));
- const root=$('draftRewardChoices');state.draftSelection=null;root.innerHTML=`<article class="redeem-banner"><strong>Freeflow · ${esc(p.ambassador_name||'Ambassador')}</strong><p>${esc(p.reservation_day)} · 已核销 ${Number(p.checked_pax||0)} 位 / 预登记 ${Number(p.planned_pax||0)} 位</p>${Number(p.checked_pax||0)>Number(p.planned_pax||0)?'<p>已超过预登记人数；仍可继续核销，请确认实际人数。</p>':''}${p.guest_name?`<small>${esc(p.guest_name)}${p.guest_phone?' · '+esc(p.guest_phone):''}</small>`:''}<div class="cart-redeem-choices"><label>男士 ${money(p.male_price)}<input id="ambassadorMaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 男士人数"></label><label>女士 ${money(p.female_price)}<input id="ambassadorFemaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 女士人数"></label></div><p id="ambassadorPassQuote">合计 RM0.00</p><button class="primary" id="ambassadorPassCreate" type="button">建立 Freeflow 待收款单</button></article>`;
+ const root=$('draftRewardChoices');state.draftSelection=null;root.innerHTML=`<article class="redeem-banner"><strong>Freeflow · ${esc(p.ambassador_name||'Ambassador')}</strong><p>${esc(p.reservation_day)} · 已核销 ${Number(p.checked_pax||0)} 位 / 预登记 ${Number(p.planned_pax||0)} 位</p>${Number(p.checked_pax||0)>Number(p.planned_pax||0)?'<p>已超过预登记人数；仍可继续核销，请确认实际人数。</p>':''}${p.guest_name?`<small>${esc(p.guest_name)}${p.guest_phone?' · '+esc(p.guest_phone):''}</small>`:''}<div class="cart-redeem-choices"><label>男士 ${money(p.male_price)}<input id="ambassadorMaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 男士人数"></label><label>女士 ${money(p.female_price)}<input id="ambassadorFemaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 女士人数"></label></div><p id="ambassadorPassQuote">合计 RM0.00</p><p id="ambassadorPassWarning" role="status"></p><button class="primary" id="ambassadorPassCreate" type="button">建立 Freeflow 待收款单</button></article>`;
  const total=()=>Number($('ambassadorMaleCount').value||0)*Number(p.male_price||0)+Number($('ambassadorFemaleCount').value||0)*Number(p.female_price||0);
  const update=()=>{$('ambassadorPassQuote').textContent='合计 '+money(total());};
- $('ambassadorMaleCount').oninput=update;$('ambassadorFemaleCount').oninput=update;
  const planned=Number(p.planned_pax||0),checked=Number(p.checked_pax||0),warn=()=>{
   const next=Number($('ambassadorMaleCount').value||0)+Number($('ambassadorFemaleCount').value||0);
   const host=$('ambassadorPassWarning');
   if(host)host.textContent=checked+next>planned?`提醒：本次后累计 ${checked+next} 位，超过预登记 ${planned} 位；仍可继续核销。`:'';
  };
- const warning=document.createElement('p');warning.id='ambassadorPassWarning';warning.setAttribute('role','status');$('ambassadorPassQuote').after(warning);
  $('ambassadorMaleCount').oninput=()=>{update();warn();};$('ambassadorFemaleCount').oninput=()=>{update();warn();};
  $('ambassadorPassCreate').onclick=()=>busy($('ambassadorPassCreate'),async()=>{
   const m=Number($('ambassadorMaleCount').value||0),f=Number($('ambassadorFemaleCount').value||0);if(!Number.isInteger(m)||!Number.isInteger(f)||m<0||f<0||m+f<1||m+f>500)throw Error('invalid_guest_count');
