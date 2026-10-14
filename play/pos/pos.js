@@ -5,7 +5,7 @@ import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261013-moon-code-reward-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261013-cashier-followup-v1';
-import {createAmbassadorTools} from './ambassador.js?v=20261014-ambassador-v1';
+import {createAmbassadorTools} from './ambassador.js?v=20261014-ambassador-pos-flow-v2';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -19,7 +19,7 @@ const db=usable?createClient(conf.url,conf.publishableKey,{auth:{storageKey:'yt-
 const workURL=(conf.url||'')+'/functions/v1/yt-work-auth';
 const rewardBindingEditor=$('rewardBindingRoot')?createRewardBindingEditor({db,root:$('rewardBindingRoot')}):null;
 const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
-  active:[],paid:[],pending:[],seenPending:new Set(),seenInitialized:false,seenKds:new Set(),seenKdsInitialized:false,storeBoxQueue:[],seenStoreBox:new Set(),seenStoreBoxInitialized:false,
+  active:[],paid:[],pending:[],seenPending:new Set(),seenInitialized:false,seenKds:new Set(),seenKdsInitialized:false,storeBoxQueue:[],seenStoreBox:new Set(),seenStoreBoxInitialized:false,ambassadorAccess:false,
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
    series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0,
@@ -85,7 +85,7 @@ async function launch(){if(!usable){showNotice('尚未配置 /play/config.js 的
  $('cashierCreateChoice').classList.toggle('hidden',!isCashier());$('cashierDirect').checked=isCashier();$('checkoutPayLater').checked=true;
  $('createHint').textContent=isCashier()?'订单可直接进入 KDS；选择直接付会在下单后打开收款。':'Staff 点单后等待 Cashier 接受；可选择直接付或出品后挂单。';
  $('accountMenu').classList.remove('hidden');
- restoreDraft();buildNav();consoleUI?.roleChanged();if(typeof createAmbassadorTools==='function'){globalThis.ytAmbassadorTools?.destroy();globalThis.ytAmbassadorTools=createAmbassadorTools({db,isOwner,isCashier,role:()=>state.identity?.role,notice:(message,bad)=>showNotice(message,bad)});}const context=unpack(await db.rpc('yt_business_context'));state.businessDay=context.day;$('paidDate').value=context.day;await Promise.all([loadCatalog(),refreshOrders(false)]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
+ restoreDraft();buildNav();consoleUI?.roleChanged();if(typeof createAmbassadorTools==='function'){globalThis.ytAmbassadorTools?.destroy();globalThis.ytAmbassadorTools=createAmbassadorTools({db,isOwner,isCashier,role:()=>state.identity?.role,notice:(message,bad)=>showNotice(message,bad),onAccessChange:enabled=>{state.ambassadorAccess=enabled;if(state.identity){buildNav();if(!enabled&&state.currentTab==='redeem')showTab(defaultTab());}}});}const context=unpack(await db.rpc('yt_business_context'));state.businessDay=context.day;$('paidDate').value=context.day;await Promise.all([loadCatalog(),refreshOrders(false)]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
 }
 async function changeCashierFirstPassword(e){e.preventDefault();const button=e.submitter;await busy(button,async()=>{
  const oldPw=$('firstOldPassword').value,newPw=$('firstNewPassword').value;
@@ -102,6 +102,7 @@ function buildNav(){const nav=$('nav');const tabs=isOwner()
   ?[['admin','管理'],['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']]
   :isCashier()?[['orders','订单'],['create','点单'],['benefits','Game Pass'],['storebox','存酒箱']]
   :[['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']];
+ if(state.ambassadorAccess)tabs.push(['redeem','核销']);
  $('orderPendingTab').classList.toggle('hidden',!isCashier());
  nav.replaceChildren();for(const [key,label] of tabs){const b=document.createElement('button');b.type='button';b.dataset.tab=key;b.textContent=label;b.onclick=()=>showTab(key);nav.append(b);}updateAlertDots();}
 function productionRows(){return (state.active||[]).filter(row=>row.status==='confirmed'&&!row.store_box_only);}
@@ -111,11 +112,11 @@ function renderKdsEmpty(){const count=productionRows().length+Number(state.store
 function updateStoreBoxQueue(rows){const list=rows||[],ids=new Set(list.map(row=>row.request_id));if(state.seenStoreBoxInitialized){const added=list.filter(row=>!state.seenStoreBox.has(row.request_id));const audibleCalls=added.filter(row=>row.request_source!=='cashier_checkout');if(audibleCalls.length){showNotice(`🔔 收到 ${audibleCalls.length} 个存酒箱叫酒请求`,false,true);announceNewOrder();}}state.storeBoxQueue=list;state.seenStoreBox=ids;state.seenStoreBoxInitialized=true;renderKdsEmpty();updateAlertDots();}
 function showTab(tab,orderId=null){
  if(tab==='more')tab=isOwner()?'admin':'benefits';
- if(tab==='redeem'){tab='create';}
- if(!['create','pending','orders','unpaid','history','benefits','storebox','reset','admin'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='admin'&&!isOwner()))tab=defaultTab();
+ 
+ if(!['create','pending','orders','unpaid','history','benefits','storebox','redeem','reset','admin'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='admin'&&!isOwner())||(tab==='redeem'&&!state.ambassadorAccess))tab=defaultTab();
  $('accountMenu').open=false;
  if(tab==='reset'&&consoleUI){consoleUI.open('pin');return;}
- if(tab!=='create'){closeCartDrawer();stopRedeemCamera();}state.currentTab=tab;
+ if(tab!=='create'){closeCartDrawer();stopRedeemCamera();}if(tab!=='redeem')globalThis.ytAmbassadorTools?.pause?.();state.currentTab=tab;
  for(const section of ['create','pending','orders','unpaid','history','benefits','storebox','redeem','reset','admin'])$('tab-'+section).classList.toggle('hidden',section!==tab);
  const orderView=['pending','orders','unpaid','history'].includes(tab);$('orderTabs').classList.toggle('hidden',!orderView);
  for(const b of $('orderTabs').querySelectorAll('button'))b.classList.toggle('active',b.dataset.goTab===tab);
