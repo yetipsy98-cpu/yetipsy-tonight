@@ -4,7 +4,8 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'sql/080_ambassador_system.sql'), 'utf8')
   + fs.readFileSync(path.join(root, 'sql/081_ambassador_security_and_zero_commission_fix.sql'), 'utf8')
-  + fs.readFileSync(path.join(root, 'sql/082_ambassador_payout_ambiguity_fix.sql'), 'utf8');
+  + fs.readFileSync(path.join(root, 'sql/082_ambassador_payout_ambiguity_fix.sql'), 'utf8')
+  + fs.readFileSync(path.join(root, 'sql/084_ambassador_pos_flow_and_account_cleanup.sql'), 'utf8');
 const pos = fs.readFileSync(path.join(root, 'play/pos/ambassador.js'), 'utf8');
 const client = fs.readFileSync(path.join(root, 'play/ambassador-client.js'), 'utf8');
 const posEntry = fs.readFileSync(path.join(root, 'play/pos/pos.js'), 'utf8');
@@ -28,8 +29,16 @@ assert.match(sql, /on conflict\(request_id\) do nothing/);
 assert.match(sql, /if comm>0 then/);
 assert.doesNotMatch(sql, /status\s*=\s*'closed'/i);
 
-assert.match(pos, /yt_ambassador_work_access/);
+assert.match(pos, /yt_ambassador_work_portal/);
+assert.match(pos, /yt_ambassador_owner_delete/);
+assert.match(pos, /yt_ambassador_pass_save/);
+assert.doesNotMatch(pos, /staffButton\.textContent='Ambassador'/);
+assert.match(posEntry, /tabs\.push\(\['redeem','核销'\]\)/);
+assert.match(posEntry, /tab==='redeem'&&!state\.ambassadorAccess/);
 assert.match(pos, /yt_ambassador_pass_lookup/);
+assert.match(pos, /ytaWorkPassForm/);
+assert.match(pos, /ytaPosPanel/);
+assert.match(pos, /data-amb-delete/);
 assert.match(pos, /yt_ambassador_checkin/);
 assert.doesNotMatch(pos, /yt_pos_order_submit|yt_pos_checkout|\.from\(/);
 assert.match(pos, /不会创建订单或收款/);
