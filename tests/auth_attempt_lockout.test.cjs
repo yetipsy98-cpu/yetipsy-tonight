@@ -19,8 +19,10 @@ test('Login lockout warning is removed while redemption short-code protection re
  const pos=read('play/pos/pos.js');
  const app=read('play/app.js');
  const reset=read('play/pos/factory-reset.js');
+ const ownerTools=read('play/shared/owner-tools.js');
  assert.doesNotMatch(pos,/错误尝试太多，请稍后再试/);
  assert.doesNotMatch(app,/尝试次数过多，请 15 分钟后再试/);
  assert.doesNotMatch(reset,/too_many_attempts|重试次数过多/);
+ assert.doesNotMatch(ownerTools,/too_many_attempts|错误次数过多/);
  assert.match(app,/claim_code_rate_limited/);
 });
