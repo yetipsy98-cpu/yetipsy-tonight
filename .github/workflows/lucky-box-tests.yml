@@ -1,7 +1,7 @@
 name: Yetipsy Lucky Box regression checks
 on:
   push:
-    branches: ['feat/lucky-box-gamepass-20261012', 'main', 'fix/lucky-owner-settings-loading-20261012', 'feat/lucky-v2-launch-20261013', 'feat/pos-unified-redeem-category-prep-20261013', 'fix/cashier-storebox-followup-20261013', 'fix/pos-category-redemption-prep-cache-20261013']
+    branches: ['feat/lucky-box-gamepass-20261012', 'main', 'fix/lucky-owner-settings-loading-20261012', 'feat/lucky-v2-launch-20261013', 'feat/pos-unified-redeem-category-prep-20261013', 'fix/cashier-storebox-followup-20261013', 'fix/pos-category-redemption-prep-cache-20261013', 'feat/ambassador-system']
   pull_request:
     branches: [main]
 jobs:
@@ -17,4 +17,4 @@ jobs:
           for f in tests/*.test.cjs; do node "$f"; done
           for f in tests/*.test.mjs; do node "$f"; done
       - run: |
-          for f in play/app.js play/lucky-box.js play/pos/pos.js play/pos/console.js play/pos/lucky-box-owner.js; do node --check "$f"; done
+          for f in play/app.js play/lucky-box.js play/pos/pos.js play/pos/console.js play/pos/lucky-box-owner.js play/pos/ambassador.js play/ambassador-client.js; do node --check "$f"; done
