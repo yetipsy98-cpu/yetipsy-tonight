@@ -199,7 +199,7 @@ function renderCart(){let count=0,total=0;const rows=[];
 async function refreshDraftSummary(){const epoch=++state.draftEpoch;
  if(state.pendingSubmit){state.draftLoading=false;updateDraftControls();return state.draftSummary;}
  if(state.ambassadorDraft){const d=state.ambassadorDraft,gross=Number(d.male||0)*Number(d.male_price||0)+Number(d.female||0)*Number(d.female_price||0);state.draftSummary={gross_rm:gross,reserved_discount_rm:0,payable_rm:gross,unresolved_count:0,holds:[],can_submit:gross>0};state.draftLoading=false;$('draftRewardRows').replaceChildren();$('draftRewardChoices').replaceChildren();$('draftGross').textContent=money(gross);$('draftDiscount').textContent='−RM0.00';$('cartTotal').textContent=money(gross);$('cartDockTotal').textContent=money(gross);$('draftStatus').textContent=gross>0?'Freeflow Pass 已加入购物车，可照常结账。':'请至少保留一位顾客。';saveDraft();updateDraftControls();return state.draftSummary;}
- if(!state.cart.size{state.draftSummary=null;state.draftLoading=false;$('draftRewardRows').replaceChildren();$('draftRewardChoices').replaceChildren();$('draftStatus').textContent='先选择至少一杯付费饮品，再使用奖励。';updateDraftControls();return null;}
+ if(!state.cart.size){state.draftSummary=null;state.draftLoading=false;$('draftRewardRows').replaceChildren();$('draftRewardChoices').replaceChildren();$('draftStatus').textContent='先选择至少一杯付费饮品，再使用奖励。';updateDraftControls();return null;}
  state.draftLoading=true;updateDraftControls();$('draftStatus').textContent='正在核对购物车…';
  try{
   const q=unpack(await db.rpc('yt_moon_preorder_summary',{p_draft:state.draftId,p_cart:draftItems()}));if(epoch!==state.draftEpoch)return null;
