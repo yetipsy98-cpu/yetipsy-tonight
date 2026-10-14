@@ -1,5 +1,6 @@
 -- The existing Pass status constraint uses 'void' for cancelled Passes.
 -- Keep the Owner cancellation RPC aligned with the established status vocabulary.
+-- Customer and Staff portals already render every non-issued status as cancelled.
 create or replace function private.yt_ambassador_owner_cancel_pass(p_pass_id uuid)
 returns jsonb
 language plpgsql
