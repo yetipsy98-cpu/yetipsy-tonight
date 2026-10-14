@@ -14,7 +14,8 @@ for (const table of ['yt_ambassadors', 'yt_ambassador_prices', 'yt_ambassador_sp
   'yt_ambassador_passes', 'yt_ambassador_checkins', 'yt_ambassador_ledger']) {
   assert.match(sql, new RegExp('alter table public\\.' + table + ' enable row level security'));
 }
-assert.match(sql, /revoke all on public\\.yt_ambassadors,public\\.yt_ambassador_prices,public\\.yt_ambassador_special_prices,[\\s\\S]*?from public,anon,authenticated/);
+assert.ok(sql.includes('revoke all on public.yt_ambassadors,public.yt_ambassador_prices,public.yt_ambassador_special_prices,'));
+assert.ok(sql.includes('public.yt_ambassador_checkins,public.yt_ambassador_ledger from public,anon,authenticated;'));
 assert.match(sql, /grant execute on function public\.yt_ambassador_pass_lookup\(text\) to authenticated/);
 assert.match(sql, /revoke all on function private\.yt_ambassador_price\(date\) from public,anon,authenticated/);
 assert.match(sql, /wa\.role in \('staff','cashier'\)/);
