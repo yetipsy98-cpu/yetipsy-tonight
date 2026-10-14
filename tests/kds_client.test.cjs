@@ -16,7 +16,7 @@ test('all work entry points expose one KDS and one open-tab window',()=>{
 
 test('KDS and settlement queues are separated by order state',()=>{
  assert.match(js,/row\.status==='confirmed'&&!row\.store_box_only/);
- assert.match(js,/row\.status==='fulfilled'\|\|\(row\.status==='confirmed'&&row\.store_box_only\)/);
+ assert.match(js,/row\.payment_status==='unpaid'&&\(row\.status==='fulfilled'\|\|row\.status==='confirmed'\)/);
  assert.match(js,/renderKdsOrder/);
  assert.match(js,/目前没有待付款挂单/);
  assert.match(js,/yt_pos_create_order_with_rewards_v2/);
