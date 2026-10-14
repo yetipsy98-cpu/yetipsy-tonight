@@ -5,7 +5,7 @@ import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261014-order-review-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261014-storebox-auto-issue-v1';
-import {createAmbassadorTools} from './ambassador.js?v=20261014-qr-black-white-v2';
+import {createAmbassadorTools} from './ambassador.js?v=20261014-qr-black-white-v3';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -321,13 +321,9 @@ async function createOrder(){if(state.draftSaving||state.draftMutating)return;st
  }catch(e){if(e.code&&(/^[0-9A-Z]{5}$/.test(e.code)||/^PGRST/.test(e.code))){state.pendingSubmit=null;saveDraft();}showNotice(errorText(e),true);$('draftStatus').textContent=state.pendingSubmit?'提交状态待确认，请重试确认原订单。':'提交未完成：'+errorText(e);}
  finally{state.draftSaving=false;updateDraftControls();}
  if(!data)return;
- const attached=Number(data.reward_cart?.attached||0);state.pendingSubmit=null;state.cart.clear();state.ambassadorDraft=null;state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('orderNote').value='';$('checkoutPayLater').checked=true;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
- showNotice(ambassador?`${data.order_no||''} Freeflow 已加入待收款订单；请照常结账。`:`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'已进入吧台 KDS':'等待 Cashier 接受'}`);
- if(ambassador){
-  try{await refreshOrders(false);showTab('orders');}catch(e){showNotice('Freeflow 已成功开单，订单列表暂未刷新，请点刷新。',true);}
-  return;
- }
- showTab('orders');try{await refreshOrders(false);}catch(e){showNotice(`${data.order_no} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
+ const attached=Number(data.reward_cart?.attached||0),checkoutMode=state.pendingSubmit?.p_checkout_mode||'pay_later';state.pendingSubmit=null;state.cart.clear();state.ambassadorDraft=null;state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('orderNote').value='';$('checkoutPayLater').checked=true;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
+ showNotice(ambassador?(checkoutMode==='pay_now'?`${data.order_no||''} Freeflow 已开单，正在打开付款窗口。`:`${data.order_no||''} Freeflow 已加入待收款订单；请照常结账。`):`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'已进入吧台 KDS':'等待 Cashier 接受'}`);
+ showTab('orders');try{await refreshOrders(false);if(checkoutMode==='pay_now'){const orderId=data.id||data.order_id||[...state.active,...state.pending,...state.paid].find(row=>row.order_no===data.order_no)?.id;if(orderId)await openOrderCart(orderId);else showNotice(`${data.order_no||'订单'} 已成功下单，但暂时找不到订单付款窗口，请刷新订单列表。`,true);}}catch(e){showNotice(`${data.order_no||'订单'} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
 }
 function statusLabel(row){if(isAmbassadorOrder(row)&&row.payment_status==='unpaid')return 'Freeflow · 待收款';if(row.payment_status==='refunded')return '已退款取消';if(row.payment_status==='paid'&&Number(row.balance_rm)>0)return '待补收 '+money(row.balance_rm);if(row.payment_status==='paid'&&Number(row.balance_rm)<0)return '待退款 '+money(-row.balance_rm);if(row.payment_status==='paid'&&row.status==='confirmed')return '已付款 · 待出品';if(row.payment_status==='paid')return '已付款';if(row.status==='confirmed'&&row.store_box_only)return '待结账 · 结账后发码';return ({pending:'等待 Cashier 接受',confirmed:'已接受 · 待出品',fulfilled:'已出品 · 待结账',cancelled:'已拒绝／取消'}[row.status]||row.status);}
 function escapeAttr(s){return esc(s)}
@@ -859,7 +855,7 @@ async function openOrderCart(id){
  document.body.classList.add('sheet-open');await refreshOrderCart();
 }
 async function refreshOrderCart(){if(!state.selectedOrderCart)return;
- const id=state.selectedOrderCart,row=[...state.active,...state.paid].find(x=>x.id===id),ambassador=isAmbassadorOrder(row);
+ const id=state.selectedOrderCart,row=[...state.active,...state.pending,...state.paid].find(x=>x.id===id),ambassador=isAmbassadorOrder(row);
  const [receipt,summary]=await Promise.all([
   db.rpc('yt_pos_receipt',{p_order:id}),ambassador?Promise.resolve({data:null,error:null}):db.rpc('yt_pos_cart_summary',{p_order:id})]);
  const bill=unpack(receipt),q=ambassador?{order_no:row.order_no,gross_rm:row.amount_rm,reserved_discount_rm:0,payable_rm:row.amount_rm,unresolved_count:0,minimum_met:true,status:row.status,payment_status:row.payment_status,store_box_only:false,can_pay:row.payment_status==='unpaid',moon_codes:[],holds:[]}:unpack(summary);

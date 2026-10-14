@@ -1,12 +1,15 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
-const pos=fs.readFileSync('play/pos/pos.js','utf8'),amb=fs.readFileSync('play/pos/ambassador.js','utf8'),sql=fs.readFileSync('supabase/migrations/20261014103943_kds_item_confirmation_ambassador_template.sql','utf8'),priceFix=fs.readFileSync('supabase/migrations/20261014110000_fix_ambassador_price_columns.sql','utf8'),css=fs.readFileSync('play/pos/console.css','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8'),amb=fs.readFileSync('play/pos/ambassador.js','utf8'),sql=fs.readFileSync('supabase/migrations/20261014103943_kds_item_confirmation_ambassador_template.sql','utf8'),priceFix=fs.readFileSync('supabase/migrations/20261014105617_fix_ambassador_price_columns.sql','utf8'),css=fs.readFileSync('play/pos/console.css','utf8');
 assert.match(pos,/data-action="fulfilled_item"/,'each product line can be confirmed separately');
 assert.match(pos,/data-action="fulfilled_all"/,'KDS exposes whole-order confirmation');
 assert.match(pos,/yt_pos_item_fulfill/,'line confirmation goes through a protected RPC');
 assert.match(sql,/not exists\(select 1 from public\.yt_member_order_items where order_id=p_order and quantity>0 and not fulfilled\)/,'order completes only after all lines are served');
 assert.match(sql,/add column if not exists fulfilled boolean/,'line progress persists in Supabase');
-assert.match(pos,/showTab\('orders'\);try\{await refreshOrders\(false\);/,'new orders stay in the Orders tab');
-assert.doesNotMatch(pos,/if\(checkoutMode==='pay_now'.*openOrderCart/,'submit does not auto-open checkout');
+assert.match(pos,/data-order-item="\$\{escapeAttr\(item\.id\)\}"/,'each KDS line has its own confirmation target');
+assert.match(sql,/where id=p_order_item and order_id=p_order and quantity>0 and not fulfilled/,'a line can be fulfilled by its own id without depending on earlier orders or lines');
+assert.match(pos,/showTab\('orders'\);try\{await refreshOrders\(false\);if\(checkoutMode==='pay_now'\)/,'successful orders go to Orders and pay-now opens checkout');
+assert.match(pos,/checkoutMode==='pay_now'\?\s*openOrderCart|if\(checkoutMode==='pay_now'\).*openOrderCart/s,'pay-now opens the matching order checkout');
+assert.match(pos,/p_checkout_mode/,'checkout choice is retained with the submitted order');
 assert.match(amb,/getTime\(\)\+6\*86400000/,'Ambassador calendar covers today plus six days');
 assert.match(sql,/business_day\(now\(\)\)\+6/,'Supabase restricts Ambassador passes to a seven-day window');
 assert.match(amb,/yt_ambassador_qr_template_save/,'Owner can save a reusable invitation image and QR placement');
@@ -15,6 +18,9 @@ assert.match(amb,/function qrDataUrl\(q,pixels=512,quiet=4\)/,'Pass QR is render
 assert.match(amb,/c\.fillStyle='#000'/,'Pass QR background is black');
 assert.match(amb,/c\.fillStyle='#fff'/,'Pass QR modules are white');
 assert.match(css,/\.yta-template-qr[^}]*background:#000/,'template QR placement keeps the black quiet zone');
+assert.match(css,/\.yta-template-bg\{display:block;width:100%;height:auto;object-fit:contain\}/,'uploaded template keeps its natural image ratio');
+assert.doesNotMatch(css,/\.yta-template-ticket[^}]*aspect-ratio:4\/5/,'template ticket does not force a 4:5 ratio');
+assert.match(amb,/height=Math\.max\(1,Math\.round\(width\*bg\.naturalHeight\/bg\.naturalWidth\)\)/,'shared pass image uses the uploaded template ratio');
 assert.match(pos,/history\?\(completed\?'已出杯':'已取消'\):'待出杯'/,'KDS history distinguishes completed cups from cups waiting to be made');
 assert.match(priceFix,/weekday_male_price/,'price migration repairs the erroneous legacy column reference');
 assert.match(priceFix,/replace\(v_def,'weekday_male_price','weekday_male'\)/,'portal reads the real weekday_male field');
