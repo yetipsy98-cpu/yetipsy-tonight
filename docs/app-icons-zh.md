@@ -6,7 +6,7 @@
 
 - 使用正方形 PNG，建议导出 192×192 和 512×512 两个尺寸。
 - 图案和文字尽量放在中间，边缘留空，避免手机圆角裁切时被切掉。
-- 文件名和路径要保持不变；这样不必修改 manifest 配置。
+- 文件名和路径要保持不变；这样不必修改 manifest 配置。若只是覆盖同名图片，还要把下面提到的 `v=` 版本号加一，手机才会重新读取图标。
 
 ## 更换会员端图标
 
@@ -17,7 +17,7 @@
 
 在 GitHub 打开仓库 `yetipsy98-cpu/yetipsy-tonight`，进入 `play` 文件夹，点 **Add file → Upload files**，上传同名的新图片并提交。
 
-客户端的 `play/manifest.webmanifest` 已经指向这两个文件，保持文件名即可。
+客户端的 `play/manifest.webmanifest` 已经指向这两个文件。覆盖图标后，把 `manifest.webmanifest` 的 `icons[].src` 与 `play/index.html` 中图标链接的 `v=` 改成新的版本号。
 
 ## 更换管理端图标
 
@@ -25,9 +25,9 @@
 
 - `play/admin-icon-192.png`
 - `play/admin-icon-512.png`
-- `play/admin-icon.svg`（浏览器标签页图标）
+- `play/admin-icon-192.png` 同时用于管理端浏览器图标和 iPhone 主屏幕图标。
 
-按相同方式上传同名文件并提交。若只更换 PNG，安装清单路径无需修改。若也要更换浏览器标签页图标，再替换 `play/admin-icon.svg`。
+按相同方式上传同名文件并提交。保持文件名不变时，安装清单路径无需修改。管理端现在的标签页图标和 iPhone 主屏幕图标也都使用 `admin-icon-192.png`。
 
 管理端 PWA 配置位于 `play/admin.webmanifest`；iPhone 主屏幕图标路径还写在以下入口页中：
 
@@ -36,7 +36,7 @@
 - `play/cashier/index.html`
 - `play/pos/index.html`
 
-如需改文件名或目录，要同步修改 manifest 的 `icons` 路径和这些入口页的 `apple-touch-icon` 路径。
+覆盖图标后更新 `play/admin.webmanifest` 图标路径中的 `v=`，并更新这四个入口页的 favicon 与 `apple-touch-icon` 链接版本。若改了文件名或目录，还要同步修改上述所有路径。更新管理端 `play/admin-sw.js` 的缓存名称（`CACHE`），让已安装的管理端加载新图标。
 
 ## 让手机显示新图标
 
