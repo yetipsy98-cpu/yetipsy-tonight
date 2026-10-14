@@ -12,6 +12,8 @@ const checkout = read('sql/086_ambassador_freeflow_checkout.sql');
 const ownerCancel = read('sql/090_ambassador_pass_owner_cancel.sql');
 const cashierRedeem = read('sql/091_ambassador_cashier_self_redeem.sql');
 const passVoid = read('sql/092_ambassador_pass_void_status.sql');
+const eventSource = read('sql/093_ambassador_pos_event_source.sql');
+const ownerWindow = read('sql/095_ambassador_owner_pass_array_compat.sql');
 const dayClose = read('play/pos/day-close.js');
 
 // Pass scan works with an empty product cart; ordinary rewards retain the drink requirement.
@@ -32,6 +34,8 @@ assert.match(pos, /openOrderCart\(data\.id\)/);
 assert.match(sql, /values\('future_pos','fulfilled',ono,'Freeflow'/);
 assert.match(sql, /'Freeflow Male'/);
 assert.match(sql, /'Freeflow Female'/);
+assert.match(eventSource, /then 'cashier' else 'staff' end/);
+assert.doesNotMatch(eventSource, /'ambassador',note_text/);
 assert.doesNotMatch(sql, /insert into public\.yt_pos_order_chits/i);
 
 // Payment receives AB-prefixed category and captures check-in/commission only after payment.
@@ -76,5 +80,9 @@ assert.match(cashierRedeem, /not \(private\.yt_pos_work_cashier\(\) or private\.
 assert.match(staff, /yt_ambassador_owner_passes/);
 assert.match(staff, /data-pass-cancel/);
 assert.match(staff, /yt_ambassador_owner_cancel_pass/);
+assert.match(ownerWindow, /reservation_day between d-3 and d\+3/);
+assert.match(ownerWindow, /'has_orders'/);
+assert.match(staff, /前后 3 日/);
+assert.match(staff, /data.passWindow.window_start/);
 assert.match(pos, /cannot_redeem_own_pass/);
 console.log('Ambassador POS/cart checkout, Staff commission wallet, QR template sharing, owner cancellation, and seven-day window invariants passed');
