@@ -132,7 +132,7 @@ async function updatePassword(body:any,req:Request){
  if(updated)throw Error('password_update_failed');
  const {error:stateErr}=await admin.from('work_accounts').update({must_change_password:false,updated_at:now()}).eq('auth_user_id',acct.auth_user_id);
  if(stateErr)throw Error('password_update_failed');
- if(acct.role==='staff'||acct.role==='cashier'){
+ if(acct.role==='staff'||acct.role==='cashier'||acct.role==='owner_limited'){
   const {error:roleErr}=await admin.from('staff_roles').update({active:true}).eq('user_id',acct.auth_user_id).eq('role',acct.role);
   if(roleErr)throw Error('password_update_failed');
  }
@@ -266,6 +266,46 @@ async function manageCashier(body:any,req:Request,mode:'cashier_toggle'|'cashier
   await audit(owner.auth_user_id,'work.cashier_password_reset',acct.auth_user_id);
   return send({ok:true,requires_password_change:true});
 }
+async function createOwnerLimited(body:any,req:Request){
+ const owner=await ownerFromRequest(req),u=username(body.username);
+ if(u==='owner')return err('invalid_username');
+ const temporary=strong(body.temporary_password,u);
+ const {data:exists,error:ee}=await admin.from('work_accounts').select('auth_user_id').eq('username',u).maybeSingle();
+ if(ee)throw Error('work_configuration_error');if(exists)return err('username_taken',409);
+ let uid:string|null=null;
+ try{
+  uid=await createAuthUser(u,temporary);
+  const {error:newErr}=await admin.from('work_accounts').insert({auth_user_id:uid,username:u,role:'owner_limited',active:true,can_cashier:false,can_edit_orders:false,must_change_password:true,created_by:owner.auth_user_id});
+  if(newErr)throw Error(newErr.code==='23505'?'username_taken':'account_creation_failed');
+  const {error:roleErr}=await admin.from('staff_roles').insert({user_id:uid,role:'owner_limited',active:false});
+  if(roleErr)throw Error('account_creation_failed');
+  await audit(owner.auth_user_id,'work.owner_limited_created',uid,{username:u});
+  return send({ok:true,username:u,user_id:uid,requires_password_change:true});
+ }catch(e){if(uid)await admin.auth.admin.deleteUser(uid);throw e;}
+}
+async function listOwnerLimited(req:Request){
+ await ownerFromRequest(req);
+ const {data,error}=await admin.from('work_accounts').select('auth_user_id,username,active,must_change_password,created_at').eq('role','owner_limited').order('created_at',{ascending:false}).limit(100);
+ if(error)throw Error('work_configuration_error');return send({ok:true,accounts:data||[]});
+}
+async function manageOwnerLimited(body:any,req:Request,mode:'owner_limited_toggle'|'owner_limited_reset'){
+ const owner=await ownerFromRequest(req),u=username(body.username);
+ const {data:acct,error}=await admin.from('work_accounts').select('auth_user_id,username,role,active,must_change_password').eq('username',u).maybeSingle();
+ if(error||!acct||acct.role!=='owner_limited')return err('account_not_found',404);
+ if(mode==='owner_limited_toggle'){
+  if(typeof body.active!=='boolean')return err('invalid_request');
+  const {error:up}=await admin.from('work_accounts').update({active:body.active,updated_at:now()}).eq('auth_user_id',acct.auth_user_id);
+  if(up)throw Error('work_configuration_error');
+  const {error:role}=await admin.from('staff_roles').update({active:body.active&&!acct.must_change_password}).eq('user_id',acct.auth_user_id).eq('role','owner_limited');
+  if(role)throw Error('work_configuration_error');
+  await audit(owner.auth_user_id,body.active?'work.owner_limited_enabled':'work.owner_limited_disabled',acct.auth_user_id);return send({ok:true});
+ }
+ const temporary=strong(body.temporary_password,u);
+ const {error:pw}=await admin.auth.admin.updateUserById(acct.auth_user_id,{password:await password(u,temporary)});if(pw)throw Error('password_update_failed');
+ const {error:flag}=await admin.from('work_accounts').update({must_change_password:true,updated_at:now()}).eq('auth_user_id',acct.auth_user_id);if(flag)throw Error('password_update_failed');
+ const {error:role}=await admin.from('staff_roles').update({active:false}).eq('user_id',acct.auth_user_id).eq('role','owner_limited');if(role)throw Error('password_update_failed');
+ await audit(owner.auth_user_id,'work.owner_limited_password_reset',acct.auth_user_id);return send({ok:true,requires_password_change:true});
+}
 const ownerReset=createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send});
 
 Deno.serve(async(req:Request)=>{
@@ -295,6 +335,9 @@ Deno.serve(async(req:Request)=>{
   if(action==='cashier_create')return await createCashier(body,req);
   if(action==='cashier_list')return await listCashier(req);
   if(action==='cashier_toggle'||action==='cashier_reset')return await manageCashier(body,req,action);
+  if(action==='owner_limited_create')return await createOwnerLimited(body,req);
+  if(action==='owner_limited_list')return await listOwnerLimited(req);
+  if(action==='owner_limited_toggle'||action==='owner_limited_reset')return await manageOwnerLimited(body,req,action);
   return err('unknown_action',400);
  }catch(e){
   const code=e instanceof Error?e.message:'server_error';

@@ -208,11 +208,14 @@ async function loadCashiers(){if(!roleIsOwner())return;
  }
  if(!out.cashiers?.length)root.textContent='尚无 Cashier 独立账户。';
 }
+async function createOwnerLimitedForm(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{const u=$('limitedUsername').value.trim().toLowerCase(),pw=$('limitedPassword').value;if(!passwordStrong(pw,u))throw Error('weak_password');await work('owner_limited_create',{username:u,temporary_password:pw},true);showModal('Owner Limited 账号已创建','Username: '+u+'\nTemporary Password: '+pw+'\n\n首次登录后必须修改密码。该账号只可查看报表、签发及查看 Ambassador Pass，不产生佣金。');$('limitedCreateForm').reset();await loadOwnerLimited();status('Owner Limited '+u+' 已建立');});}
+async function loadOwnerLimited(){if(!roleIsOwner())return;const out=await work('owner_limited_list',{},true),root=$('limitedList');root.replaceChildren();for(const a of out.accounts||[]){const row=document.createElement('div');row.className='user-card';const head=document.createElement('div');head.className='user-row';const info=document.createElement('div');const name=document.createElement('strong');name.textContent=a.username;const hint=document.createElement('small');hint.textContent=a.must_change_password?'等待首次更改密码':a.active?'仅限报表与 Ambassador':'已停用';info.append(name,hint);head.append(info);row.append(head);const actions=document.createElement('div');actions.className='button-row';const toggle=document.createElement('button');toggle.type='button';toggle.className='btn outline small';toggle.textContent=a.active?'停用账号':'启用账号';toggle.onclick=()=>busy(toggle,async()=>{if(!confirm('确认'+(a.active?'停用':'启用')+' '+a.username+'？'))return;await work('owner_limited_toggle',{username:a.username,active:!a.active},true);await loadOwnerLimited();}).catch(()=>{});const reset=document.createElement('button');reset.type='button';reset.className='btn outline small';reset.textContent='重设密码';reset.onclick=()=>busy(reset,async()=>{if(!confirm('确认重设 '+a.username+' 的密码？'))return;const temp=randomPassword();await work('owner_limited_reset',{username:a.username,temporary_password:temp},true);showModal('Owner Limited 临时密码已重设','Username: '+a.username+'\nTemporary Password: '+temp);await loadOwnerLimited();}).catch(()=>{});actions.append(toggle,reset);row.append(actions);root.append(row);}if(!out.accounts?.length)root.textContent='尚未创建 Owner Limited 账号。';}
 
 let embeddedBound=false;
 export function initOwnerTools(client,identity){
  db=client;state.identity=identity;if(embeddedBound)return;embeddedBound=true;
  $('staffForm').onsubmit=e=>createStaff(e).catch(()=>{});$('cashierCreateForm').onsubmit=e=>createCashierForm(e).catch(()=>{});
+ $('limitedCreateForm').onsubmit=e=>createOwnerLimitedForm(e).catch(()=>{});$('limitedPasswordGenerate').onclick=()=>{$('limitedPassword').value=randomPassword();};$('refreshLimited').onclick=e=>busy(e.currentTarget,loadOwnerLimited).catch(()=>{});
  $('cashierPasswordGenerate').onclick=()=>{$('cashierPassword').value=randomPassword();};$('staffTempGenerate').onclick=()=>{$('staffTemp').value=randomPassword();};
  $('refreshCashiers').onclick=e=>busy(e.currentTarget,loadCashiers).catch(()=>{});$('refreshStaff').onclick=e=>busy(e.currentTarget,loadStaff).catch(()=>{});
  if($('setDefaultCampaign'))$('setDefaultCampaign').onclick=e=>busy(e.currentTarget,async()=>{unpack(await db.rpc('yt_owner_default_campaign',{p_campaign:$('ownerCampaign').value||null}));await loadCampaignAdmin();status('默认发码活动已保存');}).catch(()=>{});$('ownerCampaign').onchange=()=>loadCampaignSettings().catch(report);$('poolGame').onchange=renderPool;
@@ -221,6 +224,6 @@ export function initOwnerTools(client,identity){
  $('modalBackdrop').onclick=e=>{if(e.target===$('modalBackdrop'))closeModal();};document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 }
 export async function loadOwnerTool(key){if(!roleIsOwner())throw Error('owner_only');
- if(key==='team')await Promise.all([loadStaff(),loadCashiers()]);
+ if(key==='team')await Promise.all([loadStaff(),loadCashiers(),loadOwnerLimited()]);
  if(key==='campaign')await loadCampaignAdmin();if(key==='loyalty')await loadLoyaltyOwner();if(key==='insights')await loadInsights();
 }

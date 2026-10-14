@@ -4,7 +4,7 @@ assert.match(pos,/if\(!\(isCashier\(\)\|\|isOwner\(\)\|\|isStaff\(\)\)\)throw Er
 assert.match(pos,/method==='duitnow'&&!isCashier\(\)&&!isOwner\(\)/);
 assert.match(pos,/if\(isCashier\(\)\)calls\.push\(db\.rpc\('yt_pos_orders',\{p_scope:'pending'/);
 assert.match(pos,/scope==='pending'&&isCashier\(\)&&row\.status==='pending'/);
-assert.match(pos,/action==='accept'&&sourceRow\?\.checkout_mode==='pay_now'&&isCashier\(\)/);
+assert.doesNotMatch(pos,/action==='accept'&&sourceRow\?\.checkout_mode==='pay_now'&&isCashier\(\)/);
 assert.doesNotMatch(pos,/cartCheckoutPayment'\)\.value='duitnow'/);
 assert.match(pos,/yt_receipt_settings_get/);
 assert.match(pos,/yetipsy-payment-qr/);
@@ -16,7 +16,7 @@ assert.match(owner,/\.from\(bucket\)\.upload/);
 assert.match(owner,/yt_owner_payment_qr_save/);
 for(const page of ['pos','admin/pos','admin/owner','admin/staff','admin/cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
- assert.match(html,/pos\.js\?v=20261014-camera-independent-kds-v1/);
+ assert.match(html,/pos\.js\?v=20261014-kds-line-confirm-template-v1/);
  assert.match(html,/value="duitnow" selected>DuitNow（默认）/);
  assert.match(html,/id="cashierDuitNowQr"/);
  assert.match(html,/id="cashierDuitNowQrImage"/);

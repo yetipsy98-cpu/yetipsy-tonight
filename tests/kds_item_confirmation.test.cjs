@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const pos=fs.readFileSync('play/pos/pos.js','utf8'),amb=fs.readFileSync('play/pos/ambassador.js','utf8'),sql=fs.readFileSync('supabase/migrations/20261014103943_kds_item_confirmation_ambassador_template.sql','utf8');
+assert.match(pos,/data-action="fulfilled_item"/,'each product line can be confirmed separately');
+assert.match(pos,/data-action="fulfilled_all"/,'KDS exposes whole-order confirmation');
+assert.match(pos,/yt_pos_item_fulfill/,'line confirmation goes through a protected RPC');
+assert.match(sql,/not exists\(select 1 from public\.yt_member_order_items where order_id=p_order and quantity>0 and not fulfilled\)/,'order completes only after all lines are served');
+assert.match(sql,/add column if not exists fulfilled boolean/,'line progress persists in Supabase');
+assert.match(pos,/showTab\('orders'\);try\{await refreshOrders\(false\);/,'new orders stay in the Orders tab');
+assert.doesNotMatch(pos,/if\(checkoutMode==='pay_now'.*openOrderCart/,'submit does not auto-open checkout');
+assert.match(amb,/getTime\(\)\+6\*86400000/,'Ambassador calendar covers today plus six days');
+assert.match(sql,/business_day\(now\(\)\)\+6/,'Supabase restricts Ambassador passes to a seven-day window');
+assert.match(amb,/yt_ambassador_qr_template_save/,'Owner can save a reusable invitation image and QR placement');
+assert.match(amb,/qrTemplate\.image_data_url/,'pass artwork uses the uploaded invitation template');
+console.log('PASS per-item KDS, whole-order confirmation, manual checkout, seven-day Pass window, invitation QR template');

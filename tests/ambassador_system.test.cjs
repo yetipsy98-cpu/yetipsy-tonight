@@ -29,8 +29,8 @@ assert.match(pos, /draftRedeemScan'\)\.disabled=locked\|\|mutating/);
 assert.match(pos, /productionRows\(\).*isAmbassadorOrder/);
 
 // Freeflow uses the POS basket and normal payment drawer, and remains out of KDS.
-assert.match(pos, /showTab\('unpaid'\)/);
-assert.match(pos, /openOrderCart\(data\.id\)/);
+assert.match(pos, /showTab\('orders'\)/);
+assert.doesNotMatch(pos, /openOrderCart\(data\.id\)/);
 assert.match(sql, /values\('future_pos','fulfilled',ono,'Freeflow'/);
 assert.match(sql, /'Freeflow Male'/);
 assert.match(sql, /'Freeflow Female'/);
@@ -64,7 +64,7 @@ assert.match(staff, /data-pass-redeem/);
 assert.match(staff, /onRedeemPass\('YTAMB:'/);
 assert.doesNotMatch(staff, /e\.currentTarget\.reset\(\)/);
 assert.match(staff, /const form=e\.currentTarget/);
-assert.match(staff, /7\*86400000/);
+assert.match(staff, /6\*86400000/);
 assert.doesNotMatch(staff, /yt_ambassador_checkin/);
 assert.match(followup, /ambassador_id drop not null/);
 assert.match(followup, /issued_by=auth\.uid\(\)/);
