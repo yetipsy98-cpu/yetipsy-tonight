@@ -164,7 +164,7 @@ begin
  if d is null or d<private.yt_business_day(now()) or d>private.yt_business_day(now())+180 then raise exception 'invalid_reservation_day'; end if;
  if coalesce((p_payload->>'planned_pax')::integer,0) not between 1 and 500 then raise exception 'invalid_planned_pax'; end if;
  if coalesce(p_payload->>'pass_type','group') not in ('group','individual') then raise exception 'invalid_pass_type'; end if;
- if length(coalesce(p_payload->>'guest_name',''))>100 or length(coalesce(p_payload->>'guest_phone',''))>40 or length(coalesce(p_payload->>'remark',''))>500 then raise exception 'invalid_pass';
+ if length(coalesce(p_payload->>'guest_name',''))>100 or length(coalesce(p_payload->>'guest_phone',''))>40 or length(coalesce(p_payload->>'remark',''))>500 then raise exception 'invalid_pass'; end if;
  if pid is null then
   insert into public.yt_ambassador_passes(ambassador_id,reservation_day,pass_type,planned_pax,guest_name,guest_phone,remark)
   values(a.id,d,coalesce(p_payload->>'pass_type','group'),(p_payload->>'planned_pax')::integer,
