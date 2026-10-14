@@ -51,12 +51,6 @@ async function password(phone:string,pin:string) {
  const bytes=new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode('ytplay:v1:'+phone+':'+pin)));
  return 'YTP-'+Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
 }
-async function allowed(phone:string) {
- const {data,error}=await admin.rpc('yt_pin_gate',{p_phone:phone,p_reset:false});
- if(error)throw Error('server_unavailable');
- return data===true;
-}
-async function reset(phone:string) {await admin.rpc('yt_pin_gate',{p_phone:phone,p_reset:true});}
 async function signIn(email:string,pass:string) {
  const publicClient=createClient(URL,PUBLIC_KEY,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
  return await publicClient.auth.signInWithPassword({email,password:pass});
@@ -194,8 +188,6 @@ Deno.serve(async(req:Request)=>{
   }
   const phone=phoneValue(body.phone);
   if(action==='check'){
-    const {data:pass,error:rateError}=await admin.rpc('yt_pin_lookup_gate',{p_phone:phone});
-    if(rateError||!pass)return send({ok:false,error:'too_many_attempts'},429,origin);
     const {data:account,error:foundError}=await admin.from('pin_accounts').select('auth_user_id').eq('phone',phone).maybeSingle();
     if(foundError)throw Error('server_unavailable');
     return send({ok:true,registered:!!account},200,origin);
@@ -236,7 +228,6 @@ Deno.serve(async(req:Request)=>{
     return send({ok:true,token,expires_in:300},200,origin);
   }
   const pin=pinValue(body.pin);
-  if(!await allowed(phone))return send({ok:false,error:'too_many_attempts',message:'尝试次数过多，请 15 分钟后再试'},429,origin);
   const pass=await password(phone,pin);
 
   if(action==='register') {
@@ -293,7 +284,6 @@ Deno.serve(async(req:Request)=>{
    }
    const {data:session,error:authError}=await signIn(alias,pass);
    if(authError||!session.session)throw Error('registered_but_login_failed');
-   await reset(phone);
    return send({ok:true,access_token:session.session.access_token,refresh_token:session.session.refresh_token,expires_in:session.session.expires_in},200,origin);
   }
   const {data:linked,error:lookupError}=await admin.from('pin_accounts').select('auth_user_id').eq('phone',phone).maybeSingle();
@@ -303,7 +293,6 @@ Deno.serve(async(req:Request)=>{
   if(userError||!userInfo.user?.email)throw Error('server_unavailable');
   const {data:session,error:authError}=await signIn(userInfo.user.email,pass);
   if(authError||!session.session)return send({ok:false,error:'invalid_credentials',message:'手机号或 PIN 不正确'},401,origin);
-  await reset(phone);
   return send({ok:true,access_token:session.session.access_token,refresh_token:session.session.refresh_token,expires_in:session.session.expires_in},200,origin);
  } catch(error) {
   const message=error instanceof Error?error.message:'unknown_error';

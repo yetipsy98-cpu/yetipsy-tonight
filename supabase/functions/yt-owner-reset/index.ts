@@ -25,15 +25,8 @@ async function owner(req:Request){
  if(claims.sub!==user.id||!uuid.test(claims.session_id||''))fail('not_authenticated');
  return {account,session:await sha(claims.session_id)};
 }
-async function gate(key:string,reset=false){
- const {data,error}=await admin.rpc('yt_work_gate',{p_key:await sha(key),p_reset:reset});
- if(error)fail('work_configuration_error');
- return data===true;
-}
-async function checkPassword(account:any,value:any,stage:string){
+async function checkPassword(account:any,value:any){
  if(typeof value!=='string'||value.length<1||value.length>128)fail('invalid_credentials');
- const key='factory-reset:'+stage+':'+account.auth_user_id;
- if(!await gate(key))fail('too_many_attempts');
  const {data:accountInfo,error:accountError}=await admin.auth.admin.getUserById(account.auth_user_id);
  if(accountError||!accountInfo?.user?.email)fail('account_unavailable');
  const {data:pepper,error:pepperError}=await admin.rpc('yt_pin_secret_value');
@@ -45,7 +38,6 @@ async function checkPassword(account:any,value:any,stage:string){
  if(loginError||!login.session)fail('invalid_credentials');
  const {error:revokeError}=await admin.auth.admin.signOut(login.session.access_token,'local');
  if(revokeError)fail('reset_verification_failed');
- await gate(key,true);
 }
 async function resetRpc(account:any,session:string,action:string,body:any={}){
  const {data,error}=await admin.rpc('yt_owner_reset_v9',{p_actor:account.auth_user_id,p_session:session,p_action:action,p_challenge:body.challenge||null,p_request:body.request||null,p_done:body.done||[],p_scopes:action==='prepare'?body.scopes:null});
@@ -88,18 +80,18 @@ Deno.serve(async(req:Request)=>{
   if(action==='reset_prepare'){
    if(!uuid.test(body.request||''))fail('invalid_reset_request');
    if(!Array.isArray(body.scopes)||body.scopes.length<1||body.scopes.length>7||body.scopes.some((s:any)=>!scopesAllowed.includes(s)))fail('invalid_reset_scope');
-   await checkPassword(account,body.password,'first');
+   await checkPassword(account,body.password);
    return reply({ok:true,...await resetRpc(account,session,'prepare',body)});
   }
   if(!uuid.test(body.challenge||''))fail('invalid_reset_request');
   if(action==='reset_confirm'){
-   await checkPassword(account,body.password,'second');
+   await checkPassword(account,body.password);
    return reply({ok:true,...await resetRpc(account,session,'commit',body)});
   }
   return reply({ok:true,...await finish(account,session,body)});
  }catch(error){
   const message=error instanceof Error?error.message:'server_unavailable';
-  const known:Record<string,number>={not_authenticated:401,owner_only:403,invalid_credentials:401,too_many_attempts:429,invalid_reset_scope:400,invalid_reset_request:400,invalid_reset_scope_blocked:409,storebox_member_reset_blocked:409,reset_confirmation_expired:409,reset_cleanup_pending:409,reset_scope_conflict:409,reset_cleanup_failed:503,reset_verification_failed:503,reset_not_committed:409};
+  const known:Record<string,number>={not_authenticated:401,owner_only:403,invalid_credentials:401,invalid_reset_scope:400,invalid_reset_request:400,invalid_reset_scope_blocked:409,storebox_member_reset_blocked:409,reset_confirmation_expired:409,reset_cleanup_pending:409,reset_scope_conflict:409,reset_cleanup_failed:503,reset_verification_failed:503,reset_not_committed:409};
   if(message in known)return reply({ok:false,error:message},known[message]);
   console.error('yt-owner-reset failure:',message);
   return reply({ok:false,error:'reset_database_error'},503);

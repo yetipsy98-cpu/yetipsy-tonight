@@ -1,6 +1,6 @@
 // Two real password verifications, followed by atomic business reset and resumable API cleanup.
 // All authorization is supplied by the existing validated Owner session check.
-export function createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send}:any){
+export function createOwnerReset({admin,ownerFromRequest,verify,sha,send}:any){
  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  async function context(req:Request){
   const account=await ownerFromRequest(req);
@@ -9,16 +9,13 @@ export function createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send}:a
   if(claims.sub!==account.auth_user_id||!uuid.test(claims.session_id||''))throw Error('not_authenticated');
   return {account,session:await sha(claims.session_id)};
  }
- async function checkPassword(account:any,value:unknown,stage:string){
+ async function checkPassword(account:any,value:unknown){
   if(typeof value!=='string'||value.length<1||value.length>128)throw Error('invalid_credentials');
-  const key='factory-reset:'+stage+':'+account.auth_user_id;
-  if(!await rate(key))throw Error('too_many_attempts');
   const {data,error}=await verify(account.username,value,account.auth_user_id);
   if(error||!data?.session)throw Error('invalid_credentials');
   // Verification creates a temporary session; revoke only that session, preserving the Owner console.
   const {error:signoutError}=await admin.auth.admin.signOut(data.session.access_token,'local');
   if(signoutError)throw Error('reset_verification_failed');
-  await rate(key,true);
  }
  async function rpc(account:any,session:string,action:string,body:any={}){
   const {data,error}=await admin.rpc('yt_owner_reset_v8',{p_actor:account.auth_user_id,p_session:session,p_action:action,
@@ -31,12 +28,12 @@ export function createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send}:a
   if(action==='reset_prepare'){
    if(!uuid.test(body.request||''))throw Error('invalid_reset_request');
    if(!Array.isArray(body.scopes)||!body.scopes.length||body.scopes.length>6||body.scopes.some((x:any)=>!['records','members','catalog','campaigns','team','banners'].includes(x)))throw Error('invalid_reset_scope');
-   await checkPassword(account,body.password,'first');
+   await checkPassword(account,body.password);
    return send({ok:true,...await rpc(account,session,'prepare',body)});
   }
   if(!uuid.test(body.challenge||''))throw Error('invalid_reset_request');
   if(action==='reset_confirm'){
-   await checkPassword(account,body.password,'second');
+   await checkPassword(account,body.password);
    return send({ok:true,...await rpc(account,session,'commit',body)});
   }
   if(action!=='reset_finish')throw Error('invalid_reset_request');

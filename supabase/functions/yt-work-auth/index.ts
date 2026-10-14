@@ -35,11 +35,6 @@ async function password(user:string,plain:string):Promise<string>{
  const d=await crypto.subtle.sign('HMAC',key,new TextEncoder().encode('yetipsy:work:v1:'+user+':'+plain));
  return 'YT-WORK-'+Array.from(new Uint8Array(d),x=>x.toString(16).padStart(2,'0')).join('');
 }
-async function rate(key:string,reset=false):Promise<boolean>{
- const {data,error}=await admin.rpc('yt_work_gate',{p_key:await sha(key),p_reset:reset});
- if(error)throw Error('work_configuration_error');
- return data===true;
-}
 function publicClient(){return createClient(URL,PUBLIC,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});}
 async function verify(username:string,plain:string,id:string){
  const {data:userInfo,error:userError}=await admin.auth.admin.getUserById(id);
@@ -77,8 +72,6 @@ async function activate(body:any,req:Request){
  const code=String(body.setup_code||'');
  if(!/^[a-zA-Z0-9_-]{40,80}$/.test(code))return err('invalid_setup',403);
  const newPassword=strong(body.new_password,'owner');
- const client=(req.headers.get('cf-connecting-ip')||req.headers.get('x-real-ip')||'activation');
- if(!await rate('setup:'+client))return err('too_many_attempts',429);
  const tokenHash=await sha(code);
  const {data:reserved,error:reserveError}=await admin.from('work_setup')
  .update({consumed_at:now()}).eq('id',true).eq('token_hash',tokenHash)
@@ -96,7 +89,6 @@ async function activate(body:any,req:Request){
   if(roleErr)throw Error('account_creation_failed');
   await admin.from('staff_roles').update({active:false}).eq('role','owner').neq('user_id',uid);
   await audit(uid,'work.owner_activated',uid);
-  await rate('setup:'+client,true);
   return send({ok:true,username:'owner',message:'Owner 已激活。请使用新密码登录。'});
  }catch(e){
   if(uid){const {error:deleteErr}=await admin.auth.admin.deleteUser(uid);if(deleteErr)console.error('cleanup_failed',deleteErr.message);}
@@ -109,21 +101,17 @@ async function login(body:any,req:Request){
  const u=username(body.username);
  const plain=String(body.password||'');
  if(plain.length<1||plain.length>128)return err('invalid_credentials',401);
- const ip=req.headers.get('cf-connecting-ip')||req.headers.get('x-real-ip')||'';
- if(!await rate('username:'+u)|| (ip&&!await rate('ip:'+ip)))return err('too_many_attempts',429);
  const {data:acct,error:ae}=await admin.from('work_accounts')
  .select('auth_user_id,username,role,active,must_change_password').eq('username',u).maybeSingle();
  if(ae)throw Error('work_configuration_error');
  if(!acct||!acct.active)return err('invalid_credentials',401);
  const {data:auth,error:signError}=await verify(u,plain,acct.auth_user_id);
  if(signError||!auth.session)return err('invalid_credentials',401);
- await rate('username:'+u,true);
  return send({ok:true,access_token:auth.session.access_token,refresh_token:auth.session.refresh_token,expires_in:auth.session.expires_in,username:u,role:acct.role,must_change_password:acct.must_change_password});
 }
 async function updatePassword(body:any,req:Request){
  const acct=await accountFromRequest(req);
  const prev=String(body.old_password||'');
- if(!await rate('username:'+acct.username))return err('too_many_attempts',429);
  const {data:check,error:ve}=await verify(acct.username,prev,acct.auth_user_id);
  if(ve||!check.session)return err('invalid_credentials',401);
  const replacement=strong(body.new_password,acct.username);
@@ -136,7 +124,6 @@ async function updatePassword(body:any,req:Request){
   const {error:roleErr}=await admin.from('staff_roles').update({active:true}).eq('user_id',acct.auth_user_id).eq('role',acct.role);
   if(roleErr)throw Error('password_update_failed');
  }
- await rate('username:'+acct.username,true);
  await audit(acct.auth_user_id,'work.password_changed',acct.auth_user_id);
  return send({ok:true,message:'密码修改成功。请重新登录。'});
 }
@@ -306,7 +293,7 @@ async function manageOwnerLimited(body:any,req:Request,mode:'owner_limited_toggl
  const {error:role}=await admin.from('staff_roles').update({active:false}).eq('user_id',acct.auth_user_id).eq('role','owner_limited');if(role)throw Error('password_update_failed');
  await audit(owner.auth_user_id,'work.owner_limited_password_reset',acct.auth_user_id);return send({ok:true,requires_password_change:true});
 }
-const ownerReset=createOwnerReset({admin,ownerFromRequest,rate,verify,sha,send});
+const ownerReset=createOwnerReset({admin,ownerFromRequest,verify,sha,send});
 
 Deno.serve(async(req:Request)=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:headers()});
@@ -342,7 +329,7 @@ Deno.serve(async(req:Request)=>{
  }catch(e){
   const code=e instanceof Error?e.message:'server_error';
   const publicErrors:Record<string,number>={
-    invalid_username:400,weak_password:400,invalid_credentials:401,too_many_attempts:429,
+    invalid_username:400,weak_password:400,invalid_credentials:401,
     username_taken:409,not_authenticated:401,owner_only:403,staff_not_found:404,cashier_not_found:404,
     invalid_reset_scope:400,reset_scope_conflict:409,invalid_reset_request:400,reset_confirmation_expired:409,reset_not_committed:409,reset_cleanup_pending:409,reset_cleanup_failed:503,reset_verification_failed:503,storebox_member_reset_blocked:409,password_reused:400,invalid_setup:403,invalid_setup_or_already_used:403,owner_already_exists:409
   };

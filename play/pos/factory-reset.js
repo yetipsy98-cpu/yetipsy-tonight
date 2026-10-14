@@ -24,7 +24,7 @@ export function createFactoryReset({work,notice,onReset}){
    for(const [label,count] of Object.entries(res.counts||{})){const row=document.createElement('p');row.textContent=label+'：'+count;scope.append(row);}
    const expiry=document.createElement('p');expiry.textContent='范围已锁定，5 分钟内有效。当前 Owner 与内置游戏保留。';scope.append(expiry);
    $('factoryPrepareForm').classList.add('hidden');$('factoryConfirmForm').classList.remove('hidden');$('factoryStatus').textContent='核对上述范围后，输入第二次密码确认。';
-  }catch(e){const msg=({storebox_member_reset_blocked:'存酒箱仍关联会员；如需删除会员，必须独立勾选并清空存酒箱。',invalid_credentials:'密码不正确',reset_cleanup_pending:'上次重置清理未完成，请先恢复',reset_verification_failed:'登录验证服务暂时失败',too_many_attempts:'重试次数过多，请稍后再试',invalid_reset_scope:'所选范围无效'}[e.message]||e.message||'重置预检失败');notice(msg,true);$('factoryStatus').textContent='未清空任何记录：'+msg;}finally{lock(false);if(challenge)$('factoryPassword2').focus();}
+  }catch(e){const msg=({storebox_member_reset_blocked:'存酒箱仍关联会员；如需删除会员，必须独立勾选并清空存酒箱。',invalid_credentials:'密码不正确',reset_cleanup_pending:'上次重置清理未完成，请先恢复',reset_verification_failed:'登录验证服务暂时失败',invalid_reset_scope:'所选范围无效'}[e.message]||e.message||'重置预检失败');notice(msg,true);$('factoryStatus').textContent='未清空任何记录：'+msg;}finally{lock(false);if(challenge)$('factoryPassword2').focus();}
  };
  $('factoryConfirmForm').onsubmit=async e=>{
   e.preventDefault();if(running||!challenge||!$('factoryConsent').checked)return;lock(true);$('factoryStatus').textContent='正在验证第二次密码…';
@@ -32,7 +32,7 @@ export function createFactoryReset({work,notice,onReset}){
   try{const res=await work('reset_confirm',{password,challenge},true);const job={challenge:res.challenge,scopes:res.scopes};saveJob(job);await finish(job);}
   catch(e){
    const raw=e?.message||'server_unavailable';
-   const translations={reset_database_error:'数据库未能完成重置，本次没有清空资料；请检查错误日志。',reset_confirmation_expired:'本次确认已超过 5 分钟，请重新选择范围并验证密码。',reset_cleanup_pending:'上一次重置尚有清理工作，请先恢复。',invalid_credentials:'第二次输入的 Owner 密码不正确。',storebox_member_reset_blocked:'还有存酒箱关联会员，不能仅清空会员。',too_many_attempts:'密码尝试次数过多，请稍后重试。',reset_verification_failed:'密码验证服务异常，请稍后重试。',server_unavailable:'服务器暂时无法执行重置，尚未确认完成。'};
+   const translations={reset_database_error:'数据库未能完成重置，本次没有清空资料；请检查错误日志。',reset_confirmation_expired:'本次确认已超过 5 分钟，请重新选择范围并验证密码。',reset_cleanup_pending:'上一次重置尚有清理工作，请先恢复。',invalid_credentials:'第二次输入的 Owner 密码不正确。',storebox_member_reset_blocked:'还有存酒箱关联会员，不能仅清空会员。',reset_verification_failed:'密码验证服务异常，请稍后重试。',server_unavailable:'服务器暂时无法执行重置，尚未确认完成。'};
    const message=translations[raw]||raw;
    notice(message,true);
    const pendingCleanup=!!savedJob();
