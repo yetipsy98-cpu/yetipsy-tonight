@@ -5,6 +5,7 @@ import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 import {createBannerManager} from './owner-banners.js?v=20261010-copy-v15-4';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
 import {createCustomerStoreBox} from './customer-store-box.js?v=20261012-bilingual-receipt-v19';
+import {createAmbassadorClient} from './ambassador-client.js?v=20261014-ambassador-v1';
 import {createClientI18n} from './client-i18n.js?v=20261012-bilingual-receipt-v19';
 
 const $=id=>document.getElementById(id);
@@ -17,7 +18,7 @@ const rewardBindingEditor=createRewardBindingEditor({db,root:$('rewardBindingRoo
 const state={user:null,role:null,profile:null,view:'home',games:[],passes:[],wallet:[],rewards:[],campaigns:[],ownerGames:[],pool:[],assigned:[],busy:false,refreshing:false,activeSession:null,currentRedemption:null,currentOffer:null,board:[],staffRoles:[],handleToken:null,loginMode:'phone',checkedPhone:null,pendingClaim:null,pendingLucky:null,gamePlaying:false,referralDraft:'',loyalty:null};
 let scanner=null,scannerRunning=false,qrLibPromise=null,barcodeLibPromise=null;
 let installPromptEvent=null,workerRegistration=null;
-let customerStoreBox=null,luckyBox=null;
+let customerStoreBox=null,luckyBox=null,ambassadorClient=null;
 const i18n=createClientI18n({button:$('languageToggle'),onChange:()=>{updateHome();renderWallet();renderMyLoyalty();customerStoreBox?.load(true).catch(()=>{});}});
 const tr=(key,vars)=>i18n.t(key,vars);
 function pwaNotice(message){const el=$('pwaNotice');if(!el)return;el.textContent=message;el.classList.remove('hide');clearTimeout(pwaNotice.timer);pwaNotice.timer=setTimeout(()=>el.classList.add('hide'),6500);}
@@ -713,7 +714,7 @@ function bindEvents(){
  $('ownerOpenPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('reloadInsights').onclick=e=>pending(e.currentTarget,loadInsights).catch(()=>{});$('staffAccessGrant').onclick=e=>pending(e.currentTarget,grantStaff).catch(()=>{});
 }
-async function boot(){i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
+async function boot(){i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});ambassadorClient=createAmbassadorClient({db,toast:(message,bad)=>toast(message,bad)});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
  db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();shell(false);changeAuthMode('phone');}});
