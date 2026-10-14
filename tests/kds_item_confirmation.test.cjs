@@ -7,6 +7,8 @@ assert.match(sql,/not exists\(select 1 from public\.yt_member_order_items where 
 assert.match(sql,/add column if not exists fulfilled boolean/,'line progress persists in Supabase');
 assert.match(pos,/data-order-item="\$\{escapeAttr\(item\.id\)\}"/,'each KDS line has its own confirmation target');
 assert.match(sql,/where id=p_order_item and order_id=p_order and quantity>0 and not fulfilled/,'a line can be fulfilled by its own id without depending on earlier orders or lines');
+assert.match(pos,/production=productionRows\(\)\.sort\(\(a,b\)=>Date\.parse\(b\.created_at\)-Date\.parse\(a\.created_at\)\)/,'newest KDS orders appear first without making older orders a prerequisite');
+assert.match(pos,/yt_pos_item_fulfill'\s*,\{p_order:orderId,p_order_item:itemId,p_all:action==='fulfilled_all'\}/,'fulfillment targets the selected order directly');
 assert.match(pos,/showTab\('orders'\);try\{await refreshOrders\(false\);if\(checkoutMode==='pay_now'\)/,'successful orders go to Orders and pay-now opens checkout');
 assert.match(pos,/checkoutMode==='pay_now'\?\s*openOrderCart|if\(checkoutMode==='pay_now'\).*openOrderCart/s,'pay-now opens the matching order checkout');
 assert.match(pos,/p_checkout_mode/,'checkout choice is retained with the submitted order');
