@@ -14,8 +14,11 @@ test('KDS foregrounds table and cup quantity while keeping notes visible',()=>{
 });
 
 test('staff can open dated KDS history for regular and Store Box tickets',()=>{
- assert.match(html,/id="kdsHistoryDetails"/);
- assert.match(html,/id="kdsHistoryDate"/);
+ for(const role of ['pos','owner','staff','cashier','admin/pos','admin/owner','admin/staff','admin/cashier']){
+  const page=fs.readFileSync(`play/${role}/index.html`,'utf8');
+  assert.match(page,/id="kdsHistoryDetails"/,role);
+  assert.match(page,/id="kdsHistoryDate"/,role);
+ }
  assert.match(pos,/yt_kds_history/);
  assert.match(pos,/store_box_requests/);
  assert.match(sql,/coalesce\(jsonb_agg\(to_jsonb\(x\) order by x\.event_at desc\)/);

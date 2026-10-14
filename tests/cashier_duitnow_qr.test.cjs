@@ -15,7 +15,7 @@ assert.match(owner,/\.from\(bucket\)\.upload/);
 assert.match(owner,/yt_owner_payment_qr_save/);
 for(const page of ['pos','owner','staff','cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
- assert.match(html,/pos\.js\?v=20261014-kds-history-v1/);
+ assert.match(html,/pos\.js\?v=20261014-kds-history-v2/);
  assert.match(html,/value="duitnow" selected>DuitNow（默认）/);
  assert.match(html,/id="cashierDuitNowQr"/);
  assert.match(html,/id="cashierDuitNowQrImage"/);
