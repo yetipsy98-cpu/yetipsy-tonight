@@ -48,7 +48,7 @@ assert.match(staff, /7\*86400000/);
 assert.doesNotMatch(staff, /yt_ambassador_checkin/);
 assert.match(followup, /ambassador_id drop not null/);
 assert.match(followup, /issued_by=auth\.uid\(\)/);
-assert.match(followup, /commission_rate,0/);
+assert.match(followup, /rate:=coalesce\(a\.commission_rate,0\)/);
 assert.match(followup, /reservation_day.*d\+7/);
 assert.match(followup, /today_passes/);
 assert.match(client, /yt_ambassador_portal/);
