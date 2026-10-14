@@ -6,11 +6,15 @@ assert(pos.includes("function unpaidRows(){return (state.active||[]).filter(row=
 assert(!pos.includes("$('cartCheckoutPayment').value='duitnow';"),'refreshing the cart does not overwrite selected payment method');
 assert(pos.includes("if(action==='accept'&&sourceRow?.checkout_mode==='pay_now'&&isCashier())await openOrderCart(orderId);"),'Cashier acceptance opens checkout for pay-now orders');
 assert(pos.includes("proofPending?'DuitNow 已提交，等待 Cashier 确认'"),'Staff sees submitted DuitNow proof state and cannot resubmit');
+assert(pos.includes("proofField?.classList.toggle('hidden',!show||!requiresProof)"),'Staff receives a visible upload control only for DuitNow');
+assert(pos.includes("if(label)label.textContent=message;else n.textContent=message;")&&!pos.includes("if(label)label.textContent=message;n.dataset.message=message;n.textContent=message"),'notices preserve their dismiss controls');
+assert(pos.includes("if(!persist)state.noticeTimer=setTimeout(()=>n.classList.add('hidden'),bad?8000:6200)"),'warning notices dismiss automatically');
 assert(pos.includes("yt_pos_duitnow_proof_submit"),'Staff submits DuitNow evidence');
 assert(pos.includes("yt_pos_duitnow_proof_review"),'Cashier confirms or rejects uploaded proof');
 assert(pos.includes(".storage.from('yetipsy-payment-proof').remove([result.storage_path])"),'evidence is deleted after cashier review');
 assert(html.includes('id="duitnowProofInput"')&&html.includes('capture="environment"'),'mobile camera upload is available');
 assert(html.includes('id="duitnowProofList"'),'Cashier review queue is visible');
+assert(html.includes('id="duitnowProofField" class="hidden"'),'DuitNow upload control begins hidden until payment mode is selected');
 assert(sql.includes("p_method='duitnow' and not v_cashier"),'database blocks Staff from directly marking DuitNow paid');
 assert(sql.includes("private.yt_pos_work_staff()"),'uploads require authenticated work accounts');
 assert(sql.includes("private.yt_pos_work_cashier()"),'evidence access and review are cashier-only');

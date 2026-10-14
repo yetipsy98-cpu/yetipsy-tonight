@@ -98,7 +98,7 @@ async function run(){
  const manual=h.backend.calls.find(c=>c.name==='yt_pos_preorder_scan_auto');assert.equal(manual.args.p_code,'7K3M9X2P');assert(!('p_token' in manual.args));
  await h.e.draftRewardChoices.children[0].onclick();assert.equal(h.e.cartTotal.textContent,'RM23.00');
  h=harness();h.api.state.cart.set(P,1);h.e.draftRedeemToken.value='7K3M9X2P';h.backend.shortError='short_code_invalid_or_expired';
- await assert.rejects(h.api.scanDraftReward(),/short_code_invalid_or_expired/);assert.equal(h.e.draftRedeemToken.value,'7K3M9X2P');assert.equal(h.api.state.draftSelection,null);assert.match(h.e.notice.textContent,/兑换码不正确/);
+ await assert.rejects(h.api.scanDraftReward(),/short_code_invalid_or_expired/);assert.equal(h.e.draftRedeemToken.value,'7K3M9X2P');assert.equal(h.api.state.draftSelection,null);assert.match(h.e.noticeMessage.textContent,/兑换码不正确/);
  console.log('PASS: both entry points, discounts, reward choices/removal, stale responses, quantity guard, persisted exact retry, single order after lost response, database rejection recovery, Cashier channel and QR fallback.');
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});
