@@ -12,7 +12,9 @@ assert(pos.includes("if(!persist)state.noticeTimer=setTimeout(()=>n.classList.ad
 assert(pos.includes("yt_pos_duitnow_proof_submit"),'Staff submits DuitNow evidence');
 assert(pos.includes("yt_pos_duitnow_proof_review"),'Cashier confirms or rejects uploaded proof');
 assert(pos.includes(".storage.from('yetipsy-payment-proof').remove([result.storage_path])"),'evidence is deleted after cashier review');
-assert(html.includes('id="duitnowProofInput"')&&html.includes('capture="environment"'),'mobile camera upload is available');
+assert(html.includes('id="duitnowProofInput"')&&html.includes('id="duitnowCameraOpen"')&&html.includes('id="duitnowProofVideo"')&&html.includes('id="duitnowCameraCapture"'),'in-page camera capture and gallery upload are available');
+assert(pos.includes('async function openDuitnowCamera()')&&pos.includes('async function captureDuitnowPhoto()')&&pos.includes("state.duitnowProofFile||$('duitnowProofInput')?.files?.[0]"),'captured photo is previewed and submitted as payment evidence');
+assert(html.includes('每笔订单可独立确认出品，不受列表顺序限制。')&&pos.includes('data-action="fulfilled" data-order="${escapeAttr(row.id)}"'),'KDS tickets can be completed independently');
 assert(html.includes('id="duitnowProofList"'),'Cashier review queue is visible');
 assert(html.includes('id="duitnowProofField" class="hidden"'),'DuitNow upload control begins hidden until payment mode is selected');
 assert(sql.includes("p_method='duitnow' and not v_cashier"),'database blocks Staff from directly marking DuitNow paid');
