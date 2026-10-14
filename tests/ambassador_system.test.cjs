@@ -45,6 +45,11 @@ assert.match(sql, /insert into public\.yt_ambassador_checkins/);
 assert.match(sql, /insert into public\.yt_ambassador_ledger/);
 assert.match(checkout, /yt_ambassador_pos_sales where order_id=new\.id/);
 assert.match(dayClose, /AB_DuitNow/);
+const paymentResetFix = read('sql/088_ambassador_payment_categories_and_reset_scope.sql');
+assert.match(paymentResetFix, /'AB_DuitNow'[\\s\\S]*'AB_Other'/);
+assert.match(paymentResetFix, /public\\.yt_ambassador_ledger,public\\.yt_ambassador_checkins,public\\.yt_ambassador_pos_sales,public\\.yt_ambassador_passes/);
+assert.match(paymentResetFix, /'Ambassador Pass'[\\s\\S]*'Ambassador 核销'[\\s\\S]*'Ambassador 佣金记录'/);
+assert.match(pos, /yt pos payment entries method check/);
 
 // Staff issue window is rendered; Cashier/Owner can issue at 0 commission and see today's Pass list.
 assert.match(staff, /id="ytaWorkPassForm"/);
