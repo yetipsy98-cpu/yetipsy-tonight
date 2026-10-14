@@ -5,7 +5,7 @@ import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261014-ambassador-pos-sales-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261013-cashier-followup-v1';
-import {createAmbassadorTools} from './ambassador.js?v=20261014-ambassador-pos-sales-v3';
+import {createAmbassadorTools} from './ambassador.js?v=20261014-ambassador-cart-pass-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -19,7 +19,7 @@ const db=usable?createClient(conf.url,conf.publishableKey,{auth:{storageKey:'yt-
 const workURL=(conf.url||'')+'/functions/v1/yt-work-auth';
 const rewardBindingEditor=$('rewardBindingRoot')?createRewardBindingEditor({db,root:$('rewardBindingRoot')}):null;
 const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
-  active:[],paid:[],pending:[],seenPending:new Set(),seenInitialized:false,seenKds:new Set(),seenKdsInitialized:false,storeBoxQueue:[],seenStoreBox:new Set(),seenStoreBoxInitialized:false,ambassadorAccess:false,
+  active:[],paid:[],pending:[],seenPending:new Set(),seenInitialized:false,seenKds:new Set(),seenKdsInitialized:false,storeBoxQueue:[],seenStoreBox:new Set(),seenStoreBoxInitialized:false,ambassadorAccess:false,ambassadorDraft:null,
   currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
    series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0,
@@ -69,7 +69,7 @@ function showNotice(message,bad=false,persist=false){const n=$('notice');n.textC
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
 async function work(action,data={},signed=false){const headers={'Content-Type':'application/json',apikey:conf.publishableKey};if(signed)headers.Authorization='Bearer '+await getBearer();const endpoint=action.startsWith('reset_')?(conf.url||'')+'/functions/v1/yt-owner-reset':workURL;const resp=await fetch(endpoint,{method:'POST',headers,cache:'no-store',body:JSON.stringify({action,...data})});const res=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));if(!resp.ok||!res.ok)throw Error(res.error||'server_unavailable');return res;}
-function resetLogin(){clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();storeBox?.clear();state.cart.clear();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.ownerDashboard=null;state.ownerDashboardDay=null;state.ownerDashboardLoading=false;state.storeBoxQueue=[];state.seenStoreBox=new Set();state.seenStoreBoxInitialized=false;state.seenKds=new Set();state.seenKdsInitialized=false;state.seenPending=new Set();state.seenInitialized=false;state.activeView='login';state.identity=null;consoleUI?.roleChanged();$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
+function resetLogin(){clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();storeBox?.clear();state.cart.clear();state.ambassadorDraft=null;state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.ownerDashboard=null;state.ownerDashboardDay=null;state.ownerDashboardLoading=false;state.storeBoxQueue=[];state.seenStoreBox=new Set();state.seenStoreBoxInitialized=false;state.seenKds=new Set();state.seenKdsInitialized=false;state.seenPending=new Set();state.seenInitialized=false;state.activeView='login';state.identity=null;consoleUI?.roleChanged();$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
 async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
  const username=$('username').value.trim().toLowerCase(),password=$('password').value;
  const result=await work('login',{username,password});
@@ -164,13 +164,13 @@ const draftItems=()=>[...state.cart].map(([product_id,quantity])=>({product_id,q
 const draftKey=()=>`yt-pos-v5-draft:${portal}:${state.identity?.username||''}`;
 function restoreDraft(){
  state.cart.clear();state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.currentRequestId=null;
- try{const oldKey=`yt-pos-v5-draft:cashier:${state.identity?.username||''}`;if(state.identity?.role==='cashier'&&!sessionStorage.getItem(draftKey())&&sessionStorage.getItem(oldKey)){sessionStorage.setItem(draftKey(),sessionStorage.getItem(oldKey));sessionStorage.removeItem(oldKey);}const d=JSON.parse(sessionStorage.getItem(draftKey())||'null');if(d?.draftId){state.draftId=d.draftId;state.cart=new Map(d.items||[]);state.draftSelection=d.selection||null;state.pendingSubmit=d.pending||null;$('tableInput').value=d.table||'';$('orderNote').value=d.note||'';const mode=state.pendingSubmit?.p_checkout_mode||d.checkoutMode||'pay_later';$('checkoutPayNow').checked=mode==='pay_now';$('checkoutPayLater').checked=mode!=='pay_now';if(state.pendingSubmit)$('cashierDirect').checked=state.pendingSubmit.p_channel==='cashier';}}catch{}
+ try{const oldKey=`yt-pos-v5-draft:cashier:${state.identity?.username||''}`;if(state.identity?.role==='cashier'&&!sessionStorage.getItem(draftKey())&&sessionStorage.getItem(oldKey)){sessionStorage.setItem(draftKey(),sessionStorage.getItem(oldKey));sessionStorage.removeItem(oldKey);}const d=JSON.parse(sessionStorage.getItem(draftKey())||'null');if(d?.draftId){state.draftId=d.draftId;state.cart=new Map(d.items||[]);state.ambassadorDraft=d.ambassador||null;state.draftSelection=d.selection||null;state.pendingSubmit=d.pending||null;$('tableInput').value=d.table||'';$('orderNote').value=d.note||'';const mode=state.pendingSubmit?.p_checkout_mode||d.checkoutMode||'pay_later';$('checkoutPayNow').checked=mode==='pay_now';$('checkoutPayLater').checked=mode!=='pay_now';if(state.pendingSubmit)$('cashierDirect').checked=state.pendingSubmit.p_channel==='cashier';}}catch{}
 }
-function saveDraft(){if(!state.identity)return;try{sessionStorage.setItem(draftKey(),JSON.stringify({draftId:state.draftId,items:[...state.cart],selection:state.draftSelection,pending:state.pendingSubmit,table:$('tableInput').value,note:$('orderNote').value,checkoutMode:$('checkoutPayNow').checked?'pay_now':'pay_later'}));}catch{}}
+function saveDraft(){if(!state.identity)return;try{sessionStorage.setItem(draftKey(),JSON.stringify({draftId:state.draftId,items:[...state.cart],ambassador:state.ambassadorDraft,selection:state.draftSelection,pending:state.pendingSubmit,table:$('tableInput').value,note:$('orderNote').value,checkoutMode:$('checkoutPayNow').checked?'pay_now':'pay_later'}));}catch{}}
 function updateDraftControls(){
  const locked=state.draftSaving||!!state.pendingSubmit,mutating=state.draftMutating;
  $('createOrderBtn').textContent=state.draftSaving?'正在提交…':state.pendingSubmit?'重试确认原订单 →':'提交订单 →';
- $('createOrderBtn').disabled=state.draftSaving||mutating||(!state.pendingSubmit&&(state.draftLoading||!state.cart.size||!state.draftSummary?.can_submit));
+ $('createOrderBtn').disabled=state.draftSaving||mutating||(!state.pendingSubmit&&(state.draftLoading||(!state.cart.size&&!state.ambassadorDraft)||!state.draftSummary?.can_submit));
  for(const id of ['tableInput','orderNote','cashierDirect','checkoutPayNow','checkoutPayLater'])$(id).disabled=locked;
  const noScan=locked||mutating||state.draftLoading||state.draftSummary?.holds?.some(h=>h.state==='pending');
  $('draftRedeemCheck').disabled=!!noScan;$('draftRedeemScan').disabled=locked||mutating;$('draftRedeemToken').disabled=locked||mutating;
@@ -179,15 +179,26 @@ function updateDraftControls(){
  if(state.pendingSubmit&&!state.draftSaving)$('draftStatus').textContent='提交状态待确认。点击重试会核对原订单，不会重复开单。';
 }
 function renderCart(){let count=0,total=0;const rows=[];
- for(const [id,qty] of state.cart){const p=state.catalog.find(x=>x.id===id&&x.active);if(!p){if(!state.pendingSubmit)state.cart.delete(id);continue;}count+=qty;total+=qty*Number(p.price_rm);
- rows.push(`<div class="cart-row"><div><strong>${esc(p.name)}</strong><small>${money(p.price_rm)} × ${qty}</small></div><div class="cart-tools"><button type="button" data-dec="${esc(id)}" aria-label="减少">−</button><b>${qty}</b><button type="button" data-inc="${esc(id)}" aria-label="增加">+</button></div></div>`);}
- $('cartRows').innerHTML=rows.length?rows.join(''):'<div class="empty">请先选择产品。</div>';
+ if(state.ambassadorDraft){
+  const d=state.ambassadorDraft;
+  for(const [kind,label,qty,price] of [['male','Freeflow Male',Number(d.male||0),Number(d.male_price||0)],['female','Freeflow Female',Number(d.female||0),Number(d.female_price||0)]]){
+   if(!qty)continue;count+=qty;total+=qty*price;
+   rows.push(`<div class="cart-row"><div><strong>${label}</strong><small>${money(price)} × ${qty}</small></div><div class="cart-tools"><button type="button" data-amb-dec="${kind}" aria-label="减少">−</button><b>${qty}</b><button type="button" data-amb-inc="${kind}" aria-label="增加">+</button></div></div>`);
+  }
+  if(count)rows.unshift(`<div class="redeem-banner"><strong>Ambassador Pass · ${esc(d.reservation_day||'')}</strong><p>${esc(d.ambassador_name||'Ambassador')} · ${count} 位 · 收款后计入日结${Number(d.commission_rate||0)>0?'及 Ambassador 佣金':' · 此 Pass 佣金 RM0.00'}</p><button class="quiet" type="button" data-amb-remove>移除 Pass</button></div>`);
+ }else{
+  for(const [id,qty] of state.cart){const p=state.catalog.find(x=>x.id===id&&x.active);if(!p){if(!state.pendingSubmit)state.cart.delete(id);continue;}count+=qty;total+=qty*Number(p.price_rm);
+   rows.push(`<div class="cart-row"><div><strong>${esc(p.name)}</strong><small>${money(p.price_rm)} × ${qty}</small></div><div class="cart-tools"><button type="button" data-dec="${esc(id)}" aria-label="减少">−</button><b>${qty}</b><button type="button" data-inc="${esc(id)}" aria-label="增加">+</button></div></div>`);
+  }
+ }
+ $('cartRows').innerHTML=rows.length?rows.join(''):'<div class="empty">请先选择产品或扫描 Ambassador Pass。</div>';
  $('cartCount').textContent=count+' 件';$('cartDockCount').textContent=count+' 件';$('cartDock').classList.toggle('has-items',count>0);
  $('draftGross').textContent=money(total);$('draftDiscount').textContent='−RM0.00';$('cartTotal').textContent=money(total);$('cartDockTotal').textContent=money(total);
  saveDraft();refreshDraftSummary().catch(e=>{$('draftStatus').textContent=errorText(e)+'，请点击重新核对。';});
 }
 async function refreshDraftSummary(){const epoch=++state.draftEpoch;
  if(state.pendingSubmit){state.draftLoading=false;updateDraftControls();return state.draftSummary;}
+ if(state.ambassadorDraft){const d=state.ambassadorDraft,gross=Number(d.male||0)*Number(d.male_price||0)+Number(d.female||0)*Number(d.female_price||0);state.draftSummary={gross_rm:gross,reserved_discount_rm:0,payable_rm:gross,unresolved_count:0,holds:[],can_submit:gross>0};state.draftLoading=false;$('draftRewardRows').replaceChildren();$('draftRewardChoices').replaceChildren();$('draftGross').textContent=money(gross);$('draftDiscount').textContent='−RM0.00';$('cartTotal').textContent=money(gross);$('cartDockTotal').textContent=money(gross);$('draftStatus').textContent=gross>0?'Freeflow Pass 已加入购物车，可照常结账。':'请至少保留一位顾客。';saveDraft();updateDraftControls();return state.draftSummary;}
  if(!state.cart.size){state.draftSummary=null;state.draftLoading=false;$('draftRewardRows').replaceChildren();$('draftRewardChoices').replaceChildren();$('draftStatus').textContent='先选择至少一杯付费饮品，再使用奖励。';updateDraftControls();return null;}
  state.draftLoading=true;updateDraftControls();$('draftStatus').textContent='正在核对购物车…';
  try{
@@ -212,22 +223,20 @@ function extractMoonCode(raw){
 }
 function isAmbassadorToken(raw){const text=String(raw||'').trim();if(/^YTAMB\s*:/i.test(text)||/^ambassador:/i.test(text))return true;try{return new URL(text).searchParams.has('amb');}catch{return false;}}
 async function scanAmbassadorPass(raw){
- if(state.cart.size)throw Error('ambassador_clear_cart_first');
+ if(state.cart.size||state.ambassadorDraft)throw Error('ambassador_clear_cart_first');
  const p=unpack(await db.rpc('yt_ambassador_pos_pass_lookup',{p_token:raw}));
- const root=$('draftRewardChoices');state.draftSelection=null;root.innerHTML=`<article class="redeem-banner"><strong>Freeflow · ${esc(p.ambassador_name||'Ambassador')}</strong><p>${esc(p.reservation_day)} · 已核销 ${Number(p.checked_pax||0)} 位 / 预登记 ${Number(p.planned_pax||0)} 位</p>${Number(p.checked_pax||0)>Number(p.planned_pax||0)?'<p>已超过预登记人数；仍可继续核销，请确认实际人数。</p>':''}${p.guest_name?`<small>${esc(p.guest_name)}${p.guest_phone?' · '+esc(p.guest_phone):''}</small>`:''}<div class="cart-redeem-choices"><label>男士 ${money(p.male_price)}<input id="ambassadorMaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 男士人数"></label><label>女士 ${money(p.female_price)}<input id="ambassadorFemaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 女士人数"></label></div><p id="ambassadorPassQuote">合计 RM0.00</p><p id="ambassadorPassWarning" role="status"></p><button class="primary" id="ambassadorPassCreate" type="button">建立 Freeflow 待收款单</button></article>`;
+ const root=$('draftRewardChoices');state.draftSelection=null;root.innerHTML=`<article class="redeem-banner"><strong>Freeflow · ${esc(p.ambassador_name||'Ambassador')}</strong><p>${esc(p.reservation_day)} · 已核销 ${Number(p.checked_pax||0)} 位 / 预登记 ${Number(p.planned_pax||0)} 位</p>${Number(p.checked_pax||0)>Number(p.planned_pax||0)?'<p>已超过预登记人数；仍可继续核销，请确认实际人数。</p>':''}${p.guest_name?`<small>${esc(p.guest_name)}${p.guest_phone?' · '+esc(p.guest_phone):''}</small>`:''}<div class="cart-redeem-choices"><label>男士 ${money(p.male_price)}<input id="ambassadorMaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 男士人数"></label><label>女士 ${money(p.female_price)}<input id="ambassadorFemaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 女士人数"></label></div><p id="ambassadorPassQuote">合计 RM0.00</p><p id="ambassadorPassWarning" role="status"></p><button class="primary" id="ambassadorPassCreate" type="button">加入购物车</button></article>`;
  const total=()=>Number($('ambassadorMaleCount').value||0)*Number(p.male_price||0)+Number($('ambassadorFemaleCount').value||0)*Number(p.female_price||0);
  const update=()=>{$('ambassadorPassQuote').textContent='合计 '+money(total());};
  const planned=Number(p.planned_pax||0),checked=Number(p.checked_pax||0),warn=()=>{
-  const next=Number($('ambassadorMaleCount').value||0)+Number($('ambassadorFemaleCount').value||0);
-  const host=$('ambassadorPassWarning');
+  const next=Number($('ambassadorMaleCount').value||0)+Number($('ambassadorFemaleCount').value||0),host=$('ambassadorPassWarning');
   if(host)host.textContent=checked+next>planned?`提醒：本次后累计 ${checked+next} 位，超过预登记 ${planned} 位；仍可继续核销。`:'';
  };
  $('ambassadorMaleCount').oninput=()=>{update();warn();};$('ambassadorFemaleCount').oninput=()=>{update();warn();};
  $('ambassadorPassCreate').onclick=()=>busy($('ambassadorPassCreate'),async()=>{
   const m=Number($('ambassadorMaleCount').value||0),f=Number($('ambassadorFemaleCount').value||0);if(!Number.isInteger(m)||!Number.isInteger(f)||m<0||f<0||m+f<1||m+f>500)throw Error('invalid_guest_count');
-  const result=unpack(await db.rpc('yt_ambassador_pos_order_create',{p_token:raw,p_male:m,p_female:f,p_request:crypto.randomUUID()}));
-  $('draftRedeemToken').value='';$('draftRewardChoices').replaceChildren();closeCartDrawer();await refreshOrders(false);showTab('orders');showNotice(`Freeflow 待收款单 ${result.order_no||''} 已建立；请在 POS「待付款」完成收款。`);
-  if(isCashier()||isOwner())await openOrderCart(result.order_id);
+  state.ambassadorDraft={token:raw,pass_id:p.pass_id,pass_code:p.pass_code,reservation_day:p.reservation_day,ambassador_name:p.ambassador_name,commission_rate:Number(p.commission_rate||0),male:m,female:f,male_price:Number(p.male_price),female_price:Number(p.female_price),planned_pax:planned,checked_pax:checked,guest_name:p.guest_name,guest_phone:p.guest_phone};
+  state.draftSelection=null;$('draftRedeemToken').value='';root.replaceChildren();saveDraft();renderCart();openCartDrawer();showNotice('Freeflow 已加入购物车；请使用下方正常结账按钮。');
  }).catch(()=>{});
 }
 async function scanDraftReward(){return draftOperation(async()=>{
@@ -276,17 +285,39 @@ function renderDraftChoices(h){const root=$('draftRewardChoices');root.replaceCh
 async function releaseDraftReward(id){return draftOperation(async()=>{const hold=state.draftSummary?.holds?.find(x=>x.id===id);unpack(await db.rpc(hold?.source==='moon'?'yt_moon_preorder_release':'yt_pos_preorder_release',{p_hold:id}));if(state.draftSelection?.id===id)state.draftSelection=null;$('draftRewardChoices').replaceChildren();saveDraft();await refreshDraftSummary();showNotice('奖励已移除，顾客奖券仍可使用');});}
 function openCartDrawer(){if(state.currentTab!=='create'||state.activeView!=='dashboard')return;document.body.classList.add('cart-open');$('cartDock').setAttribute('aria-expanded','true');$('cartCloseBtn').focus({preventScroll:true});refreshDraftSummary().catch(e=>showNotice(errorText(e),true));}
 function closeCartDrawer(){stopRedeemCamera();document.body.classList.remove('cart-open');$('cartDock')?.setAttribute('aria-expanded','false');}
-function adjustCart(id,delta){if(state.draftSaving||state.pendingSubmit||state.draftMutating)return;if(state.draftSummary?.holds?.length||state.draftSelection){showNotice('先移除购物车中的奖励，再修改饮品数量。',true);return;}const p=state.catalog.find(x=>x.id===id&&x.active);if(!p)return;const n=Math.max(0,Math.min(20,(state.cart.get(id)||0)+delta));if(n)state.cart.set(id,n);else state.cart.delete(id);renderCart();}
-async function createOrder(){if(state.draftSaving||state.draftMutating)return;state.draftSaving=true;updateDraftControls();let data;
+function adjustCart(id,delta){if(state.draftSaving||state.pendingSubmit||state.draftMutating)return;if(state.ambassadorDraft){showNotice('Ambassador Pass 只能单独结账，不能加入普通饮品。',true);return;}if(state.draftSummary?.holds?.length||state.draftSelection){showNotice('先移除购物车中的奖励，再修改饮品数量。',true);return;}const p=state.catalog.find(x=>x.id===id&&x.active);if(!p)return;const n=Math.max(0,Math.min(20,(state.cart.get(id)||0)+delta));if(n)state.cart.set(id,n);else state.cart.delete(id);renderCart();}
+async function adjustAmbassadorCart(kind,delta){
+ const d=state.ambassadorDraft;if(!d||state.draftSaving||state.pendingSubmit||state.draftMutating)return;
+ const key=kind==='male'?'male':'female';d[key]=Math.max(0,Math.min(500,Number(d[key]||0)+delta));
+ if(!d.male&&!d.female)state.ambassadorDraft=null;
+ saveDraft();renderCart();
+}
+async function createOrder(){if(state.draftSaving||state.draftMutating)return;state.draftSaving=true;updateDraftControls();let data,ambassador=!!state.ambassadorDraft;
  try{
-  if(!state.pendingSubmit){if(!state.cart.size)throw Error('请先选择产品');const q=await refreshDraftSummary();if(!q?.can_submit)throw Error('minimum_purchase_not_met');
-   state.pendingSubmit={p_request:crypto.randomUUID(),p_table:$('tableInput').value.trim()||null,p_note:$('orderNote').value.trim()||null,p_items:draftItems(),p_channel:isCashier()&&$('cashierDirect').checked?'cashier':'staff',p_draft:state.draftId,p_checkout_mode:$('checkoutPayNow').checked?'pay_now':'pay_later'};saveDraft();updateDraftControls();}
-  data=unpack(await db.rpc('yt_pos_create_order_with_rewards_v2',state.pendingSubmit));
+  if(!state.pendingSubmit){
+   if(ambassador){
+    const d=state.ambassadorDraft;if(!d||Number(d.male||0)+Number(d.female||0)<1)throw Error('invalid_guest_count');
+    state.pendingSubmit={ambassador:true,p_request:crypto.randomUUID(),p_token:d.token,p_male:Number(d.male||0),p_female:Number(d.female||0),p_checkout_mode:$('checkoutPayNow').checked?'pay_now':'pay_later'};
+   }else{
+    if(!state.cart.size)throw Error('请先选择产品');const q=await refreshDraftSummary();if(!q?.can_submit)throw Error('minimum_purchase_not_met');
+    state.pendingSubmit={p_request:crypto.randomUUID(),p_table:$('tableInput').value.trim()||null,p_note:$('orderNote').value.trim()||null,p_items:draftItems(),p_channel:isCashier()&&$('cashierDirect').checked?'cashier':'staff',p_draft:state.draftId,p_checkout_mode:$('checkoutPayNow').checked?'pay_now':'pay_later'};
+   }
+   saveDraft();updateDraftControls();
+  }
+  ambassador=state.pendingSubmit?.ambassador===true;
+  if(ambassador){
+   const result=unpack(await db.rpc('yt_ambassador_pos_order_create',{p_token:state.pendingSubmit.p_token,p_male:state.pendingSubmit.p_male,p_female:state.pendingSubmit.p_female,p_request:state.pendingSubmit.p_request}));
+   data={...result,id:result.order_id,status:result.status||'fulfilled'};
+  }else data=unpack(await db.rpc('yt_pos_create_order_with_rewards_v2',state.pendingSubmit));
  }catch(e){if(e.code&&(/^[0-9A-Z]{5}$/.test(e.code)||/^PGRST/.test(e.code))){state.pendingSubmit=null;saveDraft();}showNotice(errorText(e),true);$('draftStatus').textContent=state.pendingSubmit?'提交状态待确认，请重试确认原订单。':'提交未完成：'+errorText(e);}
  finally{state.draftSaving=false;updateDraftControls();}
  if(!data)return;
- const attached=Number(data.reward_cart?.attached||0),checkoutMode=state.pendingSubmit.p_checkout_mode;state.pendingSubmit=null;state.cart.clear();state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('orderNote').value='';$('checkoutPayLater').checked=true;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
- showNotice(`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'已进入吧台 KDS':'等待 Cashier 接受'}`);
+ const checkoutMode=state.pendingSubmit.p_checkout_mode,attached=Number(data.reward_cart?.attached||0);state.pendingSubmit=null;state.cart.clear();state.ambassadorDraft=null;state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('orderNote').value='';$('checkoutPayLater').checked=true;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
+ showNotice(ambassador?`${data.order_no||''} Freeflow 已加入待收款订单；请照常结账。`:`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'已进入吧台 KDS':'等待 Cashier 接受'}`);
+ if(ambassador){
+  try{await refreshOrders(false);showTab('unpaid');if((isCashier()||isOwner())&&checkoutMode==='pay_now')await openOrderCart(data.id);}catch(e){showNotice('Freeflow 已成功开单，订单列表暂未刷新，请点刷新。',true);}
+  return;
+ }
  showTab(data.status==='pending'&&isCashier()?'pending':'orders');try{await refreshOrders(false);if(checkoutMode==='pay_now'&&data.status==='confirmed'&&isCashier())await openOrderCart(data.id);}catch(e){showNotice(`${data.order_no} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
 }
 function statusLabel(row){if(isAmbassadorOrder(row)&&row.payment_status==='unpaid')return 'Freeflow · 待收款';if(row.payment_status==='refunded')return '已退款取消';if(row.payment_status==='paid'&&Number(row.balance_rm)>0)return '待补收 '+money(row.balance_rm);if(row.payment_status==='paid'&&Number(row.balance_rm)<0)return '待退款 '+money(-row.balance_rm);if(row.payment_status==='paid'&&row.status==='confirmed')return '已付款 · 待出品';if(row.payment_status==='paid')return '已付款';if(row.status==='confirmed'&&row.store_box_only)return '待结账 · 结账后发码';return ({pending:'等待 Cashier 接受',confirmed:'已接受 · 待出品',fulfilled:'已出品 · 待结账',cancelled:'已拒绝／取消'}[row.status]||row.status);}
@@ -976,7 +1007,7 @@ function bind(){
  $('searchProduct').oninput=renderCatalog;$('categoryProduct').onchange=renderCatalog;
  $('categoryProductButtons').onclick=e=>{const b=e.target.closest('button[data-category]');if(!b)return;$('categoryProduct').value=b.dataset.category;renderCatalog();};
  $('catalog').onclick=e=>{const btn=e.target.closest('[data-add]');if(btn)adjustCart(btn.dataset.add,1);};
- $('cartRows').onclick=e=>{const btn=e.target.closest('[data-dec],[data-inc]');if(btn)adjustCart(btn.dataset.dec||btn.dataset.inc,btn.dataset.inc?1:-1);};
+ $('cartRows').onclick=e=>{const amb=e.target.closest('[data-amb-dec],[data-amb-inc],[data-amb-remove]');if(amb){if(amb.dataset.ambRemove!==undefined){state.ambassadorDraft=null;saveDraft();renderCart();return;}adjustAmbassadorCart(amb.dataset.ambInc||amb.dataset.ambDec,amb.dataset.ambInc?1:-1);return;}const btn=e.target.closest('[data-dec],[data-inc]');if(btn)adjustCart(btn.dataset.dec||btn.dataset.inc,btn.dataset.inc?1:-1);};
  $('createOrderBtn').onclick=()=>createOrder();
  $('draftRedeemCheck').onclick=()=>scanDraftReward().catch(()=>{});$('draftRedeemScan').onclick=()=>startRedeemCamera().catch(e=>showNotice(errorText(e),true));$('draftRefresh').onclick=()=>refreshDraftSummary().catch(e=>showNotice(errorText(e),true));$('draftRewardRows').onclick=e=>{const b=e.target.closest('[data-release-draft]');if(b)releaseDraftReward(b.dataset.releaseDraft).catch(()=>{});};$('draftRedeemToken').onkeydown=e=>{if(e.key==='Enter'&&!$('draftRedeemCheck').disabled){e.preventDefault();scanDraftReward().catch(()=>{});}};$('tableInput').oninput=saveDraft;$('orderNote').oninput=saveDraft;$('checkoutPayNow').onchange=()=>{saveDraft();updateCreateHint();};$('checkoutPayLater').onchange=()=>{saveDraft();updateCreateHint();};
  $('cartDock').onclick=openCartDrawer;$('cartShade').onclick=closeCartDrawer;$('cartCloseBtn').onclick=closeCartDrawer;
