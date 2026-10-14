@@ -1,7 +1,7 @@
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=v=>'RM'+Number(v||0).toFixed(2),number=v=>Number(v||0).toLocaleString('en-MY');
 const date=v=>v?new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(v)):'—';
-const method=v=>({cash:'现金',duitnow:'DuitNow',bank_transfer:'转账',other:'其他',foodcourt:'食阁收款',card:'银行卡',qr:'扫码支付',transfer:'转账',ewallet:'电子钱包'}[v]||v||'—');
+const method=v=>({cash:'现金',duitnow:'DuitNow',bank_transfer:'转账',other:'其他',foodcourt:'食阁收款',card:'银行卡',qr:'扫码支付',transfer:'转账',ewallet:'电子钱包',AB_DuitNow:'Ambassador · DuitNow',AB_Cash:'Ambassador · 现金',AB_Card:'Ambassador · 刷卡',AB_Bank_Transfer:'Ambassador · 转账',AB_Foodcourt:'Ambassador · 食阁',AB_Other:'Ambassador · 其他'}[v]||v||'—');
 function malaysiaDay(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());return ['year','month','day'].map(k=>p.find(x=>x.type===k).value).join('-');}
 function shiftDay(day,n){const d=new Date(day+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);}
 function csvCell(v){let s=String(v??'');if(/^[\s]*[=+@-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';}

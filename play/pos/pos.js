@@ -2,7 +2,7 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261014-ambassador-pos-sales-v3';
+import {createConsole} from './console.js?v=20261014-payment-reset-alerts-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createStoreBox} from './store-box.js?v=20261013-cashier-followup-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261014-ambassador-owner-window-v3';
@@ -60,12 +60,12 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const money=v=>'RM'+Number(v||0).toFixed(2);
 const stamp=v=>v?new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(v)):'—';
 const unpack=r=>{if(r?.error){const e=Error(r.error.message||r.error.code||'server_unavailable');e.code=r.error.code;throw e;}return r.data};
-const errorText=e=>{let s=String(e?.message||e||'server_unavailable');return msgMap[s]||s.replaceAll('_',' ')};
+const errorText=e=>{let s=String(e?.message||e||'server_unavailable');if(/yt pos payment entries method check/i.test(s))return '付款方式未被系统识别，这笔收款没有完成。请先刷新订单核对付款状态，再重试；不要连续重复收款。';return msgMap[s]||s.replaceAll('_',' ')};
 const isOwner=()=>state.identity?.can_owner===true;
 const isCashier=()=>state.identity?.can_cashier===true;
 function updateCreateHint(){const payNow=$('checkoutPayNow').checked;if(isCashier()&&$('cashierDirect').checked)$('createHint').textContent=payNow?'下单后立即打开收款；订单同时进入吧台 KDS。':'订单直接进入吧台 KDS，出品后进入挂单收款。';else $('createHint').textContent=payNow?'提交审核；Cashier 接受后立即收款。':'提交审核；接受后进入吧台 KDS，出品后挂单。';}
 let consoleUI=null,storeBox=null;
-function showNotice(message,bad=false,persist=false){const n=$('notice');n.textContent=message;n.classList.remove('hidden');n.classList.toggle('error',bad);clearTimeout(state.noticeTimer);if(!persist)state.noticeTimer=setTimeout(()=>n.classList.add('hidden'),6200);}
+function showNotice(message,bad=false,persist=false){const n=$('notice'),label=$('noticeMessage');if(label)label.textContent=message;n.dataset.message=message;n.textContent=message;n.classList.remove('hidden');n.classList.toggle('error',bad);n.setAttribute('role',bad?'alert':'status');n.setAttribute('aria-live',bad?'assertive':'polite');clearTimeout(state.noticeTimer);if(!bad&&!persist)state.noticeTimer=setTimeout(()=>n.classList.add('hidden'),6200);}
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
 async function work(action,data={},signed=false){const headers={'Content-Type':'application/json',apikey:conf.publishableKey};if(signed)headers.Authorization='Bearer '+await getBearer();const endpoint=action.startsWith('reset_')?(conf.url||'')+'/functions/v1/yt-owner-reset':workURL;const resp=await fetch(endpoint,{method:'POST',headers,cache:'no-store',body:JSON.stringify({action,...data})});const res=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));if(!resp.ok||!res.ok)throw Error(res.error||'server_unavailable');return res;}
@@ -994,6 +994,7 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
 function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});}},6500);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
 function bind(){
+ $('noticeDismiss')?.addEventListener('click',()=>{$('notice').classList.add('hidden');clearTimeout(state.noticeTimer);});
  document.addEventListener('pointerdown',unlockAudio,{once:true});
  $('signinForm').addEventListener('submit',e=>{unlockAudio();login(e).catch(()=>{});});window.YT_WORK_READY=true;
  $('paidDateForm').onsubmit=e=>{e.preventDefault();refreshOrders(false);};$('paidToday').onclick=async()=>{try{const c=unpack(await db.rpc('yt_business_context'));state.businessDay=c.day;$('paidDate').value=c.day;await refreshOrders(false);}catch(e){showNotice(errorText(e),true);}};
