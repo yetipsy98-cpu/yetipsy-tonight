@@ -42,7 +42,7 @@ export function createAmbassadorTools({db,isOwner=()=>false,isCashier=()=>false,
  async function openStaff(){const panel=ensureStaffOverlay();panel.classList.add('open');await loadWorkPortal();get('ytaWorkPassDay')?.focus();}
  function ownerMount(){if(!isOwner()||ownerButton)return;const grid=document.querySelector('.owner-grid');if(!grid)return;
   ownerButton=document.createElement('button');ownerButton.type='button';ownerButton.dataset.ytaOwnerTool='ambassador';ownerButton.innerHTML='<strong>Ambassador</strong><span>价格 · 权限 · 佣金结算</span>';grid.append(ownerButton);ownerButton.onclick=e=>{e.stopPropagation();openOwner().catch(say);};}
- async function ownerData(){const [r,p]=await Promise.all([db.rpc('yt_ambassador_owner_data'),db.rpc('yt_ambassador_owner_passes')]);if(r.error)throw r.error;if(p.error)throw p.error;return {...(r.data||{}),passes:p.data?.passes||[],passWindow:p.data||{}};}
+ async function ownerData(){const [r,p]=await Promise.all([db.rpc('yt_ambassador_owner_data'),db.rpc('yt_ambassador_owner_passes')]);if(r.error)throw r.error;if(p.error)throw p.error;const d=r.data?.business_day,shift=(n)=>{const x=new Date(d+'T00:00:00Z');x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10);};return {...(r.data||{}),passes:p.data||[],passWindow:{business_day:d,window_start:d?shift(-3):'',window_end:d?shift(3):''}};}
  function ownerOverlayCreate(){ownerOverlay=makeOverlay('ytaOwnerOverlay','Ambassador 管理','OWNER · PRICING · ACCESS · PAYOUT');ownerOverlay.querySelector('.yta-dialog').style.width='min(1080px,100%)';return ownerOverlay;}
  const option=(v,label,selected)=>'<option value="'+esc(v)+'"'+(String(v)===String(selected||'')?' selected':'')+'>'+esc(label)+'</option>';
  async function openOwner(){
