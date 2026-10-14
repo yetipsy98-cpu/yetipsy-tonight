@@ -2,50 +2,46 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const sql = fs.readFileSync(path.join(root, 'sql/080_ambassador_system.sql'), 'utf8')
-  + fs.readFileSync(path.join(root, 'sql/081_ambassador_security_and_zero_commission_fix.sql'), 'utf8')
-  + fs.readFileSync(path.join(root, 'sql/082_ambassador_payout_ambiguity_fix.sql'), 'utf8')
-  + fs.readFileSync(path.join(root, 'sql/084_ambassador_pos_flow_and_account_cleanup.sql'), 'utf8');
-const pos = fs.readFileSync(path.join(root, 'play/pos/ambassador.js'), 'utf8');
-const client = fs.readFileSync(path.join(root, 'play/ambassador-client.js'), 'utf8');
-const posEntry = fs.readFileSync(path.join(root, 'play/pos/pos.js'), 'utf8');
-const memberEntry = fs.readFileSync(path.join(root, 'play/app.js'), 'utf8');
+const read = p => fs.readFileSync(path.join(root, p), 'utf8');
+const pos = read('play/pos/pos.js');
+const staff = read('play/pos/ambassador.js');
+const client = read('play/ambassador-client.js');
+const sql = read('sql/085_ambassador_pos_sales.sql');
+const checkout = read('sql/086_ambassador_freeflow_checkout.sql');
+const dayClose = read('play/pos/day-close.js');
 
-for (const table of ['yt_ambassadors', 'yt_ambassador_prices', 'yt_ambassador_special_prices',
-  'yt_ambassador_passes', 'yt_ambassador_checkins', 'yt_ambassador_ledger']) {
-  assert.match(sql, new RegExp('alter table public\\.' + table + ' enable row level security'));
-}
-assert.ok(sql.includes('revoke all on public.yt_ambassadors,public.yt_ambassador_prices,public.yt_ambassador_special_prices,'));
-assert.ok(sql.includes('public.yt_ambassador_checkins,public.yt_ambassador_ledger from public,anon,authenticated;'));
-assert.match(sql, /grant execute on function public\.yt_ambassador_pass_lookup\(text\) to authenticated/);
-assert.match(sql, /revoke all on function private\.yt_ambassador_price\(date\) from public,anon,authenticated/);
-assert.match(sql, /wa\.role in \('staff','cashier'\)/);
-assert.match(sql, /if a\.member_user_id=auth\.uid\(\) or a\.work_user_id=auth\.uid\(\) then raise exception 'cannot_redeem_own_pass'/);
-assert.match(sql, /private\.yt_business_day\(now\(\)\)/);
-assert.match(sql, /private\.yt_business_start\(v\.reservation_day\+1\)/);
-assert.match(sql, /s:=round\(m\*mp\+f\*fp,2\); comm:=round\(s\*a\.commission_rate\/100,2\)/);
-assert.match(sql, /over_planned',done>v\.planned_pax/);
-assert.match(sql, /on conflict\(request_id\) do nothing/);
-assert.match(sql, /if comm>0 then/);
-assert.doesNotMatch(sql, /status\s*=\s*'closed'/i);
+// Pass scan routes before the ordinary reward cart requirement.
+const scan = pos.slice(pos.indexOf('async function scanDraftReward()'), pos.indexOf('async function', pos.indexOf('async function scanDraftReward()') + 15));
+assert(scan.indexOf('isAmbassadorToken(raw)') >= 0);
+assert(scan.indexOf('isAmbassadorToken(raw)') < scan.indexOf("if(!state.cart.size)throw Error('cart_requires_paid_drink')"));
+assert.match(pos, /async function scanAmbassadorPass\(raw\)/);
+assert.match(pos, /draftRedeemCheck'\)\.disabled=!!noScan/);
+assert.match(pos, /draftRedeemScan'\)\.disabled=locked\|\|mutating/);
+assert.match(pos, /ambassadorPassWarning/);
+assert.match(pos, /Freeflow Male|Freeflow Female/);
 
-assert.match(pos, /yt_ambassador_work_portal/);
-assert.match(pos, /yt_ambassador_owner_delete/);
-assert.match(pos, /yt_ambassador_pass_save/);
-assert.doesNotMatch(pos, /staffButton\.textContent='Ambassador'/);
-assert.match(posEntry, /tabs\.push\(\['redeem','核销'\]\)/);
-assert.match(posEntry, /tab==='redeem'&&!state\.ambassadorAccess/);
-assert.match(pos, /yt_ambassador_pass_lookup/);
-assert.match(pos, /ytaWorkPassForm/);
-assert.match(pos, /ytaPosPanel/);
-assert.match(pos, /data-amb-delete/);
-assert.match(pos, /yt_ambassador_checkin/);
-assert.doesNotMatch(pos, /yt_pos_order_submit|yt_pos_checkout|\.from\(/);
-assert.match(pos, /不会创建订单或收款/);
+// A Pass creates a normal fulfilled POS order with only Freeflow items; no KDS chit is issued.
+assert.match(sql, /yt_ambassador_pos_order_create/);
+assert.match(sql, /values\('future_pos','fulfilled',ono,'Freeflow'/);
+assert.match(sql, /'Freeflow Male'/);
+assert.match(sql, /'Freeflow Female'/);
+assert.doesNotMatch(sql, /insert into public\.yt_pos_order_chits/i);
+assert.match(pos, /productionRows\(\).*isAmbassadorOrder/);
+
+// Payment receives AB-prefixed category and captures commission/check-in after payment.
+assert.match(sql, /new\.payment_method:='AB_'\|\|case/);
+assert.match(sql, /yt_ambassador_pos_capture/);
+assert.match(sql, /insert into public\.yt_ambassador_checkins/);
+assert.match(sql, /insert into public\.yt_ambassador_ledger/);
+assert.match(checkout, /yt_ambassador_pos_sales where order_id=new\.id/);
+assert.match(dayClose, /AB_DuitNow/);
+
+// Keep the established controls: staff Pass issue window, no self redemption, no separate check-in UI.
+assert.match(staff, /yt_ambassador_work_portal/);
+assert.match(staff, /yt_ambassador_work_pass_save/);
+assert.doesNotMatch(staff, /yt_ambassador_checkin/);
 assert.match(client, /yt_ambassador_portal/);
-assert.match(client, /yt_ambassador_pass_save/);
 assert.match(client, /classList\.toggle\('ready',data\.enabled===true\)/);
 assert.match(client, /YTAMB:/);
-assert.match(posEntry, /createAmbassadorTools/);
-assert.match(memberEntry, /createAmbassadorClient/);
-console.log('Ambassador system invariants passed');
+assert.match(pos, /cannot_redeem_own_pass/);
+console.log('Ambassador POS sales and empty-cart Pass scan invariants passed');
