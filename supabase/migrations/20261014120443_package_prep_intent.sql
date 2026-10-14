@@ -5,6 +5,7 @@ create table if not exists private.yt_store_box_prep_intents(
  order_id uuid primary key references public.yt_member_orders(id) on delete cascade,
  actor_id uuid not null references auth.users(id),
  preps jsonb not null check(jsonb_typeof(preps)='array'),
+ created_at timestamptz not null default clock_timestamp(),
  updated_at timestamptz not null default clock_timestamp()
 );
 revoke all on private.yt_store_box_prep_intents from public,anon,authenticated;
