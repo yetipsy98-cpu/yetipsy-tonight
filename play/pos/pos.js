@@ -43,6 +43,7 @@ const msgMap={game_points_already_used:'本单积分已花费或到期，不能�
    item_not_in_order:'产品不属于这张账单',unit_not_in_order:'找不到对应商品单位',invalid_benefit_request:'选择的商品、活动或领取时限不正确',
    token_invalid:'请让顾客在 Wallet 重新生成兑奖 QR；已经成功预留的奖励不受 QR 图片过期影响',reward_unavailable:'奖品还不能兑换或已过期',role_mismatch:'请使用正确的 Cashier／Staff 登录入口',
   reward_pos_binding_required:'该奖励尚未由 Owner 绑定 POS 商品或系列',redeem_order_not_ready:'先让 Cashier 接受订单，且订单必须尚未结账',
+  challenge_one_cup_only:'Challenge 固定只预出 1 杯',store_box_item_not_in_order:'Package 商品不在这张订单中，请刷新后重试',duplicate_store_box_item:'Package 预出选择重复，请刷新后重试',store_box_component_unavailable:'选择的 Package 杯数超过可用数量',store_box_quantity_unavailable:'Package 预出数量超过套餐杯数',invalid_store_box_selection:'Package 预出数量无效，请检查后重试',store_box_order_unavailable:'Package 订单状态已变化，请刷新后重试',
   reward_reserved_by_other_order:'此奖品正预留在另一张订单，请取消之前的预留或等待到期',
   moon_invalid_code:'Moon 旧码格式不正确',moon_reward_not_bound:'Moon 奖励尚未在 Owner 的现有兑奖规则中绑定',moon_code_not_found:'找不到该 Moon 兑换码，请 Owner 先手动登记',moon_already_redeemed:'这张 Moon 码已经使用过',moon_reserved_elsewhere:'这张 Moon 码已经锁定在其他订单，请先释放',moon_expired:'Moon 码已过期',moon_not_started:'还未到领取日期',moon_drink_required:'请填写要送出的实际饮品名称',moon_minimum_payable:'抵扣 RM5 后必须仍有付费饮品金额',moon_release_unavailable:'订单已经出品或收款，无法直接释放赠品',
   hold_expired_rescan:'预留已过期，请让顾客重新出示 Wallet QR 以续期',coupon_hold_not_ready_or_expired:'购物车仍有未选择商品或已过期的兑奖预留，请先处理',
@@ -324,7 +325,7 @@ async function createOrder(){if(state.draftSaving||state.draftMutating)return;st
  if(!data)return;
  const attached=Number(data.reward_cart?.attached||0),checkoutMode=state.pendingSubmit?.p_checkout_mode||'pay_later';state.pendingSubmit=null;state.cart.clear();state.ambassadorDraft=null;state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('orderNote').value='';$('checkoutPayLater').checked=true;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
  showNotice(ambassador?(checkoutMode==='pay_now'?`${data.order_no||''} Freeflow 已开单，正在打开付款窗口。`:`${data.order_no||''} Freeflow 已加入待收款订单；请照常结账。`):`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'已进入吧台 KDS':'等待 Cashier 接受'}`);
- showTab('create');try{await refreshOrders(false);if(checkoutMode==='pay_now'){const orderId=data.id||data.order_id||[...state.active,...state.pending,...state.paid].find(row=>row.order_no===data.order_no)?.id;if(orderId)await openOrderCart(orderId);else showNotice(`${data.order_no||'订单'} 已成功下单，但暂时找不到订单付款窗口，请刷新订单列表。`,true);}}catch(e){showNotice(`${data.order_no||'订单'} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
+ showTab('create');try{await refreshOrders(false);const orderId=data.id||data.order_id||[...state.active,...state.pending,...state.paid].find(row=>row.order_no===data.order_no)?.id;if(orderId&&(isCashier()||isOwner()))await promptCashierPackagePrep(orderId);if(checkoutMode==='pay_now'){if(orderId)await openOrderCart(orderId);else showNotice(`${data.order_no||'订单'} 已成功下单，但暂时找不到订单付款窗口，请刷新订单列表。`,true);}}catch(e){showNotice(`${data.order_no||'订单'} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
 }
 function statusLabel(row){if(isAmbassadorOrder(row)&&row.payment_status==='unpaid')return 'Freeflow · 待收款';if(row.payment_status==='refunded')return '已退款取消';if(row.payment_status==='paid'&&Number(row.balance_rm)>0)return '待补收 '+money(row.balance_rm);if(row.payment_status==='paid'&&Number(row.balance_rm)<0)return '待退款 '+money(-row.balance_rm);if(row.payment_status==='paid'&&row.status==='confirmed')return '已付款 · 待出品';if(row.payment_status==='paid')return '已付款';if(row.status==='confirmed'&&row.store_box_only)return '待结账 · 结账后发码';return ({pending:'等待 Cashier 接受',confirmed:'已接受 · 待出品',fulfilled:'已出品 · 待结账',cancelled:'已拒绝／取消'}[row.status]||row.status);}
 function escapeAttr(s){return esc(s)}
@@ -419,6 +420,7 @@ async function orderAction(orderId,action,container){if(action==='request_cancel
  const result=unpack(await db.rpc('yt_pos_action',{p_order:orderId,p_action:action,p_reason:reason,p_method:method}));
  showNotice(action==='fulfilled'&&result.payment_status==='paid'?'已完成出品，订单完成':({accept:'已接受，订单进入吧台 KDS',reject:'订单已拒绝',fulfilled:'已完成出品，订单进入挂单',paid:'已经记录收款',cancel:'订单已取消'})[action]||'状态已更新');
  await refreshOrders(false);
+ if(action==='accept'&&(isCashier()||isOwner()))await promptCashierPackagePrep(orderId);
  }).catch(()=>{});}
 let bannerManager=null;
 async function loadPOSBanners(){if(!isOwner())return;if(!bannerManager)bannerManager=createBannerManager({db,root:$('ownerBannersPanel'),notify:showNotice});await bannerManager.load();}
@@ -937,6 +939,22 @@ async function releaseCartHold(id){
  await refreshOrderCart();await refreshOrders(false);showNotice('已释放预留，顾客奖品仍可使用');
 }
 let cashierPackageQuote=null,cashierPackageOrder=null;
+async function promptCashierPackagePrep(orderId){
+ if(!(isCashier()||isOwner())||!orderId)return;
+ const quote=unpack(await db.rpc('yt_store_box_checkout_prep_quote',{p_order:orderId}));
+ if(!quote?.can_prepare||!quote?.items?.length)return;
+ const saved=unpack(await db.rpc('yt_store_box_prep_intent_get',{p_order:orderId}));
+ if(saved?.preps)return;
+ const layer=document.createElement('section');layer.className='edit-overlay package-prep-prompt';layer.setAttribute('role','dialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-labelledby','packagePrepPromptTitle');
+ layer.innerHTML='<article class="card edit-dialog"><div class="block-head"><div><p class="kicker">PACKAGE / CHALLENGE · KDS PREP</p><h2 id="packagePrepPromptTitle">这单要先出几杯？</h2></div></div><p class="field-note">选择要立即排进 KDS 的杯数；剩余数量会保留在存酒箱。Challenge 固定先出 1 杯。</p><div id="packagePrepPromptItems"></div><button id="packagePrepPromptSave" class="main-button" type="button">确认预出数量</button></article>';
+ const root=layer.querySelector('#packagePrepPromptItems');
+ root.innerHTML=quote.items.map(item=>{const choices=(item.available||[]).map((part,index)=>{const max=Number(part.quantity||0),value=item.mode==='challenge'&&index===0?1:0;return '<label>'+esc(part.name)+' <small>最多 '+max+' 杯</small><input type="number" data-prep-item="'+esc(item.item_id)+'" data-prep-key="'+esc(part.key)+'" min="0" max="'+Math.min(99,max)+'" step="1" value="'+value+'" '+(item.mode==='challenge'?'readonly':'')+'></label>';}).join('');return '<article class="cashier-prep-item"><strong>'+esc(item.name)+' · '+(item.mode==='challenge'?'Challenge（固定 1 杯）':'Package')+'</strong><div class="cashier-prep-grid">'+choices+'</div><small>总量 '+Number(item.capacity)+' 杯 · 未预出部分进入存酒箱</small></article>';}).join('');
+ document.body.append(layer);layer.querySelector('#packagePrepPromptSave').focus();
+ await new Promise(resolve=>{layer.querySelector('#packagePrepPromptSave').onclick=async event=>{const button=event.currentTarget;if(button.disabled)return;button.disabled=true;button.textContent='正在保存…';try{
+  const preps=quote.items.map(item=>{const selected=[...root.querySelectorAll('input[data-prep-item]')].filter(input=>input.dataset.prepItem===item.item_id);if(selected.some(input=>!Number.isInteger(Number(input.value))||Number(input.value)<0||Number(input.value)>Number(input.max)))throw Error('Package 出杯数量不正确');const selections=selected.map(input=>({key:input.dataset.prepKey,quantity:Number(input.value)})).filter(entry=>entry.quantity>0);const count=selections.reduce((sum,entry)=>sum+entry.quantity,0);if(item.mode==='challenge'&&count!==1)throw Error('challenge_one_cup_only');if(count>Number(item.capacity)||count>99)throw Error('store_box_quantity_unavailable');return {item_id:item.item_id,selections};});
+  unpack(await db.rpc('yt_store_box_prep_intent_save',{p_order:orderId,p_preps:preps}));cashierPackageQuote=quote;cashierPackageOrder=orderId;showNotice('预出杯数量已保存；剩余数量会留在存酒箱。');layer.remove();resolve();
+ }catch(error){showNotice(errorText(error),true);button.disabled=false;button.textContent='确认预出数量';}};});
+}
 async function loadCashierPackagePrep(id,q){
  const panel=$('cashierPackagePrep'),root=$('cashierPackagePrepItems');
  if(!(isCashier()||isOwner())||q.payment_status!=='unpaid'){cashierPackageQuote=null;cashierPackageOrder=null;panel.classList.add('hidden');return;}
@@ -952,6 +970,9 @@ async function loadCashierPackagePrep(id,q){
   }).join('');
   return '<article class="cashier-prep-item"><strong>'+esc(item.name)+' · '+(item.mode==='challenge'?'挑战 · 仅先出 1 杯':'Package')+'</strong><div class="cashier-prep-grid">'+choices+'</div><small>此套餐共 '+Number(item.capacity)+' 杯 · 其余保留存酒箱</small></article>';
  }).join('');
+ const saved=unpack(await db.rpc('yt_store_box_prep_intent_get',{p_order:id}));
+ if(state.selectedOrderCart!==id)return;
+ for(const input of root.querySelectorAll('input[data-prep-item]')){const prep=saved?.preps?.find(entry=>entry.item_id===input.dataset.prepItem);const selection=prep?.selections?.find(entry=>entry.key===input.dataset.prepKey);if(selection)input.value=String(selection.quantity);}
 }
 function cashierPackageSelections(){
  if(!cashierPackageQuote?.items?.length)return[];

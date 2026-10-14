@@ -136,6 +136,7 @@ body.sheet-open{overflow:hidden}
 .cashier-prep-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
 .cashier-prep-grid label{display:flex;flex-direction:column;gap:5px}
 .cashier-prep-grid input{max-width:100%;padding:9px}
+.package-prep-prompt{z-index:160;background:#000a;align-items:center;justify-content:center;padding:18px}.package-prep-prompt .edit-dialog{height:auto;max-height:min(90dvh,820px);border-radius:18px;width:min(620px,100%);padding:24px;overflow:auto}.package-prep-prompt .main-button{width:100%;margin-top:18px}.package-prep-prompt .cashier-prep-grid input[readonly]{opacity:.8}
 
 /* Search and category chips share one row on desktop, scrolling on narrow screens. */
 .filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
