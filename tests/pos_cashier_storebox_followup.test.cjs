@@ -8,5 +8,5 @@ assert(store.includes("if(action==='serve'&&box?.cashier_managed&&!box.customer_
 assert(store.includes('p_minutes:15'), 'customer has time to scan the remaining-balance QR');
 assert(store.includes("row.mode==='challenge'&&count!==1"),'Challenge remains one cup');
 assert(pos.includes('orderRoot:$(\'storeBoxOrderQueue\'),isOwner,isCashier'),'pass Cashier capability');
-assert(pos.includes('store-box.js?v=20261013-cashier-followup-v1'),'cache freshness');
+assert(pos.includes('store-box.js?v=20261014-owner-claim-source-v2'),'cache freshness');
 console.log('PASS cashier-managed Package/Challenge KDS first pour and customer QR for remaining balance');

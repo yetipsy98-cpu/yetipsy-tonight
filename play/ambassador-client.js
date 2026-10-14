@@ -14,7 +14,7 @@ const css=String.raw`
 .yta-form{display:grid;gap:10px}.yta-form label{display:grid;gap:5px;font-size:.88rem;color:#d5ddd7}.yta-form input,.yta-form select,.yta-form textarea{box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid #547161;border-radius:11px;background:#0e1d16;color:#f4f1e8;font:inherit}
 .yta-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}.yta-metric{font-size:1.4rem;color:#e5c98e;font-weight:800}.yta-qr{display:flex;justify-content:center;margin:12px auto}.yta-qr img{width:180px;height:180px;background:#fff;padding:7px;border-radius:10px}
 .yta-client-pass .code{font:600 .78rem ui-monospace,monospace;word-break:break-all;color:#e2c385}.yta-pass-ticket{margin:12px auto;padding:18px;max-width:340px;border:1px solid #d8bc7d;border-radius:18px;background:radial-gradient(circle at top,#293f32,#101d16 72%);text-align:center}.yta-pass-brand{color:#e4ca91;font-weight:900;letter-spacing:.18em}.yta-pass-ticket h4{margin:8px 0 4px;color:#f4f1e8;font-size:1.05rem}.yta-pass-ticket .yta-qr{display:flex;justify-content:center;margin:14px auto 8px}.yta-pass-ticket .yta-qr img{width:190px;height:190px;background:#fff;padding:8px;border-radius:12px}.yta-pass-ticket .yta-pass-meta{color:#c2cbc4;font-size:.84rem;line-height:1.5}.yta-pass-ticket .yta-actions{justify-content:center}
-.yta-client-entry{display:none!important}.yta-client-entry.ready{display:flex!important;width:100%;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #c5a56c;border-radius:15px;background:linear-gradient(110deg,#23372c,#17271f);color:#f3e1b6;text-align:left;cursor:pointer}
+.yta-client-entry{display:none!important}.yta-client-entry.ready{display:flex!important;grid-column:1/-1;width:100%;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #c5a56c;border-radius:15px;background:linear-gradient(110deg,#23372c,#17271f);color:#f3e1b6;text-align:left;cursor:pointer}
 .yta-client-entry strong{display:block;font-size:1rem}.yta-client-entry small{display:block;color:#c2c9c0;margin-top:3px}
 .yta-client-pass{border:1px solid #3e5a4c;background:#162b22;border-radius:16px;padding:15px;margin:12px 0}.yta-client-pass .code{font:600 .78rem ui-monospace,monospace;word-break:break-all;color:#e2c385}
 .yta-client-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -32,7 +32,7 @@ async function sharePassCard(x){await qrLib();const q=window.qrcode(0,'M');q.add
 export function createAmbassadorClient({db,toast=()=>{}}){
  addStyle();const host=document.querySelector('#homePage .home-shortcuts')||document.getElementById('homePage');if(!host)return {refresh:async()=>{}};
  let button=document.getElementById('ambassadorClientEntry');
- if(!button){button=document.createElement('button');button.id='ambassadorClientEntry';button.type='button';button.className='yta-client-entry';button.innerHTML='<span><strong>Ambassador</strong><small>预登记 Pass · 查看佣金</small></span><span>↗</span>';host.prepend(button);}
+ if(!button){button=document.createElement('button');button.id='ambassadorClientEntry';button.type='button';button.className='yta-client-entry';button.innerHTML='<span><strong>Ambassador</strong><small>预登记 Pass · 查看佣金</small></span><span>↗</span>';host.append(button);}
  const modal=overlay(),body=document.getElementById('ytaClientBody');let data=null,editing=null,openCode=null;
  const notify=(e)=>toast(errorText(e),true);
  button.onclick=()=>open().catch(notify);

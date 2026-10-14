@@ -6,7 +6,7 @@ for(const page of ['pos','owner','staff','cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
  for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);
  assert(html.includes('pos.css?v=20261014-visible-alerts-v1'),'category styles cache freshness '+page);
- assert(html.includes('pos.js?v=20261014-payment-reset-alerts-v3'),'active JS entry freshness '+page);
+ assert(html.includes('pos.js?v=20261014-storebox-owner-layout-v4'),'active JS entry freshness '+page);
 }
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
 assert(source.includes("$('categoryProductButtons').onclick"),'category buttons should handle clicks');
