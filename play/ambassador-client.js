@@ -3,11 +3,22 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const errs={ambassador_member_only:'此会员账号没有 Ambassador 权限',invalid_reservation_day:'请选择有效的预约营业日',invalid_planned_pax:'预登记人数需介于 1 至 500',pass_not_editable:'已有核销后不能修改 Pass'};
 const errorText=e=>errs[e?.message]||String(e?.message||e||'操作失败').replaceAll('_',' ');
 const css=String.raw`
+.yta-overlay{position:fixed;inset:0;z-index:9999;background:#06100de8;display:none;align-items:center;justify-content:center;padding:14px;backdrop-filter:blur(8px)}
+.yta-overlay.open{display:flex}.yta-dialog{box-sizing:border-box;width:min(760px,100%);max-height:min(92dvh,900px);overflow:auto;background:#12241d;color:#f4f1e8;border:1px solid #476455;border-radius:22px;box-shadow:0 24px 80px #0009;padding:20px}
+.yta-head{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #294337;padding-bottom:12px;margin-bottom:16px}
+.yta-head h2{font-size:1.25rem;margin:0}.yta-kicker{color:#d6b879;font-size:.72rem;letter-spacing:.13em;font-weight:700;margin:0 0 6px}
+.yta-close,.yta-btn{border:1px solid #506d5d;border-radius:12px;background:#1b3429;color:#f4f1e8;padding:11px 14px;cursor:pointer;font:inherit}
+.yta-btn.gold{background:#e2c385;color:#15231c;border-color:#e2c385;font-weight:800}.yta-btn:disabled{opacity:.55;cursor:wait}
+.yta-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.yta-card,.yta-client-pass{border:1px solid #3e5a4c;background:#162b22;border-radius:16px;padding:15px;margin:10px 0}
+.yta-card h3{margin:0 0 12px;font-size:1.05rem}.yta-muted{color:#b8c5bd;font-size:.88rem}.yta-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.yta-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.yta-form{display:grid;gap:10px}.yta-form label{display:grid;gap:5px;font-size:.88rem;color:#d5ddd7}.yta-form input,.yta-form select,.yta-form textarea{box-sizing:border-box;width:100%;padding:11px 12px;border:1px solid #547161;border-radius:11px;background:#0e1d16;color:#f4f1e8;font:inherit}
+.yta-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}.yta-metric{font-size:1.4rem;color:#e5c98e;font-weight:800}.yta-qr{display:flex;justify-content:center;margin:12px auto}.yta-qr img{width:180px;height:180px;background:#fff;padding:7px;border-radius:10px}
+.yta-client-pass .code{font:600 .78rem ui-monospace,monospace;word-break:break-all;color:#e2c385}
 .yta-client-entry{display:none!important}.yta-client-entry.ready{display:flex!important;width:100%;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #c5a56c;border-radius:15px;background:linear-gradient(110deg,#23372c,#17271f);color:#f3e1b6;text-align:left;cursor:pointer}
 .yta-client-entry strong{display:block;font-size:1rem}.yta-client-entry small{display:block;color:#c2c9c0;margin-top:3px}
 .yta-client-pass{border:1px solid #3e5a4c;background:#162b22;border-radius:16px;padding:15px;margin:12px 0}.yta-client-pass .code{font:600 .78rem ui-monospace,monospace;word-break:break-all;color:#e2c385}
 .yta-client-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:600px){.yta-client-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.yta-client-grid,.yta-grid,.yta-pair{grid-template-columns:1fr}.yta-overlay{padding:0;align-items:flex-end}.yta-dialog{max-height:94dvh;border-radius:20px 20px 0 0;padding:16px 14px calc(18px + env(safe-area-inset-bottom))}.yta-qr img{width:160px;height:160px}}
 `;
 function addStyle(){if(document.getElementById('ytaClientStyles'))return;const s=document.createElement('style');s.id='ytaClientStyles';s.textContent=css;document.head.append(s);}
 function overlay(){
@@ -25,8 +36,7 @@ export function createAmbassadorClient({db,toast=()=>{}}){
  const notify=(e)=>toast(errorText(e),true);
  button.onclick=()=>open().catch(notify);
  async function refresh(){
-  button.classList.remove('ready');data=null;
-  if(!db)return;
+  if(!db){button.classList.remove('ready');return;}
   const session=await db.auth.getSession().catch(()=>null);if(!session?.data?.session){button.classList.remove('ready');return;}
   const r=await db.rpc('yt_ambassador_portal');if(r.error){button.classList.remove('ready');return;}
   data=r.data||{};button.classList.toggle('ready',data.enabled===true);return data;
@@ -56,8 +66,9 @@ export function createAmbassadorClient({db,toast=()=>{}}){
   editing=null;openCode=r.data?.id||null;await refresh();render();if(openCode){await ensureQR();render();}
  }
  async function open(){await refresh();if(!data?.enabled)throw Error('ambassador_member_only');modal.classList.add('open');await ensureQR();render();}
- const auth=db?.auth?.onAuthStateChange?.((_e,session)=>{button.classList.remove('ready');data=null;setTimeout(()=>{if(session)refresh().catch(()=>button.classList.remove('ready'));},0);});
+ const auth=db?.auth?.onAuthStateChange?.((_e,session)=>{setTimeout(()=>{if(session)refresh().catch(()=>{});else button.classList.remove('ready');},0);});
  refresh().catch(()=>{});
  return {refresh,open,destroy(){if(auth?.data?.subscription)auth.data.subscription.unsubscribe();button.remove();modal.remove();}};
 }
+
 

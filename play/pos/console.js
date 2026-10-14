@@ -41,7 +41,7 @@ export function createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers,lo
    if(key==='moon'){const module=await import('./moon-code-editor.js?v=20261013-moon-code-reward-v3');if(epoch!==loadEpoch)return;moonEditor||=module.createMoonCodeEditor({db,root:$('moonCodeEditorRoot'),isOwner,notice});await moonEditor.load();}
    if(key==='receipt'){const module=await import('./receipt-settings.js?v=20261012-v22');if(epoch!==loadEpoch)return;receiptSettings||=module.createReceiptSettings({db,root:$('receiptSettingsRoot'),isOwner,notice});await receiptSettings.load();}
    if(key==='paymentqr'){const module=await import('./payment-qr-settings.js?v=20261013-cashier-qr-v1');if(epoch!==loadEpoch)return;paymentQrSettings||=module.createPaymentQrSettings({db,root:$('paymentQrSettingsRoot'),isOwner,notice});await paymentQrSettings.load();}
-   if(key==='dayclose'){const module=await import('./day-close.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
+   if(key==='dayclose'){const module=await import('./day-close.js?v=20261014-ambassador-pos-sales-v3');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
    if(key==='factory')await reset.resume();
   }catch(e){notice(e.message||'加载失败，请重试',true);}
  }
