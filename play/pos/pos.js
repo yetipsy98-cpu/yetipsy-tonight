@@ -44,8 +44,7 @@ const msgMap={game_points_already_used:'本单积分已花费或到期，不能�
    token_invalid:'请让顾客在 Wallet 重新生成兑奖 QR；已经成功预留的奖励不受 QR 图片过期影响',reward_unavailable:'奖品还不能兑换或已过期',role_mismatch:'请使用正确的 Cashier／Staff 登录入口',
   reward_pos_binding_required:'该奖励尚未由 Owner 绑定 POS 商品或系列',redeem_order_not_ready:'先让 Cashier 接受订单，且订单必须尚未结账',
   reward_reserved_by_other_order:'此奖品正预留在另一张订单，请取消之前的预留或等待到期',
-  moon_invalid_code:'Moon 旧码格式不正确',moon_reward_not_bound:'Moon 奖励
-尚未在 Owner 的现有兑奖规则中绑定',moon_code_not_found:'找不到该 Moon 兑换码，请 Owner 先手动登记',moon_already_redeemed:'这张 Moon 码已经使用过',moon_reserved_elsewhere:'这张 Moon 码已经锁定在其他订单，请先释放',moon_expired:'Moon 码已过期',moon_not_started:'还未到领取日期',moon_drink_required:'请填写要送出的实际饮品名称',moon_minimum_payable:'抵扣 RM5 后必须仍有付费饮品金额',moon_release_unavailable:'订单已经出品或收款，无法直接释放赠品',
+  moon_invalid_code:'Moon 旧码格式不正确',moon_reward_not_bound:'Moon 奖励尚未在 Owner 的现有兑奖规则中绑定',moon_code_not_found:'找不到该 Moon 兑换码，请 Owner 先手动登记',moon_already_redeemed:'这张 Moon 码已经使用过',moon_reserved_elsewhere:'这张 Moon 码已经锁定在其他订单，请先释放',moon_expired:'Moon 码已过期',moon_not_started:'还未到领取日期',moon_drink_required:'请填写要送出的实际饮品名称',moon_minimum_payable:'抵扣 RM5 后必须仍有付费饮品金额',moon_release_unavailable:'订单已经出品或收款，无法直接释放赠品',
   hold_expired_rescan:'预留已过期，请让顾客重新出示 Wallet QR 以续期',coupon_hold_not_ready_or_expired:'购物车仍有未选择商品或已过期的兑奖预留，请先处理',
   choose_reward_product:'请先选择奖品对应的赠饮',choose_discount_item:'请选择一项符合奖品条件的订单商品',
   reward_binding_changed_rescan:'Owner 已修改兑奖规则，请重新核对这张奖券',discount_amount_invalid:'优惠金额计算失败',
@@ -86,8 +85,7 @@ async function launch(){if(!usable){showNotice('尚未配置 /play/config.js 的
  $('cashierCreateChoice').classList.toggle('hidden',!isCashier());$('cashierDirect').checked=isCashier();$('checkoutPayLater').checked=true;
  $('createHint').textContent=isCashier()?'订单可直接进入 KDS；选择直接付会在下单后打开收款。':'Staff 点单后等待 Cashier 接受；可选择直接付或出品后挂单。';
  $('accountMenu').classList.remove('hidden');
- restoreDraft();buildNav();consoleUI?.roleChanged();if(typeof createAmbassadorTools==='function'){globalThis.ytAmbassadorTools?.destroy();globalThis.ytAmbassadorTools=createAmbassadorTools({db,isOwner,isCashier,role:()=>state.identity?.role,notice:(message,bad)=
->showNotice(message,bad),onAccessChange:enabled=>{state.ambassadorAccess=enabled;if(state.identity){buildNav();if(!enabled&&state.currentTab==='redeem')showTab(defaultTab());}}});}const context=unpack(await db.rpc('yt_business_context'));state.businessDay=context.day;$('paidDate').value=context.day;await Promise.all([loadCatalog(),refreshOrders(false)]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
+ restoreDraft();buildNav();consoleUI?.roleChanged();if(typeof createAmbassadorTools==='function'){globalThis.ytAmbassadorTools?.destroy();globalThis.ytAmbassadorTools=createAmbassadorTools({db,isOwner,isCashier,role:()=>state.identity?.role,notice:(message,bad)=>showNotice(message,bad),onAccessChange:enabled=>{state.ambassadorAccess=enabled;if(state.identity){buildNav();if(!enabled&&state.currentTab==='redeem')showTab(defaultTab());}}});}const context=unpack(await db.rpc('yt_business_context'));state.businessDay=context.day;$('paidDate').value=context.day;await Promise.all([loadCatalog(),refreshOrders(false)]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
 }
 async function changeCashierFirstPassword(e){e.preventDefault();const button=e.submitter;await busy(button,async()=>{
  const oldPw=$('firstOldPassword').value,newPw=$('firstNewPassword').value;
@@ -144,8 +142,7 @@ function renderOwnerDashboard(data){
 }
 async function loadOwnerDashboard(force=false){
  if(!isOwner()||!$('ownerDashboardStats'))return;if(state.ownerDashboardLoading)return;
- const day=state.businessDay;if(
-!day)return;if(!force&&state.ownerDashboard&&state.ownerDashboardDay===day){renderOwnerDashboard(state.ownerDashboard);return;}
+ const day=state.businessDay;if(!day)return;if(!force&&state.ownerDashboard&&state.ownerDashboardDay===day){renderOwnerDashboard(state.ownerDashboard);return;}
  state.ownerDashboardLoading=true;$('ownerDashboardStatus').textContent='正在读取经营数据…';$('ownerDashboardStats').innerHTML='<div class="owner-overview-loading">正在整理今日经营情况…</div>';
  try{const response=unpack(await db.rpc('yt_owner_report_v8',{p_start:day,p_end:day,p_member_page:1,p_search:''}));state.ownerDashboard=response;state.ownerDashboardDay=day;renderOwnerDashboard(response);}
  catch(e){$('ownerDashboardStats').innerHTML='<div class="owner-overview-loading error">经营数据暂时无法读取，请点击刷新。</div>';$('ownerDashboardStatus').textContent='读取失败';throw e;}
@@ -283,8 +280,7 @@ function adjustCart(id,delta){if(state.draftSaving||state.pendingSubmit||state.d
 async function createOrder(){if(state.draftSaving||state.draftMutating)return;state.draftSaving=true;updateDraftControls();let data;
  try{
   if(!state.pendingSubmit){if(!state.cart.size)throw Error('请先选择产品');const q=await refreshDraftSummary();if(!q?.can_submit)throw Error('minimum_purchase_not_met');
-   state.pendingSubmit={p_request:crypto.randomUUID(),p_table:$('tableInput').value.tri
-m()||null,p_note:$('orderNote').value.trim()||null,p_items:draftItems(),p_channel:isCashier()&&$('cashierDirect').checked?'cashier':'staff',p_draft:state.draftId,p_checkout_mode:$('checkoutPayNow').checked?'pay_now':'pay_later'};saveDraft();updateDraftControls();}
+   state.pendingSubmit={p_request:crypto.randomUUID(),p_table:$('tableInput').value.trim()||null,p_note:$('orderNote').value.trim()||null,p_items:draftItems(),p_channel:isCashier()&&$('cashierDirect').checked?'cashier':'staff',p_draft:state.draftId,p_checkout_mode:$('checkoutPayNow').checked?'pay_now':'pay_later'};saveDraft();updateDraftControls();}
   data=unpack(await db.rpc('yt_pos_create_order_with_rewards_v2',state.pendingSubmit));
  }catch(e){if(e.code&&(/^[0-9A-Z]{5}$/.test(e.code)||/^PGRST/.test(e.code))){state.pendingSubmit=null;saveDraft();}showNotice(errorText(e),true);$('draftStatus').textContent=state.pendingSubmit?'提交状态待确认，请重试确认原订单。':'提交未完成：'+errorText(e);}
  finally{state.draftSaving=false;updateDraftControls();}
@@ -317,8 +313,7 @@ function renderOrders(){const active=$('activeList'),unpaid=$('unpaidList'),pend
  updateAlertDots();
 }
 function notifyPending(){if(!isCashier())return;const ids=new Set(state.pending.map(x=>x.id));
- if(state.seenInitialized){const newOrders=state.pending.filter(o=>o.created_channel!=='cashier'&&!state.seenPending.has
-(o.id));if(newOrders.length){const o=newOrders[0];showNotice(`🔔 收到 ${newOrders.length} 笔 Staff 待审核订单 · ${o.order_no}`,false,true);ping('approval');announceNewOrder();}}
+ if(state.seenInitialized){const newOrders=state.pending.filter(o=>o.created_channel!=='cashier'&&!state.seenPending.has(o.id));if(newOrders.length){const o=newOrders[0];showNotice(`🔔 收到 ${newOrders.length} 笔 Staff 待审核订单 · ${o.order_no}`,false,true);ping('approval');announceNewOrder();}}
  state.seenPending=ids;state.seenInitialized=true;
 }
 function notifyKds(){const rows=productionRows(),ids=new Set(rows.map(row=>row.id));if(state.seenKdsInitialized){const added=rows.filter(row=>row.created_channel!=='cashier'&&!state.seenKds.has(row.id));if(added.length){showNotice(`🔔 吧台新增 ${added.length} 笔待出品订单`,false,true);announceNewOrder();}}state.seenKds=ids;state.seenKdsInitialized=true;}
@@ -512,8 +507,7 @@ async function changeEditRight(id,allowed,input){await busy(input,async()=>{
  showNotice('改单权限更新成功');await loadRights();
 }).catch(()=>{input.checked=!allowed});}
 function renderSeriesAdmin(){if(!isOwner())return;
- const root=$('seriesList');root.innerHTML=state.series.length?s
-tate.series.map(s=>`<div class="admin-entry"><div><strong>${esc(s.name)}</strong>
+ const root=$('seriesList');root.innerHTML=state.series.length?state.series.map(s=>`<div class="admin-entry"><div><strong>${esc(s.name)}</strong>
  <small>${esc(s.benefit_mode)} · ${Number(s.game_plays||0)} 次 · ${s.active?'已开放':'关闭'}${s.game_plays>1?' · 暂不可发放':''}</small></div>
  <button type="button" data-series="${esc(s.id)}">编辑</button></div>`).join(''):'<div class="empty">还没有系列。先建立 CLASSIC / TOWER 等分类并设置权益。</div>';
 }
@@ -579,8 +573,7 @@ async function loadSelectedPaidUnits(preserveQR=false){
   const ready=!unit.reward_redeemed&&unit.series_active&&['games','choose'].includes(unit.benefit_mode)&&Number(unit.game_plays)===1;
   const issued=!!unit.game_pass_id;
   const expired=issued&&(unit.pass_status==='expired'||(unit.pass_status==='issued'&&!!unit.pass_expires_at&&Date.parse(unit.pass_expires_at)<=Date.now()));
-  const claimed=!!unit.reward_redeemed||(issued&&(unit.pass_status==='cla
-imed'||unit.pass_status==='used'||unit.assigned));
+  const claimed=!!unit.reward_redeemed||(issued&&(unit.pass_status==='claimed'||unit.pass_status==='used'||unit.assigned));
   const key='yt-pos-v2-unit:'+unit.order_item_id+':'+unit.unit_number;
   let original=null;try{original=JSON.parse(sessionStorage.getItem(key)||'null')}catch{}
   const recover=issued&&unit.pass_status==='issued'&&!expired&&!claimed&&original;
@@ -798,8 +791,7 @@ function renderDuitNowQr(){
  image.classList.toggle('hidden',!state.duitnowQrPath);image.onerror=()=>{image.classList.add('hidden');status.textContent='二维码暂时无法显示，请联系 Owner 检查上传文件。';};
  if(state.duitnowQrPath){image.src=db.storage.from('yetipsy-payment-qr').getPublicUrl(state.duitnowQrPath).data.publicUrl;status.textContent='请顾客扫描此 DuitNow 二维码；确认款项到账后再点击收款。';}else status.textContent=state.duitnowQrError||'Owner 尚未上传 DuitNow 收款二维码，请联系 Owner 设置。';
 }
-async function refreshDuitNowQr(){if(!(isCashier()||isOwner())||$('cartCheckoutPayment').value!=='duitnow'){renderDuitNowQr();return;}if(!state.duitnowQrLoaded){const status=$('cashierDuitNowQrStatus');if(status)status.textContent='正在读取收款二维码…';try{const settings=unpack(await db.rpc('yt_receipt_settings_get'));state.duitnowQrPath=settings?.duitnow_qr_path||null;s
-tate.duitnowQrError=null;}catch(error){state.duitnowQrError='无法读取收款二维码：'+errorText(error);state.duitnowQrPath=null;}state.duitnowQrLoaded=true;}renderDuitNowQr();}
+async function refreshDuitNowQr(){if(!(isCashier()||isOwner())||$('cartCheckoutPayment').value!=='duitnow'){renderDuitNowQr();return;}if(!state.duitnowQrLoaded){const status=$('cashierDuitNowQrStatus');if(status)status.textContent='正在读取收款二维码…';try{const settings=unpack(await db.rpc('yt_receipt_settings_get'));state.duitnowQrPath=settings?.duitnow_qr_path||null;state.duitnowQrError=null;}catch(error){state.duitnowQrError='无法读取收款二维码：'+errorText(error);state.duitnowQrPath=null;}state.duitnowQrLoaded=true;}renderDuitNowQr();}
 
 async function moonGuestRelease(id){
  if(!window.confirm('释放这张 Moon 旧码？取消预留后顾客仍能再次使用。'))return;
@@ -975,8 +967,7 @@ function bind(){
  $('signinForm').addEventListener('submit',e=>{unlockAudio();login(e).catch(()=>{});});window.YT_WORK_READY=true;
  $('paidDateForm').onsubmit=e=>{e.preventDefault();refreshOrders(false);};$('paidToday').onclick=async()=>{try{const c=unpack(await db.rpc('yt_business_context'));state.businessDay=c.day;$('paidDate').value=c.day;await refreshOrders(false);}catch(e){showNotice(errorText(e),true);}};
  storeBox=createStoreBox({db,ownerRoot:$('storeBoxOwnerRoot'),staffRoot:$('storeBoxStaffRoot'),orderRoot:$('storeBoxOrderQueue'),isOwner,isCashier,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onQueueChange:updateStoreBoxQueue});
- if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,loadStoreBoxOwner:()=>storeBox.loadOwner(),notice:(me
-ssage,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onOwnerEdit:openEditDialog,onOrdersChanged:()=>refreshOrders(false),onReset:async(scopes)=>{
+ if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,loadStoreBoxOwner:()=>storeBox.loadOwner(),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onOwnerEdit:openEditDialog,onOrdersChanged:()=>refreshOrders(false),onReset:async(scopes)=>{
   stopPolling();if(scopes?.includes('records')){state.cart.clear();state.pendingSubmit=null;state.draftSummary=null;for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('yt-pos-'))sessionStorage.removeItem(key);}}
   showNotice('所选范围已重置',false,true);location.reload();
  }});
