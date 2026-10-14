@@ -1,7 +1,7 @@
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money=n=>'RM '+Number(n||0).toFixed(2);
 const time=t=>new Date(t).toLocaleString('zh-CN',{timeZone:'Asia/Kuala_Lumpur',hour12:false});
-const methods={cash:'现金',duitnow:'DuitNow',foodcourt:'食阁',card:'刷卡',bank_transfer:'转账',other:'其他'};
+const methods={cash:'现金',duitnow:'DuitNow',foodcourt:'食阁',card:'刷卡',bank_transfer:'转账',other:'其他',AB_Cash:'AB · 现金',AB_DuitNow:'AB · DuitNow',AB_Foodcourt:'AB · 食阁',AB_Card:'AB · 刷卡',AB_Bank_Transfer:'AB · 转账',AB_Other:'AB · 其他'};
 const rpc=async(db,name,args)=>{const r=await db.rpc(name,args);if(r.error)throw Error(r.error.message);return r.data;};
 
 function statementMarkup(report){
@@ -46,3 +46,4 @@ export function createDayClose({db,root,isOwner,notice,onOrdersChanged,onOwnerEd
  });
  return {load,cancel(){epoch++;},clear(){epoch++;data=null;statement=null;pendingRequest=null;root.querySelectorAll('input,textarea').forEach(x=>{if(x.type==='checkbox')x.checked=false;else x.value='';});for(const key of ['summary','pending','closed','resolve'])$(key).replaceChildren();$('submit').disabled=true;}};
 }
+
