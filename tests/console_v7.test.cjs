@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const root=path.join(__dirname,'..');
 class El{constructor(){this.flags=new Set();this.dataset={};this.classList={add:k=>this.flags.add(k),remove:k=>this.flags.delete(k),contains:k=>this.flags.has(k),toggle:(k,v)=>v?this.flags.add(k):this.flags.delete(k)};this.children=[];this.disabled=false;this.inert=false;this.value='';this.textContent='';}focus(){this.focused=true;}addEventListener(){}querySelectorAll(){return [];}querySelector(){return null;}}
 (async()=>{
- const markup=fs.readFileSync(path.join(root,'play/owner/index.html'),'utf8');
+ const markup=fs.readFileSync(path.join(root,'play/pos/index.html'),'utf8');
  for(const role of ['owner','staff','cashier','pos']){
   const html=fs.readFileSync(path.join(root,'play',role,'index.html'),'utf8');const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);assert.equal(ids.length,new Set(ids).size,role+' duplicate ID');
   assert(html.includes('toolDrawerOverlay'));assert(html.includes('factoryConfirmForm'));assert(!html.includes('href="../owner/"'));assert(!html.includes('内部测试'));assert(!html.includes('测试版'));assert(!html.includes('FUTURE'));assert(!/>V4</.test(html));

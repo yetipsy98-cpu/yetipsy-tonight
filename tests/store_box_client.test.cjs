@@ -48,7 +48,7 @@ test('Store Box client uses the protected RPC workflow',()=>{
  assert.match(js,/storebox-history/);
  assert.doesNotMatch(js,/喝完/);
  assert.match(js,/确认已经出杯/);
- assert.match(js,/全店待领取码/);
+ assert.match(js,/已生成 · 待顾客领取/);
  assert.match(js,/addEventListener\('submit'/);
  assert.match(js,/event\.preventDefault\(\)/);
  assert.match(js,/保存中…/);

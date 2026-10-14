@@ -3,11 +3,12 @@ const pos=fs.readFileSync('play/pos/store-box.js','utf8');
 const ambassador=fs.readFileSync('play/ambassador-client.js','utf8');
 const migration=fs.readFileSync('sql/059_store_box_owner_claim_audit.sql','utf8');
 
-test('Store Box claim code queue appears below issuance and balance on workbench',()=>{
+test('Store Box workbench shows generation, balance, then issued QR queue',()=>{
  const render=pos.slice(pos.indexOf('function renderStaff()'),pos.indexOf('function renderOrderQueue()'));
  assert(render.indexOf('issueMarkup()')<render.indexOf('存酒余额'));
  assert(render.indexOf('存酒余额')<render.indexOf('claimMarkup()'));
- assert.match(pos,/全店待领取码/);
+ assert.match(pos,/待生成/);
+ assert.match(pos,/已生成 · 待顾客领取/);
 });
 
 test('claimed Store Box cards show the staff who issued their claim QR',()=>{
