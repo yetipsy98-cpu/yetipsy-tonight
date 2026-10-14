@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const pos=fs.readFileSync('play/pos/pos.js','utf8'),html=fs.readFileSync('play/pos/index.html','utf8'),sql=fs.readFileSync('sql/098_staff_checkout_duitnow_review.sql','utf8');
+assert(pos.includes("if(scope==='unpaid')controls="),'all staff see the pending checkout action');
+assert(pos.includes("if(checkoutMode==='pay_now'&&data.status==='confirmed')await openOrderCart(data.id);"),'pay now opens checkout after order is accepted');
+assert(pos.includes("function unpaidRows(){return (state.active||[]).filter(row=>row.payment_status==='unpaid'&&(row.status==='fulfilled'||row.status==='confirmed'));}"),'confirmed tabs and fulfilled orders remain payable');
+assert(!pos.includes("$('cartCheckoutPayment').value='duitnow';"),'refreshing the cart does not overwrite selected payment method');
+assert(pos.includes("if(action==='accept'&&sourceRow?.checkout_mode==='pay_now'&&isCashier())await openOrderCart(orderId);"),'Cashier acceptance opens checkout for pay-now orders');
+assert(pos.includes("proofPending?'DuitNow 已提交，等待 Cashier 确认'"),'Staff sees submitted DuitNow proof state and cannot resubmit');
+assert(pos.includes("yt_pos_duitnow_proof_submit"),'Staff submits DuitNow evidence');
+assert(pos.includes("yt_pos_duitnow_proof_review"),'Cashier confirms or rejects uploaded proof');
+assert(pos.includes(".storage.from('yetipsy-payment-proof').remove([result.storage_path])"),'evidence is deleted after cashier review');
+assert(html.includes('id="duitnowProofInput"')&&html.includes('capture="environment"'),'mobile camera upload is available');
+assert(html.includes('id="duitnowProofList"'),'Cashier review queue is visible');
+assert(sql.includes("p_method='duitnow' and not v_cashier"),'database blocks Staff from directly marking DuitNow paid');
+assert(sql.includes("private.yt_pos_work_staff()"),'uploads require authenticated work accounts');
+assert(sql.includes("private.yt_pos_work_cashier()"),'evidence access and review are cashier-only');
+console.log('PASS Staff checkout, DuitNow screenshot review, and evidence cleanup contracts');
