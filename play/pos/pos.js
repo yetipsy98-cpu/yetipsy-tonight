@@ -315,7 +315,7 @@ async function createOrder(){if(state.draftSaving||state.draftMutating)return;st
  const checkoutMode=state.pendingSubmit.p_checkout_mode,attached=Number(data.reward_cart?.attached||0);state.pendingSubmit=null;state.cart.clear();state.ambassadorDraft=null;state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('orderNote').value='';$('checkoutPayLater').checked=true;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
  showNotice(ambassador?`${data.order_no||''} Freeflow 已加入待收款订单；请照常结账。`:`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'已进入吧台 KDS':'等待 Cashier 接受'}`);
  if(ambassador){
-  showTab('unpaid');try{await refreshOrders(false);if((isCashier()||isOwner())&&checkoutMode==='pay_now')await openOrderCart(data.id);}catch(e){showNotice('Freeflow 已成功开单，订单列表暂未刷新，请点刷新。',true);}
+  try{await refreshOrders(false);showTab('unpaid');if((isCashier()||isOwner())&&checkoutMode==='pay_now')await openOrderCart(data.id);}catch(e){showNotice('Freeflow 已成功开单，订单列表暂未刷新，请点刷新。',true);}
   return;
  }
  showTab(data.status==='pending'&&isCashier()?'pending':'orders');try{await refreshOrders(false);if(checkoutMode==='pay_now'&&data.status==='confirmed'&&isCashier())await openOrderCart(data.id);}catch(e){showNotice(`${data.order_no} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
