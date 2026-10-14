@@ -23,7 +23,11 @@ assert.match(css,/\.yta-template-qr[^}]*background:#000/,'template QR placement 
 assert.match(css,/\.yta-template-bg\{display:block;width:100%;height:auto;object-fit:contain\}/,'uploaded template keeps its natural image ratio');
 assert.doesNotMatch(css,/\.yta-template-ticket[^}]*aspect-ratio:4\/5/,'template ticket does not force a 4:5 ratio');
 assert.match(amb,/height=Math\.max\(1,Math\.round\(width\*bg\.naturalHeight\/bg\.naturalWidth\)\)/,'shared pass image uses the uploaded template ratio');
-assert.match(pos,/history\?\(completed\?'已出杯':'已取消'\):'待出杯'/,'KDS history distinguishes completed cups from cups waiting to be made');
+assert.match(pos,/history\?\(cancelled\?'已取消':'已出杯'\):'待出杯'/,'KDS history distinguishes completed cups from cancelled orders');
+assert.match(pos,/cancelled\?'已取消':done\?'✓ 已出品'/,'cancelled order lines are visibly cancelled instead of looking like unserved cups');
+for(const path of ['play/pos/index.html','play/admin/pos/index.html','play/admin/owner/index.html','play/admin/cashier/index.html','play/admin/staff/index.html','play/owner/index.html','play/cashier/index.html','play/staff/index.html']){
+ const html=require('node:fs').readFileSync(path,'utf8');assert.match(html,/20261014-pos-kds-qr-refresh-v5/,`${path} busts stale workbench assets`);assert.match(html,/每个商品都可单独确认，也可整单确认；新订单不需等待前一单。/,`${path} uses the corrected KDS guidance`);
+}
 assert.match(priceFix,/weekday_male_price/,'price migration repairs the erroneous legacy column reference');
 assert.match(priceFix,/replace\(v_def,'weekday_male_price','weekday_male'\)/,'portal reads the real weekday_male field');
 console.log('PASS per-item KDS, whole-order confirmation, manual checkout, seven-day Pass window, invitation QR template');
