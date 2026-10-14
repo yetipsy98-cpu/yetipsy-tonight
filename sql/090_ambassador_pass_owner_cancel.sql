@@ -52,11 +52,11 @@ begin
   or exists(select 1 from public.yt_ambassador_pos_sales s where s.pass_id=v.id) then
   raise exception 'pass_has_orders';
  end if;
- update public.yt_ambassador_passes set status='cancelled',updated_at=now() where id=v.id;
+ update public.yt_ambassador_passes set status='void',updated_at=now() where id=v.id;
  insert into public.audit_logs(actor_id,action,entity_type,entity_id,metadata)
  values(auth.uid(),'ambassador.pass_cancelled','ambassador_pass',v.id,
   jsonb_build_object('pass_code',v.pass_code,'reservation_day',v.reservation_day,'issued_by',v.issued_by));
- return jsonb_build_object('id',v.id,'status','cancelled');
+ return jsonb_build_object('id',v.id,'status','void');
 end $$;
 
 create or replace function public.yt_ambassador_owner_passes()
