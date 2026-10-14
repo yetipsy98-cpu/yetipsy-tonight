@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
-const pos=fs.readFileSync('play/pos/pos.js','utf8'),amb=fs.readFileSync('play/pos/ambassador.js','utf8'),sql=fs.readFileSync('supabase/migrations/20261014103943_kds_item_confirmation_ambassador_template.sql','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8'),amb=fs.readFileSync('play/pos/ambassador.js','utf8'),sql=fs.readFileSync('supabase/migrations/20261014103943_kds_item_confirmation_ambassador_template.sql','utf8'),priceFix=fs.readFileSync('supabase/migrations/20261014110000_fix_ambassador_price_columns.sql','utf8'),css=fs.readFileSync('play/pos/console.css','utf8');
 assert.match(pos,/data-action="fulfilled_item"/,'each product line can be confirmed separately');
 assert.match(pos,/data-action="fulfilled_all"/,'KDS exposes whole-order confirmation');
 assert.match(pos,/yt_pos_item_fulfill/,'line confirmation goes through a protected RPC');
@@ -11,4 +11,11 @@ assert.match(amb,/getTime\(\)\+6\*86400000/,'Ambassador calendar covers today pl
 assert.match(sql,/business_day\(now\(\)\)\+6/,'Supabase restricts Ambassador passes to a seven-day window');
 assert.match(amb,/yt_ambassador_qr_template_save/,'Owner can save a reusable invitation image and QR placement');
 assert.match(amb,/qrTemplate\.image_data_url/,'pass artwork uses the uploaded invitation template');
+assert.match(amb,/function qrDataUrl\(q,pixels=512,quiet=4\)/,'Pass QR is rendered with a controllable palette');
+assert.match(amb,/c\.fillStyle='#000'/,'Pass QR background is black');
+assert.match(amb,/c\.fillStyle='#fff'/,'Pass QR modules are white');
+assert.match(css,/\.yta-template-qr[^}]*background:#000/,'template QR placement keeps the black quiet zone');
+assert.match(pos,/history\?\(completed\?'已出杯':'已取消'\):'待出杯'/,'KDS history distinguishes completed cups from cups waiting to be made');
+assert.match(priceFix,/weekday_male_price/,'price migration repairs the erroneous legacy column reference');
+assert.match(priceFix,/replace\(v_def,'weekday_male_price','weekday_male'\)/,'portal reads the real weekday_male field');
 console.log('PASS per-item KDS, whole-order confirmation, manual checkout, seven-day Pass window, invitation QR template');
