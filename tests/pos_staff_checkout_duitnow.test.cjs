@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const pos=fs.readFileSync('play/pos/pos.js','utf8'),html=fs.readFileSync('play/pos/index.html','utf8'),sql=fs.readFileSync('sql/098_staff_checkout_duitnow_review.sql','utf8');
 assert(pos.includes("if(scope==='unpaid')controls="),'all staff see the pending checkout action');
-assert(pos.includes("showTab('orders');try{await refreshOrders(false);"),'every submitted order stays in the Orders tab');
+assert(pos.includes("showTab('create');try{await refreshOrders(false);"),'every submitted order returns to the ordering screen');
 assert(pos.includes("function unpaidRows(){return (state.active||[]).filter(row=>row.payment_status==='unpaid'&&(row.status==='fulfilled'||row.status==='confirmed'));}"),'confirmed tabs and fulfilled orders remain payable');
 assert(!pos.includes("$('cartCheckoutPayment').value='duitnow';"),'refreshing the cart does not overwrite selected payment method');
 assert(!pos.includes("if(action==='accept'&&sourceRow?.checkout_mode==='pay_now'&&isCashier())await openOrderCart(orderId);"),'Cashier acceptance does not redirect to payment');

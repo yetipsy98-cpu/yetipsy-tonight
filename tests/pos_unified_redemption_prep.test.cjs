@@ -6,7 +6,7 @@ for(const page of ['pos','owner','staff','cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
  for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);
  assert(html.includes('pos.css?v=20261014-visible-alerts-v1'),'category styles cache freshness '+page);
- assert(html.includes('pos.js?v=20261014-pos-kds-qr-refresh-v5'),'active JS entry freshness '+page);
+ assert(html.includes('pos.js?v=20261014-package-prep-v8'),'active JS entry freshness '+page);
 }
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
 assert(source.includes("$('categoryProductButtons').onclick"),'category buttons should handle clicks');
@@ -19,6 +19,8 @@ assert(!source.includes('moonGuestDrink')&&!fs.readFileSync('play/pos/index.html
 assert(source.includes("yt_moon_preorder_summary"),'Moon subtotal merged');
 assert(source.includes("yt_moon_preorder_release"),'Moon release');
 assert(source.includes("yt_pos_checkout_with_prep"),'Cashier preps at checkout');
+assert(source.includes("async function promptCashierPackagePrep(orderId)"),'Package and Challenge prompt after order creation');
+assert(source.includes("yt_store_box_prep_intent_save")&&source.includes("yt_store_box_prep_intent_get"),'prep choices persist through pay-later');
 assert(source.includes("if(item.mode==='challenge'&&count!==1)"),'Challenge client validation');
 assert(source.includes("p_preps:cashierPackageSelections()"),'Cashier KDS preps sent atomically');
 assert(storeBox.includes("if(action==='serve'&&box?.cashier_managed&&!box.customer_id"),'cashier package claim waits for first-pour KDS completion');

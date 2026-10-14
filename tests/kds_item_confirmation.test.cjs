@@ -9,7 +9,7 @@ assert.match(pos,/data-order-item="\$\{escapeAttr\(item\.id\)\}"/,'each KDS line
 assert.match(sql,/where id=p_order_item and order_id=p_order and quantity>0 and not fulfilled/,'a line can be fulfilled by its own id without depending on earlier orders or lines');
 assert.match(pos,/production=productionRows\(\)\.sort\(\(a,b\)=>Date\.parse\(b\.created_at\)-Date\.parse\(a\.created_at\)\)/,'newest KDS orders appear first without making older orders a prerequisite');
 assert.match(pos,/yt_pos_item_fulfill'\s*,\{p_order:orderId,p_order_item:itemId,p_all:action==='fulfilled_all'\}/,'fulfillment targets the selected order directly');
-assert.match(pos,/showTab\('orders'\);try\{await refreshOrders\(false\);if\(checkoutMode==='pay_now'\)/,'successful orders go to Orders and pay-now opens checkout');
+assert.match(pos,/showTab\('create'\);try\{await refreshOrders\(false\);.*?promptCashierPackagePrep\(orderId\);if\(checkoutMode==='pay_now'\)/,'successful orders return to ordering; eligible orders prompt before pay-now opens checkout');
 assert.match(pos,/checkoutMode==='pay_now'\?\s*openOrderCart|if\(checkoutMode==='pay_now'\).*openOrderCart/s,'pay-now opens the matching order checkout');
 assert.match(pos,/p_checkout_mode/,'checkout choice is retained with the submitted order');
 assert.match(amb,/getTime\(\)\+6\*86400000/,'Ambassador calendar covers today plus six days');
@@ -26,7 +26,7 @@ assert.match(amb,/height=Math\.max\(1,Math\.round\(width\*bg\.naturalHeight\/bg\
 assert.match(pos,/history\?\(cancelled\?'已取消':'已出杯'\):'待出杯'/,'KDS history distinguishes completed cups from cancelled orders');
 assert.match(pos,/cancelled\?'已取消':done\?'✓ 已出品'/,'cancelled order lines are visibly cancelled instead of looking like unserved cups');
 for(const path of ['play/pos/index.html','play/admin/pos/index.html','play/admin/owner/index.html','play/admin/cashier/index.html','play/admin/staff/index.html','play/owner/index.html','play/cashier/index.html','play/staff/index.html']){
- const html=require('node:fs').readFileSync(path,'utf8');assert.match(html,/20261014-pos-kds-qr-refresh-v5/,`${path} busts stale workbench assets`);assert.match(html,/每个商品都可单独确认，也可整单确认；新订单不需等待前一单。/,`${path} uses the corrected KDS guidance`);
+ const html=require('node:fs').readFileSync(path,'utf8');assert.match(html,/20261014-package-prep-v8/,`${path} busts stale workbench assets`);assert.match(html,/每个商品都可单独确认，也可整单确认；新订单不需等待前一单。/,`${path} uses the corrected KDS guidance`);
 }
 assert.match(priceFix,/weekday_male_price/,'price migration repairs the erroneous legacy column reference');
 assert.match(priceFix,/replace\(v_def,'weekday_male_price','weekday_male'\)/,'portal reads the real weekday_male field');
