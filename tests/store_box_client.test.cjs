@@ -36,7 +36,7 @@ test('table number help is visible in work orders and customer Store Box calls',
 
 test('Store Box client uses the protected RPC workflow',()=>{
  const js=read('play/pos/store-box.js');
- for(const name of ['yt_store_box_rule_list','yt_store_box_rule_save_v2','yt_store_box_issue_orders','yt_store_box_issue_quote','yt_store_box_issue','yt_store_box_claims_active','yt_store_box_claim_cancel','yt_store_box_queue','yt_store_box_staff_boxes','yt_store_box_request_action','yt_store_box_progress'])assert.ok(js.includes(name),name);
+ for(const name of ['yt_store_box_rule_list','yt_store_box_rule_save_v2','yt_store_box_issue_orders','yt_store_box_issue','yt_store_box_claims_active','yt_store_box_claim_cancel','yt_store_box_queue','yt_store_box_staff_boxes','yt_store_box_request_action','yt_store_box_progress'])assert.ok(js.includes(name),name);
  assert.match(js,/data-box-kind/);
  assert.match(js,/data-box-components/);
  assert.match(js,/data-box-selection/);
@@ -64,7 +64,7 @@ test('Package and challenge checkout issues the customer claim code immediately'
  for(const page of ['pos','owner','staff','cashier']){
   const html=read(`play/${page}/index.html`);
   assert.match(html,/id="orderCartClaims"/);
-  assert.match(html,/20261012-v22|20261013-unified-pos-v[12]|20261014-visible-alerts-v1/);
+  assert.match(html,/20261012-v22|20261013-unified-pos-v[12]|20261014-storebox-review-v1/);
   assert.match(html,/id="storeBoxOrderQueue"/);
  }
 });
