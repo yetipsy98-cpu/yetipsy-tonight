@@ -32,9 +32,8 @@ test('claimed Store Box cards show the staff who issued their claim QR',()=>{
  assert.match(migration,/wa\.username claimed_qr_issued_by_name/);
 });
 
-test('customer Ambassador entry is a full-width shortcut at the bottom of the shortcut group',()=>{
- assert.match(ambassador,/host\.append\(button\)/);
- assert.doesNotMatch(ambassador,/host\.prepend\(button\)/);
+test('customer Ambassador entry is a full-width button directly under the home title',()=>{
+ assert.match(ambassador,/homeTitle\.after\(button\)/);
  assert.match(ambassador,/grid-column:1\/-1/);
 });
 

@@ -21,3 +21,7 @@
 @media(prefers-reduced-motion:reduce){.yta-overlay,.yta-dialog{scroll-behavior:auto;animation:none}}
 
 .yta-owner-fullpage{padding:0!important;align-items:stretch!important;justify-content:stretch!important;backdrop-filter:none!important;background:#111b18!important}.yta-owner-fullpage .yta-dialog{width:100%!important;height:100dvh;max-height:none;border:0;border-radius:0;box-shadow:none;padding:20px max(14px,calc((100vw - 1180px)/2))}
+
+/* Client generated Ambassador QR sits directly on the uploaded template. */
+#ytaClientOverlay .yta-template-qr img,#ytaClientOverlay .yta-pass-ticket .yta-qr img{background:transparent;padding:0;border-radius:0}
+@media(min-width:0px){#homePage .yta-client-entry.ready{box-sizing:border-box;width:calc(100% - 36px);margin:0 18px 14px;grid-column:auto}}

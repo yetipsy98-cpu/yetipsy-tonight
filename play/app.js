@@ -5,7 +5,7 @@ import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 import {createBannerManager} from './owner-banners.js?v=20261010-copy-v15-4';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
 import {createCustomerStoreBox} from './customer-store-box.js?v=20261015-play-v1';
-import {createAmbassadorClient} from './ambassador-client.js?v=20261015-template-ref-v1';
+import {createAmbassadorClient} from './ambassador-client.js?v=20261015-transparent-gold-qr-v1';
 import {createClientI18n} from './client-i18n.js?v=20261015-play-v1';
 
 const $=id=>document.getElementById(id);
