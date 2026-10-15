@@ -16,5 +16,5 @@ assert.match(validation,/if\(inviteToken\)\s*\{/,'signed-link validation should 
 assert.match(validation,/yt_play_invite_token_check/,'signed invitation links must keep token validation');
 assert.match(validation,/yt_referral_code_check/,'manually entered codes must be validated against active referral codes');
 assert.doesNotMatch(validation,/invite_link_required/,'manual signup must not require an invitation URL');
-assert.match(edge,/yt_member_onboard\(\{p_customer:uid,p_ref_code:invite\|\|null\}\)/,'accepted manual codes must be bound to the new member');
+assert.match(edge,/admin\.rpc\('yt_member_onboard',\{p_customer:uid,p_ref_code:invite\|\|null\}\)/,'accepted manual codes must be bound to the new member');
 console.log('PASS: signup accepts valid manual referral codes and retains signed-link validation.');
