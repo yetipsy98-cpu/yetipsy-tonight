@@ -239,10 +239,14 @@ Deno.serve(async(req:Request)=>{
    if(invite && !/^YT[A-Z0-9]{8}$/.test(invite))
      return send({ok:false,error:'invalid_referral_code',message:'好友码格式不正确'},400,origin);
    if(invite){
-     if(!/^[0-9a-f-]{36}$/i.test(inviteToken))return send({ok:false,error:'invite_link_required',message:'请通过好友分享的邀请链接注册'},400,origin);
-     const {data:fromLink,error:linkError}=await admin.rpc('yt_play_invite_token_check',{p_token:inviteToken,p_code:invite});
-     if(linkError)throw Error('server_unavailable');
-     if(fromLink!==true)return send({ok:false,error:'invalid_invite_link',message:'邀请链接无效或已过期，请好友重新分享'},400,origin);
+     // A referral code may be entered manually. If the signup came from a
+     // share link, still validate its signed token and code pair.
+     if(inviteToken){
+       if(!/^[0-9a-f-]{36}$/i.test(inviteToken))return send({ok:false,error:'invalid_invite_link',message:'邀请链接无效或已过期，请好友重新分享'},400,origin);
+       const {data:fromLink,error:linkError}=await admin.rpc('yt_play_invite_token_check',{p_token:inviteToken,p_code:invite});
+       if(linkError)throw Error('server_unavailable');
+       if(fromLink!==true)return send({ok:false,error:'invalid_invite_link',message:'邀请链接无效或已过期，请好友重新分享'},400,origin);
+     }
      const {data:validInvite,error:verifyError}=await admin.rpc('yt_referral_code_check',{p_code:invite});
      if(verifyError)throw Error('server_unavailable');
      if(validInvite!==true)return send({ok:false,error:'invalid_referral_code',message:'好友码无效或活动未开放'},400,origin);
