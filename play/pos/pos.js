@@ -64,9 +64,9 @@ const money=v=>'RM'+Number(v||0).toFixed(2);
 const stamp=v=>v?new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(v)):'—';
 const unpack=r=>{if(r?.error){const e=Error(r.error.message||r.error.code||'server_unavailable');e.code=r.error.code;throw e;}return r.data};
 const errorText=e=>{let s=String(e?.message||e||'server_unavailable');if(/yt pos payment entries method check/i.test(s))return '付款方式未被系统识别，这笔收款没有完成。请先刷新订单核对付款状态，再重试；不要连续重复收款。';return msgMap[s]||s.replaceAll('_',' ')};
-const isOwner=()=>state.identity?.can_owner===true;
+const isOwner=()=>state.identity?.can_owner===true||state.identity?.role==='owner';
 const isOwnerLimited=()=>state.identity?.can_owner_limited===true;
-const isCashier=()=>state.identity?.can_cashier===true;
+const isCashier=()=>state.identity?.can_cashier===true||isOwner();
 const isStaff=()=>!!state.identity?.role&&state.identity.role!=='owner'&&state.identity.role!=='cashier';
 function updateCreateHint(){const payNow=$('checkoutPayNow').checked;if(isCashier()&&$('cashierDirect').checked)$('createHint').textContent=payNow?'下单后立即打开收款；订单同时进入吧台 KDS。':'订单直接进入吧台 KDS，出品后进入挂单收款。';else $('createHint').textContent=payNow?'若 Owner 开启审核，Cashier 接单后打开收款；若关闭审核，下单后立即打开收款。':'订单按 Owner 的审核设置进入流程；未付款订单可在「待付款」中随时结账。';}
 let consoleUI=null,storeBox=null,limitedReportView=null,orderApprovals=null,approvalCount=null;
@@ -85,9 +85,9 @@ async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
 });}
 async function launch(){if(!usable){showNotice('尚未配置 /play/config.js 的 Supabase 连接',true,true);return;}
  const identity=unpack(await db.rpc('yt_pos_identity'));if(!identity)throw Error('staff_only');
-  state.identity=identity;state.activeView='dashboard';$('signin').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');
- $('accountName').textContent=identity.username+' · '+(identity.can_owner?'OWNER':identity.can_owner_limited?'OWNER LIMITED':identity.role==='cashier'?'CASHIER':identity.can_cashier?'STAFF + CASHIER':'STAFF');$('permissionPill').textContent=identity.can_owner?'OWNER':identity.can_owner_limited?'OWNER LIMITED':identity.role==='cashier'?'CASHIER':identity.can_cashier?'STAFF + CASHIER':'STAFF';
- $('workspaceSubtitle').textContent=identity.can_owner_limited?'报表 · Ambassador Pass':identity.can_owner?'经营总览 · 现场订单 · 店铺设置':identity.can_cashier?'待审核 · 收款结账 · Game Pass':'快速点单 · 出品跟进 · Game Pass';
+  state.identity={...identity,can_owner:identity.role==='owner'||identity.can_owner===true,can_cashier:identity.role==='owner'||identity.can_cashier===true,can_edit_orders:identity.role==='owner'||identity.can_edit_orders===true};state.activeView='dashboard';$('signin').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');
+ $('accountName').textContent=identity.username+' · '+(isOwner()?'OWNER':identity.can_owner_limited?'OWNER LIMITED':identity.role==='cashier'?'CASHIER':isCashier()?'STAFF + CASHIER':'STAFF');$('permissionPill').textContent=isOwner()?'OWNER':identity.can_owner_limited?'OWNER LIMITED':identity.role==='cashier'?'CASHIER':isCashier()?'STAFF + CASHIER':'STAFF';
+ $('workspaceSubtitle').textContent=identity.can_owner_limited?'报表 · Ambassador Pass':isOwner()?'经营总览 · 现场订单 · 店铺设置':isCashier()?'待审核 · 收款结账 · Game Pass':'快速点单 · 出品跟进 · Game Pass';
  $('cashierCreateChoice').classList.toggle('hidden',!isCashier());$('cashierDirect').checked=isCashier();$('checkoutPayLater').checked=true;
  $('createHint').textContent=isCashier()?'订单会保存在订单页；出品、收款都可稍后处理。':'Staff 点单后等待 Cashier 接受；订单会保存在订单页。';
  $('accountMenu').classList.remove('hidden');
