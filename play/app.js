@@ -5,7 +5,7 @@ import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 import {createBannerManager} from './owner-banners.js?v=20261010-copy-v15-4';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
 import {createCustomerStoreBox} from './customer-store-box.js?v=20261015-play-v1';
-import {createAmbassadorClient} from './ambassador-client.js?v=20261015-mobile-unified-v1';
+import {createAmbassadorClient} from './ambassador-client.js?v=20261015-template-ref-v1';
 import {createClientI18n} from './client-i18n.js?v=20261015-play-v1';
 
 const $=id=>document.getElementById(id);
@@ -190,13 +190,14 @@ function showInviteShare(url){showSheet(i18n.lang==='zh'?'邀请好友':'Invite 
 async function showCodeSheet(title,subtitle,link,withBarcode=true,deadline=null,shortCode=null,shortKind='redeem',onRefresh=null){showSheet(title,'SCAN & CLAIM');sheetHtml(`<div class="sheet-content"><p>${esc(subtitle)}</p><div class="code-card"><b>YE·TIPSY</b><small style="display:block">PRESENT THIS CODE</small><div id="sheetQR" class="sheet-qr-container"></div>${withBarcode?'<svg id="sheetBarcode" aria-label="可扫描条形码"></svg>':''}<div class="token-text" id="sheetToken"></div></div><button type="button" id="sheetCopy" class="button button-outline wide">${shortCode?(shortKind==='gift'?'复制领取码':'复制兑换码'):'复制领取链接'}</button>${deadline?'<p id="sheetCountdown" class="tiny-help"></p>':''}${shortCode?'<p class="tiny-help">扫不到可直接输入短码。</p>':''}</div>`);$('sheetToken').textContent=shortCode||link;if(shortCode){$('sheetToken').classList.add('redeem-short-code');$('sheetToken').setAttribute('aria-label','短兑换码');}const codeURL=new URL(link);const codeKey=[...codeURL.searchParams.keys()][0]||'claim';const codeRaw=codeURL.searchParams.get(codeKey)||link;const raw=codeKey+':'+codeRaw;try{await qrcode($('sheetQR'),link);}catch(e){$('sheetQR').style.display='none';toast(shortCode?'二维码加载失败，请出示下方兑换码':'二维码素材加载失败，请复制链接',true);}if(withBarcode){try{await barcode($('sheetBarcode'),raw);}catch(e){$('sheetBarcode').classList.add('hide');}}
  $('sheetCopy').onclick=()=>copy(shortCode||link);if(deadline){const tick=()=>{const el=$('sheetCountdown');if(!el||!el.isConnected){clearInterval(timer);return;}const secs=Math.max(0,Math.ceil((millis(deadline)-Date.now())/1000));el.textContent=secs?(shortKind==='gift'?'领取截止：'+fmt(deadline):`${shortCode?(shortKind==='gift'?'二维码与领取码':'二维码与兑换码'):'动态二维码'} ${secs} 秒${onRefresh?'后刷新':'后失效'}`):onRefresh?'正在刷新二维码…':'已过期，需要重新生成';if(!secs){clearInterval(timer);if(onRefresh){Promise.resolve(onRefresh()).catch(e=>toast(errorText(e),true));}else if(shortCode){$('sheetCopy').disabled=true;$('sheetToken').classList.add('code-expired');}}};let timer=setInterval(tick,1000);tick();}}
 async function showRewardQR(reward){const code=uuid();const data=unpack(await db.rpc('yt_make_redeem_v5',{p_award:reward.id,p_token:code}));const link=newLink('redeem',code),expires=Date.parse(data.expires_at),refreshAt=new Date(Math.min(Number.isFinite(expires)?expires:Infinity,Date.now()+55000)).toISOString();await showCodeSheet('出示奖励凭证',reward.rewards?.name||'Yetipsy Reward',link,true,refreshAt,data.display_code,'redeem',()=>showRewardQR(reward));}
-function tokenDetails(raw){const s=String(raw||'').trim();const short=s.replace(/[\s-]/g,'').toUpperCase();if(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short))return {kind:'gift_code',token:short};let kind='claim',token=s;const prefixed=s.match(/^(gift|claim|bundle|redeem|box):([0-9a-f-]{36})$/i);if(prefixed){kind=prefixed[1].toLowerCase();token=prefixed[2];}
- try{const url=new URL(s);for(const k of ['claim','bundle','gift','redeem','box']){if(url.searchParams.has(k)){kind=k;token=url.searchParams.get(k);break;}}}catch{}
+function tokenDetails(raw){const s=String(raw||'').trim();const short=s.replace(/[\s-]/g,'').toUpperCase();if(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short))return {kind:'gift_code',token:short};let kind='claim',token=s;const prefixed=s.match(/^(gift|claim|bundle|redeem|box|bind):([0-9a-f-]{36})$/i);if(prefixed){kind=prefixed[1].toLowerCase();token=prefixed[2];}
+ try{const url=new URL(s);for(const k of ['claim','bundle','gift','redeem','box','bind']){if(url.searchParams.has(k)){kind=k;token=url.searchParams.get(k);break;}}}catch{}
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token))throw Error('无效的二维码或条形码，请扫描完整凭证');return {kind,token};}
 const requestStore={get(key){try{return sessionStorage.getItem(key)}catch{return null}},set(key,v){try{sessionStorage.setItem(key,v)}catch{}},remove(key){try{sessionStorage.removeItem(key)}catch{}}};
 function retryId(key){let prev=requestStore.get('v11:'+key);if(prev)return prev;prev=uuid();requestStore.set('v11:'+key,prev);return prev;}
 async function previewClaim(raw,assumed=null){
  const info=tokenDetails(raw);if(assumed&&info.kind!=='gift_code')info.kind=assumed;
+ if(info.kind==='bind'){if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录后即可绑定这笔消费。';window.scrollTo(0,0);return;}return showOrderBinding(info.token);}
  if(info.kind==='box'){if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录或注册后，即可领取这个存酒箱。';window.scrollTo(0,0);return;}return customerStoreBox.openClaim(info.token);}
  if(['claim','bundle'].includes(info.kind)&&await luckyBox?.preview(info.token,info.kind))return;
  if(info.kind==='gift_code')return redeemScanValue(info.token);
@@ -217,6 +218,8 @@ async function previewClaim(raw,assumed=null){
 }
 async function redeemScanValue(raw,assumed){const info=tokenDetails(raw);if(assumed&&info.kind!=='gift_code')info.kind=assumed;
  if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='只差一步！登录或注册后会继续领取这份奖励。';return;}
+
+ if(info.kind==='bind')return showOrderBinding(info.token);
 
  if(info.kind==='box')return customerStoreBox.openClaim(info.token);
 
@@ -299,11 +302,7 @@ async function showBell(){
   pending(e.submitter,async()=>{if(!navigator.geolocation)throw Error('location_required');const position=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:12000,maximumAge:0}));unpack(await db.rpc('yt_play_bell_call',{p_table:table,p_type:type,p_note:type==='other'?$('bellNote').value.trim():'',p_lat:position.coords.latitude,p_lng:position.coords.longitude}));localStorage.setItem('yt-play-table',table);await showBell();}).catch(err=>{$('bellError').textContent=errorText(err)+(i18n.lang==='zh'?' · 请确认已允许定位，然后重试。':' · Check location permission and retry.');});};
 }
 function setupBell(){let button=$('customerServiceBell');if(button)return;button=document.createElement('button');button.id='customerServiceBell';button.type='button';button.className='customer-service-bell';button.innerHTML='<svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="customerServiceBellLabel"></span>';button.setAttribute('aria-label','Service Bell / 服务铃');button.onclick=()=>showBell().catch(e=>toast(errorText(e),true));document.body.append(button);$('customerServiceBellLabel').textContent=i18n.lang==='zh'?'服务铃':'Service';refreshBell();setInterval(()=>{if(state.user)refreshBell();},30000);}
-function openRewardClaim(){
- showSheet(tr('reward_claim_title'),'REWARD CLAIM');
- sheetHtml('<div class="sheet-content"><p>'+esc(tr('reward_claim_help'))+'</p><form id="rewardClaimForm"><label for="rewardClaimCode">'+esc(tr('reward_claim_label'))+'</label><input id="rewardClaimCode" class="claim-code-input" placeholder="7K3M-9X2P" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" required/><button id="rewardClaimSubmit" class="button button-primary wide" type="submit">'+esc(tr('reward_claim_button'))+'</button></form><p class="tiny-help">'+esc(tr('reward_claim_terms'))+'</p></div>');
- $('rewardClaimForm').onsubmit=e=>{e.preventDefault();return pending($('rewardClaimSubmit'),()=>redeemScanValue($('rewardClaimCode').value)).catch(()=>{});};
-}
+function openRewardClaim(){openScanner('claim').catch(e=>toast(errorText(e),true));}
 async function manualClaimSubmit(){const raw=$('scanManual').value.trim();await previewClaim(raw);}
 async function openScanner(mode='claim'){
  showSheet(tr(mode==='redeem'?'scan_redeem_title':'scan_title'),'SCAN CODE');
