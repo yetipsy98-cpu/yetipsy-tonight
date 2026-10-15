@@ -9,7 +9,7 @@ test('Store Box pending generation is automatic and spans all eligible orders',(
  const js=read('play/pos/store-box.js');
  assert.match(js,/order\.items\|\|\[\]/);
  assert.match(js,/state\.pendingIssue/);
- assert.match(js,/已完成并付款的存酒箱订单会自动列在这里/);
+ assert.match(js,/完成付款的存酒箱订单会显示在这里/);
  assert.doesNotMatch(js,/data-box-order|yt_store_box_issue_quote|selectedOrder/);
  assert.match(js,/data-box-issue=/);
 });
