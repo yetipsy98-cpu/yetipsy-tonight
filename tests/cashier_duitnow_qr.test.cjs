@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const pos=fs.readFileSync('play/pos/pos.js','utf8'),consoleSrc=fs.readFileSync('play/pos/console.js','utf8'),owner=fs.readFileSync('play/pos/payment-qr-settings.js','utf8'),sql=fs.readFileSync('sql/062_cashier_duitnow_qr.sql','utf8'),proofSql=fs.readFileSync('sql/098_staff_checkout_duitnow_review.sql','utf8');
 assert.match(pos,/if\(!\(isCashier\(\)\|\|isOwner\(\)\|\|isStaff\(\)\)\)throw Error\('staff_only'\)/);
 assert.match(pos,/method==='duitnow'&&!isCashier\(\)&&!isOwner\(\)/);
-assert.match(pos,/if\(isCashier\(\)\)calls\.push\(db\.rpc\('yt_pos_orders',\{p_scope:'pending'/);
+assert.match(pos,/if\(isCashier\(\)\)\{calls\.push\(db\.rpc\('yt_pos_orders',\{p_scope:'pending'/);
 assert.match(pos,/scope==='pending'&&isCashier\(\)&&row\.status==='pending'/);
 assert.doesNotMatch(pos,/action==='accept'&&sourceRow\?\.checkout_mode==='pay_now'&&isCashier\(\)/);
 assert.doesNotMatch(pos,/cartCheckoutPayment'\)\.value='duitnow'/);
