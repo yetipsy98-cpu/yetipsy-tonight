@@ -148,7 +148,7 @@ begin
  if o.payment_status<>'paid' or o.paid_at is null or coalesce(o.settlement_due_since is not null,false)
  then return jsonb_build_object('bound',true,'valid_purchase',false);end if;
  select * into cfg from public.yt_play_upgrade_settings where id=true;
- if o.amount_rm<=0 or (cfg.invite_min_spend_rm is not null and o.amount_rm<cfg.invite_min_spend_rm)
+ if o.amount_rm<=0
  then return jsonb_build_object('bound',true,'valid_purchase',false);end if;
  -- The first qualifying paid order is immutable even for members without an inviter.
  insert into public.yt_play_first_purchases(customer_id,order_id,paid_at)
@@ -156,7 +156,8 @@ begin
  get diagnostics inserted=row_count;
  if inserted=1 then
   select * into r from public.yt_referral_links where invited_customer_id=p_customer for update;
-  if found and r.invited_at>=cfg.launch_at and o.paid_at>=r.invited_at
+  if found and (cfg.invite_min_spend_rm is null or o.amount_rm>=cfg.invite_min_spend_rm)
+     and r.invited_at>=cfg.launch_at and o.paid_at>=r.invited_at
      and o.paid_at<=r.invited_at+interval '168 hours'
      and exists(select 1 from public.yt_member_enrollments e where e.customer_id=p_customer
         and e.referred_code is not null and e.created_at>=cfg.launch_at)
