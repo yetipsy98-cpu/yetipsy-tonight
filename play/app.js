@@ -219,17 +219,19 @@ async function redeemScanValue(raw,assumed){const info=tokenDetails(raw);if(assu
 
  if(info.kind==='redeem'){if(!isStaff())throw Error('兑奖二维码需由 Staff 扫描');openWorkspace('staff');showStaffRedeem();$('staffRedeemInput').value=info.token;await lookupRedeem();return;}
  if(info.kind==='bundle'){
-  const result=unpack(await db.rpc('yt_pos_bundle_claim',{p_token:info.token}));stripLink('bundle');await refreshPasses();
-  showSheet('领取成功','GAME PASS');sheetHtml(`<div class="sheet-content"><h2>${Number(result.count||0)} 份 Game Pass 已入账</h2><p>3天内有效，可逐次选择游戏或稍后玩。</p><button id="bundleGoHome" class="button button-primary wide">查看我的游戏 ↗</button></div>`);$('bundleGoHome').onclick=()=>{closeSheet();existingGamePass().catch(e=>toast(errorText(e),true));};return;
+  const result=unpack(await db.rpc('yt_pos_bundle_claim',{p_token:info.token}));await refreshPasses();
+  showSheet('领取成功','GAME PASS');sheetHtml(`<div class="sheet-content"><h2>${Number(result.count||0)} 份 Game Pass 已入账</h2><p>3天内有效，可逐次选择游戏或稍后玩。</p><button id="bundleGoHome" class="button button-primary wide">${new URL(location.href).searchParams.has('bundle')?'返回首页':'查看我的游戏 ↗'}</button></div>`);$('bundleGoHome').onclick=()=>{if(new URL(location.href).searchParams.has('bundle'))returnFromClaim('bundle');else{closeSheet();existingGamePass().catch(e=>toast(errorText(e),true));}};return;
  }
  if(info.kind==='gift'||info.kind==='gift_code'){
   const key=info.kind+':'+info.token,req=retryId(key);let rows;
   if(info.kind==='gift_code'){const result=unpack(await db.rpc('yt_claim_offer_code',{p_code:info.token,p_request:req}));if(result?.error_code)throw Error(result.error_code);rows=result?.awards;}
-  else rows=unpack(await db.rpc('yt_claim_offer',{p_token:info.token,p_request:req}));if(!rows?.length)throw Error('奖励领取失败');stripLink('gift');await wallet(true);await showSimpleSuccess('领取成功',rows[0].reward_name||'礼物已放进奖励钱包','奖励可在「我的奖励」里查看使用时间。');requestStore.remove('v11:'+key);return;
+  else rows=unpack(await db.rpc('yt_claim_offer',{p_token:info.token,p_request:req}));if(!rows?.length)throw Error('奖励领取失败');await wallet(true);await showSimpleSuccess('领取成功',rows[0].reward_name||'礼物已放进奖励钱包','奖励可在「我的奖励」里查看使用时间。');requestStore.remove('v11:'+key);if(info.kind==='gift'&&new URL(location.href).searchParams.has('gift'))showClaimHomeButton('gift');return;
  }
- const claimedId=unpack(await db.rpc('yt_claim_pass',{p_token:info.token}));stripLink('claim');await refreshPasses();toast('游戏机会已经领取 ✳');const p=state.passes.find(x=>x.id===claimedId&&x.status==='claimed'&&millis(x.expires_at)>Date.now());if(p)await choosePassReward(p);else toast('游戏机会已入账，请到首页选择游戏',true);
+ const claimedId=unpack(await db.rpc('yt_claim_pass',{p_token:info.token}));await refreshPasses();toast('游戏机会已经领取 ✳');if(new URL(location.href).searchParams.has('claim')){showSheet('领取成功','GAME PASS');sheetHtml('<div class="sheet-content"><h2>游戏机会已入账</h2><p>可以稍后从首页进入我的游戏。</p><button id="claimGoHome" class="button button-primary wide">返回首页</button></div>');$('claimGoHome').onclick=()=>returnFromClaim('claim');return;}const p=state.passes.find(x=>x.id===claimedId&&x.status==='claimed'&&millis(x.expires_at)>Date.now());if(p)await choosePassReward(p);else toast('游戏机会已入账，请到首页选择游戏',true);
 }
 function stripLink(kind){const u=new URL(location.href);u.searchParams.delete(kind);history.replaceState(null,'',u.href);}
+function returnFromClaim(kind){stripLink(kind);closeSheet();navigate('home');}
+function showClaimHomeButton(kind){const body=$('sheetBody');if(!body)return;const walletButton=$('successWallet');if(walletButton)walletButton.onclick=()=>{stripLink(kind);closeSheet();navigate('wallet');};const button=document.createElement('button');button.type='button';button.className='button button-outline wide';button.textContent='返回首页';button.onclick=()=>returnFromClaim(kind);body.querySelector('.sheet-content')?.append(button);}
 function openRewardClaim(){
  showSheet(tr('reward_claim_title'),'REWARD CLAIM');
  sheetHtml('<div class="sheet-content"><p>'+esc(tr('reward_claim_help'))+'</p><form id="rewardClaimForm"><label for="rewardClaimCode">'+esc(tr('reward_claim_label'))+'</label><input id="rewardClaimCode" class="claim-code-input" placeholder="7K3M-9X2P" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" required/><button id="rewardClaimSubmit" class="button button-primary wide" type="submit">'+esc(tr('reward_claim_button'))+'</button></form><p class="tiny-help">'+esc(tr('reward_claim_terms'))+'</p></div>');
