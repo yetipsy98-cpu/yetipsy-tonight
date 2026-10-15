@@ -1,0 +1,20 @@
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const migration = fs.readFileSync('supabase/migrations/20261015055558_member_order_binding_single_owner.sql', 'utf8');
+const app = fs.readFileSync('play/app.js', 'utf8');
+const pos = fs.readFileSync('play/pos/play-upgrade.js', 'utf8');
+const source = fs.readFileSync('sql/100_play_integrated_upgrade.sql', 'utf8');
+
+assert.match(source, /yt_play_member_token\(\)/);
+assert.match(source, /clock_timestamp\(\)\+interval '60 seconds'/);
+assert.match(source, /member_qr/);
+assert.match(app, /await qrcode\(\$\('memberQr'\),'member:'\+code\.token\)/);
+assert.match(pos, /yt_play_bind_member/);
+assert.ok(pos.includes("replace(/^member:/,'')"));
+assert.match(migration, /unique index if not exists yt_play_one_member_per_order[\s\S]*\(order_id\)/);
+assert.match(migration, /unique index if not exists yt_play_first_purchase_order_uidx[\s\S]*\(order_id\)/);
+assert.match(migration, /o\.customer_id is not null and o\.customer_id<>p_customer then raise exception 'order_already_bound'/);
+assert.match(migration, /customer_id<>p_customer[\s\S]*raise exception 'order_already_bound'/);
+assert.match(migration, /on conflict\(order_id\) do nothing/);
+assert.match(migration, /on conflict\(customer_id\) do nothing/);
+console.log('PASS current and legacy member QR binding, single-member purchase lock, and idempotent entitlement handling');
