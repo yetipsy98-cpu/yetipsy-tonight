@@ -45,9 +45,9 @@ const read=p=>fs.readFileSync(p,'utf8');
  assert.match(read('play/pos/index.html'),/id="mapRewardName"/);
  assert.match(posCode,/yt_owner_rename_reward/);
  assert.match(posCode,/奖励名称已保存，兑奖规则未更改/);
- for(const page of ['pos','owner','staff','cashier'])assert.match(fs.readFileSync('play/'+page+'/index.html','utf8'),/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|order-bell-ui-v1)/);
+ for(const page of ['pos','owner','staff','cashier'])assert.match(fs.readFileSync('play/'+page+'/index.html','utf8'),/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|order-approvals-v2)/);
 
- assert.match(fs.readFileSync('play/admin/pos/index.html','utf8'),/pos\.js\?v=20261015-order-bell-ui-v1/);
+ assert.match(fs.readFileSync('play/admin/pos/index.html','utf8'),/pos\.js\?v=20261015-order-approvals-v2/);
 
  console.log('PASS Moon Owner loads form, keeps contents on refresh, shows error state, cache keys updated.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,5 +1,15 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto').webcrypto;
 const src=fs.readFileSync('play/pos/pos.js','utf8');
+const ownerPage=fs.readFileSync('play/pos/index.html','utf8');
+assert.match(ownerPage,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/);
+assert.match(ownerPage,/id="revisionApprovalCount"/);
+assert.match(ownerPage,/<section id="tab-approvals"[^>]*>[\s\S]*?id="ownerOrderApprovalsRoot"/);
+const publishedOwnerPage=fs.readFileSync('play/admin/pos/index.html','utf8');
+assert.match(publishedOwnerPage,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/);
+assert.match(publishedOwnerPage,/id="ownerApprovalShortcut"[^>]*data-go-tab="approvals"/);
+assert.match(publishedOwnerPage,/<section id="tab-approvals"[^>]*>[\s\S]*?id="ownerOrderApprovalsRoot"/);
+assert.match(src,/if\(tab==='approvals'\)loadOwnerApprovals\(\)/);
+assert.match(src,/ownerApprovalShortcut.*isOwner\(\)/);
 class El{constructor(){this.value='';this.checked=false;this.disabled=false;this.innerHTML='';this.textContent='';this.classList={add(){},remove(){},toggle(){}};}querySelector(){return this.button??=new El();}querySelectorAll(){return this.inputs??=[];}focus(){}}
 const els=new Map(),$=id=>{if(!els.has(id))els.set(id,new El());return els.get(id);};
 let calls=[],fail=false,owner=true;const state={editOrder:{id:'order1',payment_status:'paid',updated_at:'original-date'},editCart:new Map([['first',{item_id:'old-item',product_id:'product1',quantity:2,unit_price_rm:20}]]),editBusy:false,adjustmentBalance:20};
