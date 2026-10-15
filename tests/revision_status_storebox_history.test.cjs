@@ -3,6 +3,7 @@ const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const consoleJs=fs.readFileSync('play/pos/console.js','utf8');
 const box=fs.readFileSync('play/pos/store-box.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261015130000_revision_status_storebox_history.sql','utf8');
+const html=fs.readFileSync('play/admin/pos/index.html','utf8');
 
 test('Cashier sees durable revision request status on refreshed order cards',()=>{
  assert.match(pos,/yt_pos_owner_revision_requests_mine/);
@@ -13,7 +14,7 @@ test('Cashier sees durable revision request status on refreshed order cards',()=
 });
 
 test('Owner workbench surfaces and refreshes pending review count',()=>{
- assert.match(pos,/id=\\'revisionApprovalTab\\'/);
+ assert.match(html,/id="revisionApprovalTab"/);
  assert.match(pos,/refreshOwnerApprovalCount/);
  assert.match(pos,/改单／取消申请等待 Owner 审批/);
  assert.doesNotMatch(consoleJs,/orderapprovals|refreshOrderApprovalCount/);

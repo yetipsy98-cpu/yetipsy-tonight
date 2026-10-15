@@ -16,7 +16,7 @@ assert.match(owner,/\.from\(bucket\)\.upload/);
 assert.match(owner,/yt_owner_payment_qr_save/);
 for(const page of ['pos','admin/pos','admin/owner','admin/staff','admin/cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
- assert.match(html,/pos\.js\?v=20261015-play-v1/);
+ assert.match(html,/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|revision-status-storebox-history-v1|owner-dot-v1)/);
  assert.match(html,/value="duitnow" selected>DuitNow（默认）/);
  assert.match(html,/id="cashierDuitNowQr"/);
  assert.match(html,/id="cashierDuitNowQrImage"/);

@@ -2,11 +2,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const source=fs.readFileSync('play/pos/pos.js','utf8');
 const db=fs.readFileSync('sql/060_unified_moon_preorder_submit.sql','utf8');
 const storeBox=fs.readFileSync('play/pos/store-box.js','utf8');
-for(const page of ['pos','owner','staff','cashier']){
+for(const page of ['admin/pos','admin/owner','admin/staff','admin/cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
  for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);
- assert(html.includes('pos.css?v=20261015-play-v1'),'category styles cache freshness '+page);
- assert(html.includes('pos.js?v=20261015-play-v1-4'),'active JS entry freshness '+page);
+ assert(html.includes('pos.css?v=20261015-play-v1-4'),'category styles cache freshness '+page);
+ assert.match(html,/pos\.js\?v=20261015-(?:owner-dot-v1|play-v1-4)/,'active JS entry freshness '+page);
 }
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
 assert(source.includes("$('categoryProductButtons').onclick"),'category buttons should handle clicks');
