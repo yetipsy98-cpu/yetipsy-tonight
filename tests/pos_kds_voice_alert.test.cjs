@@ -13,6 +13,6 @@ assert(queueFix.includes('end request_source'),'KDS queue returns request_source
 assert(queue.includes('r.customer_id request_customer_id'),'KDS queue identifies caller, not box owner');
 const liveHtml=fs.readFileSync('play/admin/pos/index.html','utf8');
 
-assert.match(liveHtml,/pos\.js\?v=20261015-benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2/,'fresh JS cache on live POS route');
+assert.match(liveHtml,/pos\.js\?v=20261015-benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v1/,'fresh JS cache on live POS route');
 
 console.log('PASS Cashier KDS voice covers pending, customer and Owner direct store-box requests while excluding cashier-created work');
