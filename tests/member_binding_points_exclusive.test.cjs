@@ -1,6 +1,7 @@
 const fs=require('node:fs');
 const assert=require('node:assert/strict');
 const migration=fs.readFileSync('supabase/migrations/20261015064048_member_binding_points_exclusive.sql','utf8');
+const activityGate=fs.readFileSync('supabase/migrations/20261015065700_disable_member_points_binding_during_play_modes.sql','utf8');
 const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const play=fs.readFileSync('play/pos/play-upgrade.js','utf8');
 const owner=fs.readFileSync('play/pos/owner-points.js','utf8');
@@ -25,4 +26,9 @@ assert.match(owner,/yt_owner_member_points_save/);
 const neutralGuard=fs.readFileSync('supabase/migrations/20261015064200_member_order_binding_neutral_for_rewards.sql','utf8');
 assert.match(neutralGuard,/source in \('pos_qr','member_qr','lucky_box'\)/);
 assert.doesNotMatch(neutralGuard,/source in \('customer_order','pos_qr','member_qr'\)/);
+assert.match(activityGate,/mode<>'off'/);
+assert.match(activityGate,/points_binding_disabled_by_activity/);
+assert.match(pos,/pointsBindingOpen=state\.luckyMode\?\.mode==='off'/);
+assert.match(pos,/活动已开启，积分绑定入口已关闭/);
+assert.match(play,/points_binding_disabled_by_activity/);
 console.log('PASS exclusive order benefits, post-discount member points, held-order unbinding and visible scan errors');
