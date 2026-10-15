@@ -4,7 +4,7 @@ create table if not exists public.yt_play_upgrade_settings (
  id boolean primary key default true check(id),
  launch_at timestamptz not null default clock_timestamp(),
  invite_min_spend_rm numeric(10,2) check(invite_min_spend_rm >= 0),
- bell_enabled boolean not null default false,
+ bell_enabled boolean not null default true,
  bell_lat double precision check(bell_lat between -90 and 90),
  bell_lng double precision check(bell_lng between -180 and 180),
  bell_radius_m integer not null default 100 check(bell_radius_m between 30 and 300),
@@ -263,7 +263,7 @@ returns jsonb language plpgsql security definer set search_path='' as $$
 declare s public.yt_play_upgrade_settings%rowtype;v_id uuid;v_distance double precision;begin
  if not private.yt_play_customer() then raise exception 'customer_only';end if;
  select * into s from public.yt_play_upgrade_settings where id=true;
- if not s.bell_enabled or s.bell_lat is null or s.bell_lng is null then raise exception 'bell_disabled';end if;
+ if s.bell_lat is null or s.bell_lng is null then raise exception 'bell_disabled';end if;
  if p_lat is null or p_lng is null or p_lat not between -90 and 90 or p_lng not between -180 and 180
  then raise exception 'location_required';end if;
  v_distance:=6371000*2*asin(sqrt(power(sin(radians(p_lat-s.bell_lat)/2),2)+
@@ -330,7 +330,7 @@ declare s public.yt_play_upgrade_settings%rowtype;begin
  if p_data is not null then
   update public.yt_play_upgrade_settings set
    invite_min_spend_rm=case when p_data ? 'invite_min_spend_rm' then nullif(p_data->>'invite_min_spend_rm','')::numeric else invite_min_spend_rm end,
-   bell_enabled=coalesce((p_data->>'bell_enabled')::boolean,bell_enabled),
+   bell_enabled=true,
    bell_lat=case when p_data ? 'bell_lat' then (p_data->>'bell_lat')::double precision else bell_lat end,
    bell_lng=case when p_data ? 'bell_lng' then (p_data->>'bell_lng')::double precision else bell_lng end,
    bell_radius_m=coalesce((p_data->>'bell_radius_m')::integer,bell_radius_m),

@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const client=fs.readFileSync('play/pos/play-upgrade.js','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261015155125_service_bell_always_on_cashier_only_audio.sql','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+assert.doesNotMatch(client,/id="bellSound"|bellSound|playBellEnabled/,'the UI has no sound or disable toggle');
+assert.match(client,/async function announce\(\)\{if\(!isCashier\(\)\|\|!window\.speechSynthesis\)/,'speech announcement has a Cashier-only guard');
+assert.match(client,/if\(isCashier\(\)\)announce\(\)/,'Owner polling never speaks');
+assert.match(client,/bell_enabled:true/,'owner settings save always keeps the service bell enabled');
+assert.match(migration,/set bell_enabled = true[\s\S]*?check \(bell_enabled is true\)/,'database state and constraint enforce always-on');
+assert.match(migration,/bell_enabled=true/,'owner settings RPC ignores attempts to disable the bell');
+assert.doesNotMatch(migration,/if not s\.bell_enabled/,'customer requests do not fail due to an old disabled flag');
+assert.match(pos,/play-upgrade\.js\?v=20261015-service-bell-cashier-only-v1/,'POS imports the corrected service bell module');
+console.log('PASS service bell stays enabled and only Cashier speaks');
