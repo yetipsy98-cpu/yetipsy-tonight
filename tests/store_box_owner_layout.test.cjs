@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const pos=fs.readFileSync('play/pos/store-box.js','utf8');
-const ambassador=fs.readFileSync('play/ambassador-client.js','utf8');
+const ambassador=fs.readFileSync('play/ambassador-client.js','utf8')+fs.readFileSync('play/ambassador-ui.css','utf8');
 const migration=fs.readFileSync('sql/059_store_box_owner_claim_audit.sql','utf8');
 
 test('Store Box workbench shows generation, balance, then issued QR queue',()=>{

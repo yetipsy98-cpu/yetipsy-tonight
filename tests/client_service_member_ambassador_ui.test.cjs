@@ -1,0 +1,22 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const app=fs.readFileSync('play/app.js','utf8');
+const bell=app.slice(app.indexOf('async function showBell(){'),app.indexOf('function setupBell()',app.indexOf('async function showBell(){')));
+const member=app.slice(app.indexOf('async function showMemberCode(){'),app.indexOf('async function showOrderBinding()',app.indexOf('async function showMemberCode(){')));
+const client=fs.readFileSync('play/ambassador-client.js','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+const style=fs.readFileSync('play/ambassador-ui.css','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261015050326_service_bell_ack_cooldown_30_seconds.sql','utf8');
+
+assert.match(migration,/set bell_complete_seconds = 30/,'database allows a new call after the 30 second completion window');
+assert.match(migration,/'bell_complete_seconds',s\.bell_complete_seconds/,'customer receives the current server cooldown');
+assert.match(bell,/Number\(bellConfig\.bell_complete_seconds\|\|30\)/,'customer sees the remaining cooldown from server state');
+assert.match(bell,/latest\.status==='completed'.*?await showBell\(\)/s,'the request form reappears as soon as the cooldown ends');
+assert.doesNotMatch(bell,/confirm\(/,'service call has no rough second confirmation dialog');
+assert.match(bell,/class="bell-request-card"/,'active requests have a dedicated status card');
+assert.match(member,/member-code-card/,'member QR uses the redesigned member pass card');
+assert.match(member,/yt_play_member_token/,'dynamic member token refresh remains enabled');
+assert.match(client,/data\.enabled===true/,'customer Ambassador entry is permission-gated');
+assert.match(style,/\.yta-client-entry\{display:none!important\}/,'unassigned customer Ambassador entry stays hidden');
+assert.match(style,/@media\(max-width:600px\)/,'shared Ambassador UI adapts to phone screens');
+assert.match(pos,/if\(state\.ambassadorAccess&&!limitedRole\(\)\)tabs\.push\(\['ambassador'/,'staff POS entry is added only after permission check');
+console.log('PASS customer service bell cooldown, refreshed member pass, gated Ambassador entry and responsive unified Ambassador UI');

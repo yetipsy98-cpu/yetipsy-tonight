@@ -300,7 +300,7 @@ declare s public.yt_play_upgrade_settings%rowtype;v jsonb;begin
  return v;
 end $$;
 create or replace function private.yt_play_bell_config() returns jsonb language sql stable security definer set search_path='' as $$
- select jsonb_build_object('enabled',s.bell_enabled,'types',
+ select jsonb_build_object('enabled',s.bell_enabled,'bell_complete_seconds',s.bell_complete_seconds,'types',
    (select coalesce(jsonb_agg(jsonb_build_object('id',t.id,'zh',t.label_zh,'en',t.label_en) order by t.sort_order),'[]'::jsonb)
     from public.yt_play_bell_types t where t.enabled))
  from public.yt_play_upgrade_settings s where s.id=true and private.yt_play_customer()
