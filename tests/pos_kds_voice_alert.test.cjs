@@ -10,11 +10,12 @@ assert.match(pos,/const added=rows\.filter\(row=>!state\.seenKds\.has\(row\.id\)
 assert.match(pos,/row\.created_by===state\.authUserId/,'only orders placed by this signed-in Cashier are excluded');
 assert.doesNotMatch(pos,/rows\.filter\(row=>row\.created_channel!=='cashier'/,'Owner and other order sources are not suppressed');
 assert.match(pos,/db\.auth\.getSession\?\.\(\)/,'read current auth user for self-order detection');
+assert.match(pos,/message\.onerror=fallback[\s\S]*?synth\.resume\?\.\(\)/,'resume speech and play an audio fallback if mobile TTS fails');
 assert(queueFix.includes("e.metadata->>'source'"),'KDS queue exposes the request origin');
 assert(queueFix.includes('end request_source'),'KDS queue returns request_source');
 assert(queue.includes('r.customer_id request_customer_id'),'KDS queue identifies caller, not box owner');
 const liveHtml=fs.readFileSync('play/admin/pos/index.html','utf8');
 
-assert.match(liveHtml,/bell=20261016-kds-voice-self-v1/,'fresh KDS voice JS cache on live POS route');
+assert.match(liveHtml,/20261016-kds-voice-self-v2/,'fresh KDS voice JS cache on live POS route');
 
 console.log('PASS Cashier KDS voice covers every source except this Cashier account\'s own orders');
