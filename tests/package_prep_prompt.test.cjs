@@ -13,6 +13,6 @@ assert.match(migration,/private\.yt_pos_work_cashier\(\)/,'only Owner, Cashier a
 assert.match(migration,/challenge_one_cup_only/,'database enforces Challenge one-cup rule');
 assert.match(migration,/store_box_component_unavailable/,'database checks chosen components against available units');
 for(const page of ['play/admin/pos/index.html','play/admin/owner/index.html','play/admin/cashier/index.html','play/admin/staff/index.html']){
- assert.match(fs.readFileSync(page,'utf8'),/20261015-(?:owner-dot-v2|play-v1)/,`${page} reloads the updated workbench module`);
+ assert.match(fs.readFileSync(page,'utf8'),/20261015-(?:owner-dot-v2|owner-permission-v1|play-v1)/,`${page} reloads the updated workbench module`);
 }
 console.log('PASS Package / Challenge prep prompt, persistent pay-later selection, checkout restoration and access validation');

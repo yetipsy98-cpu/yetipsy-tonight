@@ -9,9 +9,9 @@ assert.doesNotMatch(pos,/badge\.textContent=count\?String\(count\)/,'approval in
 assert.match(pos,/badge\.textContent=''/,'approval indicator is a dot only');
 assert.match(html,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/,'Owner approval subtab is in the live admin POS page');
 assert.match(html,/id="ownerOrderApprovalsRoot"/,'approval content is mounted in the live admin POS page');
-assert.match(html,/pos\.js\?v=20261015-owner-dot-v2/,'live page loads the current POS module');
+assert.match(html,/pos\.js\?v=20261015-owner-permission-v1/,'live page loads the current POS module');
 assert.match(clientHtml,/id="referralGroup"[^>]*class="hide"/,'referral field is initially hidden outside signup');
 assert.match(clientHtml,/id="referralCode"[^>]*maxlength="10"/,'signup contains optional referral code input');
 assert.match(client,/\$\('referralGroup'\)\.classList\.toggle\('hide',!signup\)/,'referral input is visible only for signup');
-assert.match(html,/pos\.js\?v=20261015-owner-dot-v2/,'live module cache is refreshed on the actual entry page');
+assert.match(html,/pos\.js\?v=20261015-owner-permission-v1/,'live module cache is refreshed on the actual entry page');
 console.log('PASS owner approval dot, live owner approval route, and optional signup referral code');

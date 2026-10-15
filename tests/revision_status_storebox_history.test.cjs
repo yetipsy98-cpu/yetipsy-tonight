@@ -3,6 +3,7 @@ const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const consoleJs=fs.readFileSync('play/pos/console.js','utf8');
 const box=fs.readFileSync('play/pos/store-box.js','utf8');
 const sql=fs.readFileSync('supabase/migrations/20261015130000_revision_status_storebox_history.sql','utf8');
+const ownerPermissions=fs.readFileSync('supabase/migrations/20261015140000_owner_role_permission_priority.sql','utf8');
 const html=fs.readFileSync('play/admin/pos/index.html','utf8');
 
 test('Cashier sees durable revision request status on refreshed order cards',()=>{
@@ -15,8 +16,14 @@ test('Cashier sees durable revision request status on refreshed order cards',()=
 
 test('Owner workbench surfaces and refreshes pending review count',()=>{
  assert.match(html,/id="revisionApprovalTab"/);
+ assert.match(html,/id="tab-approvals"/);
  assert.match(pos,/refreshOwnerApprovalCount/);
+ assert.match(pos,/state\.identity\?\.role==='owner'/);
+ assert.match(pos,/can_cashier:identity\.role==='owner'/);
  assert.match(pos,/改单／取消申请等待 Owner 审批/);
+ assert.match(ownerPermissions,/wa\.role='owner'[\s\S]*wa\.active and not wa\.must_change_password/);
+ assert.match(ownerPermissions,/select private\.yt_work_owner\(\) or exists/);
+ assert.match(ownerPermissions,/'can_owner',owner_access/);
  assert.doesNotMatch(consoleJs,/orderapprovals|refreshOrderApprovalCount/);
 });
 
