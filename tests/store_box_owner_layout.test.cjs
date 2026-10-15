@@ -1,5 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const pos=fs.readFileSync('play/pos/store-box.js','utf8');
+const customerCss=fs.readFileSync('play/styles.css','utf8');
 const ambassador=fs.readFileSync('play/ambassador-client.js','utf8')+fs.readFileSync('play/ambassador-ui.css','utf8');
 const migration=fs.readFileSync('sql/059_store_box_owner_claim_audit.sql','utf8');
 
@@ -32,9 +33,15 @@ test('claimed Store Box cards show the staff who issued their claim QR',()=>{
  assert.match(migration,/wa\.username claimed_qr_issued_by_name/);
 });
 
-test('customer Ambassador entry is a full-width button directly under the home title',()=>{
- assert.match(ambassador,/homeTitle\.after\(button\)/);
+test('customer Ambassador entry remains a full-width shortcut after the existing home shortcuts',()=>{
+ assert.match(ambassador,/host\.append\(button\)/);
+ assert.doesNotMatch(ambassador,/homeTitle\.after\(button\)/);
  assert.match(ambassador,/grid-column:1\/-1/);
+});
+
+test('customer navigation is fixed to the bottom edge',()=>{
+ assert.match(customerCss,/\.bottom-nav\{position:fixed;top:auto;bottom:0/);
+ assert.doesNotMatch(customerCss,/\.bottom-nav\{position:sticky;top:0/);
 });
 
 test('customer claimed Store Boxes remain visible in their account history',()=>{

@@ -6,10 +6,10 @@ for(const page of ['admin/pos','admin/owner','admin/staff','admin/cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
  for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);
 
- assert.match(html,/pos\.js\?v=20261015-(?:owner-dot-v2|order-approvals-v2|admin-pos-unified-v3|play-v1-4|member-binding-points-v2|owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1)/,'active JS entry freshness '+page);
+ assert.match(html,/pos\.js\?v=20261015-(?:owner-dot-v2|order-approvals-v2|admin-pos-unified-v3|play-v1-4|member-binding-points-v2|owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2)/,'active JS entry freshness '+page);
 
 }
-assert.match(fs.readFileSync('play/admin/pos/index.html','utf8'),/console\.css\?v=20261015-(?:owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1)/,'canonical management styles cache freshness');
+assert.match(fs.readFileSync('play/admin/pos/index.html','utf8'),/console\.css\?v=20261015-(?:owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2)/,'canonical management styles cache freshness');
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
 assert(source.includes("$('categoryProductButtons').onclick"),'category buttons should handle clicks');
 const css=fs.readFileSync('play/pos/pos.css','utf8');

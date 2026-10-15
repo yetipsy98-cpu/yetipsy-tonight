@@ -5,7 +5,7 @@ const js=fs.readFileSync('play/pos/pos.js','utf8');
 const migration=fs.readFileSync('supabase/migrations/20261015090114_pos_benefit_operator_audit.sql','utf8');
 for(const page of ['play/admin/pos/index.html','play/admin/owner/index.html','play/admin/cashier/index.html','play/admin/staff/index.html','play/owner/index.html','play/cashier/index.html','play/staff/index.html','play/pos/index.html']){
  const html=fs.readFileSync(page,'utf8');
- assert.match(html,/pos\.js\?v=20261015-benefit-summary-(?:paynow|modal)-v1/,page+' refreshes benefit summary code');
+ assert.match(html,/pos\.js\?v=20261015-(?:benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2)/,page+' refreshes benefit summary code');
  assert.match(html,/id="checkoutPayNow"[^>]*checked/,page+' defaults to pay now');
  assert.doesNotMatch(html,/id="checkoutPayLater"[^>]*checked/,page+' does not default to pay later');
  assert.match(html,/id="benefitTitle"/,page+' can reflect the active mode');
@@ -25,6 +25,8 @@ assert.match(js,/cartMemberScan/);
 assert.match(migration,/yt_pos_log_member_binding_operator/);
 assert.match(migration,/operator_account\.username/);
 assert.match(js,/checkoutMode==='pay_now'/);
+assert.match(js,/const mode=state\.pendingSubmit\?\.p_checkout_mode\|\|'pay_now'/,'restoring a draft defaults to direct pay');
+assert.doesNotMatch(js,/d\.checkoutMode/,'saved pay-later preference cannot override the direct-pay default');
 assert.match(migration,/private\.yt_work_owner\(\)/);
 assert.match(migration,/grant execute on function public\.yt_pos_order_benefit_summaries\(uuid\[\]\) to authenticated/);
 assert.match(migration,/from public\.yt_point_entries/);
