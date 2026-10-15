@@ -21,7 +21,7 @@ assert.match(html,/id="ownerOrderApprovalsRoot"/,'approval content is mounted in
 assert.match(ownerHtml,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/,'Owner portal has an approvals subtab in Orders');
 assert.match(ownerHtml,/id="ownerOrderApprovalsRoot"/,'Owner portal mounts the approvals queue in Orders');
 
-assert.match(html,/pos\.js\?v=20261015-(?:owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v1)/,'live page loads the current POS module');
+assert.match(html,/pos\.js\?v=20261015-(?:owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12])/,'live page loads the current POS module');
 assert.match(consoleUi,/members:[\s\S]*?\['loyalty','会员与积分'/,'membership settings are grouped under Member & Rewards');
 assert.match(html,/data-pane="service"[^]*?<div id="playBellSettingsRoot"><\/div>/,'service bell settings pane is preserved');
 assert.match(consoleUi,/customer:[\s\S]*?\['service','服务铃'/,'service bell is nested under Customer Experience');
@@ -31,5 +31,5 @@ assert.match(consoleUi,/products:[\s\S]*?members:[\s\S]*?campaigns:[\s\S]*?opera
 assert.match(clientHtml,/id="referralGroup"[^>]*class="hide"/,'referral field is initially hidden outside signup');
 assert.match(clientHtml,/id="referralCode"[^>]*maxlength="10"/,'signup contains optional referral code input');
 assert.match(client,/\$\('referralGroup'\)\.classList\.toggle\('hide',!signup\)/,'referral input is visible only for signup');
-assert.match(html,/console\.css\?v=20261015-(?:owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v1)/,'live page refreshes the management styles');
+assert.match(html,/console\.css\?v=20261015-(?:owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12])/,'live page refreshes the management styles');
 console.log('PASS owner approvals, red-dot service alerts, KDS-style service tickets, management settings, and optional signup referral code');

@@ -123,7 +123,7 @@ function buildNav(){const nav=$('nav');$('tab-benefits')?.classList.toggle('bene
  nav.replaceChildren();for(const [key,label] of tabs){const b=document.createElement('button');b.type='button';b.dataset.tab=key;b.textContent=label;b.onclick=()=>showTab(key);nav.append(b);}updateAlertDots();}
 const isAmbassadorOrder=row=>(row?.items||[]).some(item=>item.name==='Freeflow Male'||item.name==='Freeflow Female');
 function productionItems(row){return (row?.items||[]).flatMap(item=>{
- if(item.store_box_item){const prep=row.package_preps?.find(entry=>entry.item_id===item.id),selections=prep?.selections||[],quantity=selections.reduce((sum,entry)=>sum+Math.max(0,Number(entry.quantity)||0),0);if(!quantity)return[];const breakdown=selections.filter(entry=>Number(entry.quantity)>0).map(entry=>`${entry.key} ×${Number(entry.quantity)}`).join(' · ');return[{...item,quantity,name:breakdown?`${item.name} · ${breakdown}`:item.name}];}
+ if(item.store_box_item){const prep=row.package_preps?.find(entry=>entry.item_id===item.id),selections=prep?.selections||[],quantity=selections.reduce((sum,entry)=>sum+Math.max(0,Number(entry.quantity)||0),0);if(!quantity)return[];const breakdown=selections.filter(entry=>Number(entry.quantity)>0).map(entry=>`${entry.name||((entry.key==='default')?item.name:entry.key)} ×${Number(entry.quantity)}`).join(' · ');return[{...item,quantity,name:breakdown?`${item.name} · ${breakdown}`:item.name}];}
  return Number(item.quantity)>0?[item]:[];
 });}
 function productionRows(){return (state.active||[]).filter(row=>row.status==='confirmed'&&!isAmbassadorOrder(row)&&productionItems(row).some(item=>!item.fulfilled));}
