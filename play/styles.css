@@ -150,3 +150,8 @@
 .bell-types label{display:flex;align-items:center;gap:8px;padding:12px;border:1px solid #9d8659;border-radius:12px}
 .yt-invite-row{padding:14px 0;border-bottom:1px solid #a8956644}
 .yt-invite-row progress{display:block;width:100%;accent-color:#caa768}
+.sheet-content,.bell-types,.bell-types label{min-width:0}
+.bell-types input[type="radio"]{width:18px;min-width:18px;min-height:18px;height:18px;flex:none;margin:0;accent-color:#dabc83}
+.bell-types label{overflow-wrap:anywhere;line-height:1.35}
+#inviteShareUrl{min-width:0;font-size:12px;text-overflow:ellipsis}
+@media(max-width:390px){.bell-types{grid-template-columns:1fr}.customer-service-bell{right:max(10px,env(safe-area-inset-right));bottom:calc(82px + env(safe-area-inset-bottom));width:62px;height:62px}.bottom-sheet{width:100%;padding-left:16px;padding-right:16px}}
