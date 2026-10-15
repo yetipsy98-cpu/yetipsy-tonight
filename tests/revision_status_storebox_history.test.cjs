@@ -13,9 +13,10 @@ test('Cashier sees durable revision request status on refreshed order cards',()=
 });
 
 test('Owner workbench surfaces and refreshes pending review count',()=>{
- assert.match(consoleJs,/data-revision-count/);
- assert.match(consoleJs,/refreshOrderApprovalCount/);
- assert.match(consoleJs,/改单／取消申请等待 Owner 审批/);
+ assert.match(pos,/id=\\'revisionApprovalTab\\'/);
+ assert.match(pos,/refreshOwnerApprovalCount/);
+ assert.match(pos,/改单／取消申请等待 Owner 审批/);
+ assert.doesNotMatch(consoleJs,/orderapprovals|refreshOrderApprovalCount/);
 });
 
 test('Store Box balance cards show expiry and dated history defaults to business day',()=>{
