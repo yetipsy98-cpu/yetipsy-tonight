@@ -6,7 +6,7 @@ const fix=fs.readFileSync('sql/051_owner_reset_new_order_children.sql','utf8');
 const playFix=fs.readFileSync('supabase/migrations/20261015123836_owner_reset_play_order_children.sql','utf8');
 const authFix=fs.readFileSync('supabase/migrations/20261015124600_owner_reset_auth_cleanup_fk.sql','utf8');
 const consoleSrc=fs.readFileSync('play/pos/console.js','utf8');
-assert.match(client,/console\.js\?v=20261015-(?:approval-moved-v2|owner-dot-v2|member-bell-reorg-v1|owner-categories-v1)/);
+assert.match(client,/console\.js\?v=20261015-(?:approval-moved-v2|owner-dot-v2|member-bell-reorg-v1|owner-categories-v1|tool-pane-visibility-fix-v1)/);
 assert.match(consoleSrc,/factory-reset\.js\?v=20261012-reset-fix-v23/);
 assert.match(root,/reset_database_error/);
 assert.match(root,/reset_confirmation_expired/);
