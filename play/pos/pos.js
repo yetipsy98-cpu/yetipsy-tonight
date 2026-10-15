@@ -1148,7 +1148,7 @@ eipt();}});
 
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')stopRedeemCamera();if(document.visibilityState==='visible'&&state.activeView==='dashboard')refreshOrders(true);});
 }
-async function boot(){bind();playUpgrade.bindOrderClicks();if(!usable){resetLogin();showNotice('请检查 /play/config.js，POS 尚未连上 Supabase',true,true);return;}
+async function boot(){bind();playUpgrade.bindOrderClicks();window.YT_WORK_READY=true;if(!usable){resetLogin();showNotice('请检查 /play/config.js，POS 尚未连上 Supabase',true,true);return;}
  const {data,error}=await db.auth.getSession();if(!error&&data?.session){try{await launch();return;}catch(e){showNotice('请重新登录工作账号：'+errorText(e),true);}}
  resetLogin();}
 boot().catch(e=>{window.YT_WORK_READY='failed';resetLogin();showNotice(errorText(e),true,true);});
