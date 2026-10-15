@@ -64,7 +64,7 @@ test('Package and challenge checkout issues the customer claim code immediately'
  for(const page of ['pos','owner','staff','cashier']){
   const html=read(`play/${page}/index.html`);
   assert.match(html,/id="orderCartClaims"/);
-  assert.match(html,/20261012-v22|20261013-unified-pos-v[12]|20261014-pos-kds-qr-refresh-v5/);
+  assert.match(html,/20261012-v22|20261013-unified-pos-v[12]|20261015-play-v1/);
   assert.match(html,/id="storeBoxOrderQueue"/);
  }
 });

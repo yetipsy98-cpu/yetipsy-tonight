@@ -194,3 +194,9 @@ body.sheet-open{overflow:hidden}
  #tab-create .catalog{gap:7px}
  #tab-create .product{border-radius:14px}
 }
+.play-bind-overlay{position:fixed;inset:0;background:#000b;z-index:999;display:grid;place-items:center;padding:20px}
+.play-bind-overlay.hidden{display:none}
+.play-bind-card{width:min(100%,460px);max-height:90vh;overflow:auto;text-align:center}
+.play-bind-card .qr-screen{display:flex;justify-content:center;margin:15px auto}
+#playMemberCamera{max-width:320px;margin:12px auto}
+#playBellMap .leaflet-container{z-index:1}

@@ -4,9 +4,9 @@ import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=202
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from './owner-banners.js?v=20261010-copy-v15-4';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
-import {createCustomerStoreBox} from './customer-store-box.js?v=20261012-bilingual-receipt-v19';
+import {createCustomerStoreBox} from './customer-store-box.js?v=20261015-play-v1';
 import {createAmbassadorClient} from './ambassador-client.js?v=20261014-ambassador-pos-sales-v4';
-import {createClientI18n} from './client-i18n.js?v=20261012-bilingual-receipt-v19';
+import {createClientI18n} from './client-i18n.js?v=20261015-play-v1';
 
 const $=id=>document.getElementById(id);
 const urlConfig=window.YETIPSY_PLAY_CONFIG||{};
@@ -66,7 +66,7 @@ function changeAuthMode(mode='phone'){
  const signup=mode==='register';
  $('nicknameGroup').classList.toggle('hide',!signup);
  $('birthdayGroup').classList.toggle('hide',!signup);
- $('referralGroup').classList.toggle('hide',!signup);
+ $('referralGroup').classList.add('hide');
   if(signup && state.referralDraft)$('referralCode').value=state.referralDraft;
  $('confirmPinGroup').classList.toggle('hide',!signup);
  $('consentGroup').classList.toggle('hide',!signup);
@@ -98,7 +98,7 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
    if($('pinConfirm').value!==pin)throw Error('两次 PIN 不一致');
    if($('nickname').value.trim().length<2)throw Error('请填写你的称呼');
    if(!$('birthday').value)throw Error('请选择完整出生日期');
-   extras={birthday:$('birthday').value,referral_code:$('referralCode').value.trim().toUpperCase()};
+   extras={birthday:$('birthday').value,referral_code:$('referralCode').value.trim().toUpperCase(),invite_token:new URL(location.href).searchParams.get('invite_token')||''};
    try{extras.device_token=localStorage.getItem('yetipsy:lite-install-v1')||'';}catch{}
   }
   const data=await pinRequest(state.loginMode,phone,pin,$('nickname').value.trim(),extras);
@@ -106,10 +106,11 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
   if(error)throw error;
   $('pin').value='';$('pinConfirm').value='';
   await initialize();toast(signup?'欢迎加入 Yetipsy Play ✳':'欢迎回来 ✳');
-   if(signup){state.referralDraft='';const next=new URL(location.href);next.searchParams.delete('invite');history.replaceState(null,'',next.href);}
+   if(signup){state.referralDraft='';const next=new URL(location.href);next.searchParams.delete('invite');next.searchParams.delete('invite_token');history.replaceState(null,'',next.search?next.href:new URL('./',location.href).href);}
    loadMyLoyalty().catch(()=>{});
    if(state.pendingLucky){const claim=state.pendingLucky;state.pendingLucky=null;try{await luckyBox.claimPending(claim);}catch(e){toast(errorText(e),true);}}
    if(state.pendingClaim){const claim=state.pendingClaim;state.pendingClaim=null;try{await (['claim','bundle'].includes(claim.kind)?previewClaim(claim.token,claim.kind):redeemScanValue(claim.token,claim.kind));}catch(e){toast(errorText(e),true);}}
+   const bindToken=new URL(location.href).searchParams.get('bind');if(bindToken)await showOrderBinding(bindToken);
  });
 }catch(err){$('authError').textContent=errorText(err);}}
 async function initialize(){if(!db)return;const {data:{user},error}=await db.auth.getUser();if(error&&!/Auth session missing/i.test(error.message||''))console.warn('Session:',error.message);state.user=user||null;
@@ -119,6 +120,7 @@ async function initialize(){if(!db)return;const {data:{user},error}=await db.aut
  db.from('profiles').select('id,display_name,phone').eq('id',user.id).maybeSingle()
  ]);
  state.role=unpack(role)?.role||null;state.profile=unpack(profile)||null;
+ refreshBell().catch(()=>{});
  $('accountStaff').classList.toggle('hide',!isStaff());$('accountOwner').classList.toggle('hide',!isOwner());
  await Promise.all([refreshPasses(),loadGames(),wallet(true)]);
  navigate('home');
@@ -205,7 +207,7 @@ async function previewClaim(raw,assumed=null){
  const count=info.kind==='bundle'?`${Number(data.pass_count||0)} 份 Game Pass`:info.kind==='gift'&&data.remaining!=null?`剩余 ${Number(data.remaining)} 份`:info.kind==='claim'?`${data.game_count||0} 款游戏可选`:'';
  sheetHtml(`<div class="sheet-content claim-preview"><div class="preview-glyph">${info.kind==='gift'?'✦':'◇'}</div><div class="overline">${esc(data.subtitle||'YETIPSY PLAY')}</div><h2>${esc(title)}</h2><p>${esc(data.description||'你的专属惊喜')}</p><div class="preview-infos"><span>${esc(limit)}</span><span>${esc(count)}</span></div>${gameClaim?'<p class="tiny-help">确认领取后3天内有效，可稍后玩；店员将不能再次发放。未确认前，二维码两分钟到期，店员可取消。</p>':data.rules?`<p class="tiny-help">${esc(data.rules)}</p>`:''}<div id="previewAction"></div></div>`);
  const target=$('previewAction');
- if(!data.valid){target.innerHTML='<div class="preview-unavailable">这份领取码暂不可用，可能尚未开始、已被领取、已过期或已领完。</div>';return;}
+ if(!data.valid){target.innerHTML='<div class="preview-unavailable">这份领取码暂不可用，可能尚未开始、已被领取、已过期或已领完。</div><button id="invalidClaimHome" class="button button-outline wide">返回首页</button>';$('invalidClaimHome').onclick=()=>returnFromClaim(info.kind);return;}
  const button=document.createElement('button');button.className='button button-primary wide';button.textContent=state.user?'确认领取 '+(['claim','bundle'].includes(info.kind)?'Game Pass':'奖励')+' ↗':'领取 '+(['claim','bundle'].includes(info.kind)?'Game Pass':'奖励')+' · 只差一步 ↗';
  button.onclick=()=>pending(button,async()=>{
   if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='只差一步！输入手机号码，登录或注册后可继续确认领取。';window.scrollTo(0,0);return;}
@@ -219,17 +221,71 @@ async function redeemScanValue(raw,assumed){const info=tokenDetails(raw);if(assu
 
  if(info.kind==='redeem'){if(!isStaff())throw Error('兑奖二维码需由 Staff 扫描');openWorkspace('staff');showStaffRedeem();$('staffRedeemInput').value=info.token;await lookupRedeem();return;}
  if(info.kind==='bundle'){
-  const result=unpack(await db.rpc('yt_pos_bundle_claim',{p_token:info.token}));stripLink('bundle');await refreshPasses();
-  showSheet('领取成功','GAME PASS');sheetHtml(`<div class="sheet-content"><h2>${Number(result.count||0)} 份 Game Pass 已入账</h2><p>3天内有效，可逐次选择游戏或稍后玩。</p><button id="bundleGoHome" class="button button-primary wide">查看我的游戏 ↗</button></div>`);$('bundleGoHome').onclick=()=>{closeSheet();existingGamePass().catch(e=>toast(errorText(e),true));};return;
+  const result=unpack(await db.rpc('yt_pos_bundle_claim',{p_token:info.token}));await refreshPasses();
+  showSheet('领取成功','GAME PASS');sheetHtml(`<div class="sheet-content"><h2>${Number(result.count||0)} 份 Game Pass 已入账</h2><p>3天内有效，可逐次选择游戏或稍后玩。</p><button id="bundleGoHome" class="button button-primary wide">${(typeof location!=='undefined'&&new URL(location.href).searchParams.has('bundle'))?'返回首页':'查看我的游戏 ↗'}</button></div>`);$('bundleGoHome').onclick=()=>{if((typeof location!=='undefined'&&new URL(location.href).searchParams.has('bundle')))returnFromClaim('bundle');else{closeSheet();existingGamePass().catch(e=>toast(errorText(e),true));}};return;
  }
  if(info.kind==='gift'||info.kind==='gift_code'){
   const key=info.kind+':'+info.token,req=retryId(key);let rows;
   if(info.kind==='gift_code'){const result=unpack(await db.rpc('yt_claim_offer_code',{p_code:info.token,p_request:req}));if(result?.error_code)throw Error(result.error_code);rows=result?.awards;}
-  else rows=unpack(await db.rpc('yt_claim_offer',{p_token:info.token,p_request:req}));if(!rows?.length)throw Error('奖励领取失败');stripLink('gift');await wallet(true);await showSimpleSuccess('领取成功',rows[0].reward_name||'礼物已放进奖励钱包','奖励可在「我的奖励」里查看使用时间。');requestStore.remove('v11:'+key);return;
+  else rows=unpack(await db.rpc('yt_claim_offer',{p_token:info.token,p_request:req}));if(!rows?.length)throw Error('奖励领取失败');await wallet(true);await showSimpleSuccess('领取成功',rows[0].reward_name||'礼物已放进奖励钱包','奖励可在「我的奖励」里查看使用时间。');requestStore.remove('v11:'+key);if(info.kind==='gift'&&(typeof location!=='undefined'&&new URL(location.href).searchParams.has('gift')))showClaimHomeButton('gift');return;
  }
- const claimedId=unpack(await db.rpc('yt_claim_pass',{p_token:info.token}));stripLink('claim');await refreshPasses();toast('游戏机会已经领取 ✳');const p=state.passes.find(x=>x.id===claimedId&&x.status==='claimed'&&millis(x.expires_at)>Date.now());if(p)await choosePassReward(p);else toast('游戏机会已入账，请到首页选择游戏',true);
+ const claimedId=unpack(await db.rpc('yt_claim_pass',{p_token:info.token}));await refreshPasses();toast('游戏机会已经领取 ✳');if((typeof location!=='undefined'&&new URL(location.href).searchParams.has('claim'))){showSheet('领取成功','GAME PASS');sheetHtml('<div class="sheet-content"><h2>游戏机会已入账</h2><p>可以稍后从首页进入我的游戏。</p><button id="claimGoHome" class="button button-primary wide">返回首页</button></div>');$('claimGoHome').onclick=()=>returnFromClaim('claim');return;}const p=state.passes.find(x=>x.id===claimedId&&x.status==='claimed'&&millis(x.expires_at)>Date.now());if(p)await choosePassReward(p);else toast('游戏机会已入账，请到首页选择游戏',true);
 }
 function stripLink(kind){const u=new URL(location.href);u.searchParams.delete(kind);history.replaceState(null,'',u.href);}
+function returnFromClaim(kind){const home=new URL('./',location.href);history.replaceState(null,'',home.href);closeSheet();navigate('home');}
+function showClaimHomeButton(kind){const body=$('sheetBody');if(!body)return;const walletButton=$('successWallet');if(walletButton)walletButton.onclick=()=>{history.replaceState(null,'',new URL('./',location.href).href);closeSheet();navigate('wallet');};const button=document.createElement('button');button.type='button';button.className='button button-outline wide';button.textContent='返回首页';button.onclick=()=>returnFromClaim(kind);body.querySelector('.sheet-content')?.append(button);}
+async function showMemberCode(){
+ if(!state.user){shell(false);changeAuthMode('phone');return;}
+ showSheet(tr('member_code'),'MEMBER ID');sheetHtml('<div class="sheet-content"><p id="memberQrHint"></p><div id="memberQr" class="sheet-qr-container"></div><p id="memberQrTime" class="tiny-help"></p></div>');
+ const draw=async()=>{if($('sheetBackdrop').classList.contains('hide')||!$('memberQr'))return;
+  try{const code=unpack(await db.rpc('yt_play_member_token'));if(!code?.token)throw Error('会员码暂不可用');
+   $('memberQrHint').textContent=i18n.locale==='zh'?'消费后出示给工作人员绑定会员':'Show staff after your purchase to link your membership';
+   await qrcode($('memberQr'),'member:'+code.token);$('memberQrTime').textContent=i18n.locale==='zh'?'每 60 秒自动更新 · 过期码无效':'Refreshes every 60 seconds · expired codes cannot be used';
+   clearTimeout(draw.timer);draw.timer=setTimeout(draw,Math.max(1000,Date.parse(code.expires_at)-Date.now()));
+  }catch(e){if($('memberQrTime'))$('memberQrTime').textContent=errorText(e);}};
+ await draw();
+}
+async function showOrderBinding(token){
+ showSheet(i18n.locale==='zh'?'绑定消费':'Link purchase','PURCHASE');
+ sheetHtml('<div class="sheet-content"><p id="bindText"></p><button id="bindConfirm" class="button button-primary wide"></button><button id="bindHome" class="button button-outline wide"></button></div>');
+ $('bindText').textContent=i18n.locale==='zh'?'请确认这是你本人的真实消费订单。挂单可先绑定，整单付款后才计入有效消费。':'Confirm this is your purchase. Open tabs can be linked now; the purchase counts only after full payment.';
+ $('bindConfirm').textContent=i18n.locale==='zh'?'确认绑定':'Confirm link';$('bindHome').textContent=i18n.locale==='zh'?'返回首页':'Back to home';
+ $('bindHome').onclick=()=>returnFromClaim('bind');
+ $('bindConfirm').onclick=e=>pending(e.currentTarget,async()=>{
+  const result=unpack(await db.rpc('yt_play_bind_order',{p_token:token}));
+  $('bindText').textContent=result.valid_purchase?(i18n.locale==='zh'?'已完成消费绑定':'Purchase linked'):(i18n.locale==='zh'?'已预先绑定，付款后生效':'Linked; counts after payment');
+  $('bindConfirm').remove();$('bindHome').textContent=i18n.locale==='zh'?'返回首页':'Back to home';
+ }).catch(()=>{});
+}
+async function showInvites(){
+ showSheet(i18n.locale==='zh'?'我的邀请记录':'My invitations','INVITE FRIENDS');
+ const rows=unpack(await db.rpc('yt_play_invites'))||[],root=document.createElement('div');root.className='sheet-content';
+ const rules=document.createElement('p');rules.className='tiny-help';rules.textContent=i18n.locale==='zh'?'好友需通过邀请链接注册，并在注册后的连续 168 小时内完成首次有效消费及会员绑定。每位好友仅计算一次；逾期不补发。奖励以活动页面为准。':'Your friend must join through your link, then complete and link a first qualifying purchase within 168 hours. Each friend counts once; expired invitations cannot earn rewards.';root.append(rules);
+ if(!rows.length){const p=document.createElement('p');p.textContent=i18n.locale==='zh'?'暂时没有邀请记录':'No invitations yet';root.append(p);}
+ for(const row of rows){const card=document.createElement('article');card.className='yt-invite-row';const name=document.createElement('strong');name.textContent=row.nickname||'Yetipsy Member';const label=document.createElement('p');const meter=document.createElement('progress');meter.max=168;const start=Date.parse(row.registered_at),end=Date.parse(row.expires_at);const update=()=>{const now=Date.now(),left=Math.max(0,end-now);meter.value=Math.min(168,Math.max(0,(now-start)/3600000));label.textContent=row.rewarded?'首单已完成 · 奖励已发放':row.first_paid_at?'首单已完成 · 奖励待核对':left?`等待首单 · 剩余 ${Math.ceil(left/3600000)} 小时`:'已过期';};update();root.append(card);card.append(name,label,meter);const timer=setInterval(()=>{if(!card.isConnected)clearInterval(timer);else update();},60000);}
+ $('sheetBody').replaceChildren(root);
+}
+let bellConfig=null;
+async function refreshBell(){if(!state.user)return;try{bellConfig=unpack(await db.rpc('yt_play_bell_config'));const button=$('customerServiceBell');if(button)button.hidden=!bellConfig?.enabled;}catch{}}
+async function showBell(){
+ if(!state.user){shell(false);changeAuthMode('phone');return;}
+ await refreshBell();if(!bellConfig?.enabled)return toast(i18n.locale==='zh'?'服务铃暂未开放':'Service bell is unavailable',true);
+ const rows=unpack(await db.rpc('yt_play_bell_list'))||[],active=rows.find(r=>r.status!=='completed');
+ showSheet(i18n.locale==='zh'?'需要帮忙吗？':'Need help?','SERVICE BELL');
+ if(active){sheetHtml('<div class="sheet-content"><h2 id="bellStatus"></h2><p id="bellTable"></p></div>');$('bellStatus').textContent=active.status==='pending'?(i18n.locale==='zh'?'已呼叫工作人员':'Calling staff'):(i18n.locale==='zh'?'员工正在过来':'Staff is on the way');$('bellTable').textContent=active.table;
+  const activeId=active.id;clearInterval(showBell.statusTimer);showBell.statusTimer=setInterval(async()=>{if(!$('bellStatus')||$('sheetBackdrop').classList.contains('hide')){clearInterval(showBell.statusTimer);return;}try{const latest=(unpack(await db.rpc('yt_play_bell_list'))||[]).find(r=>r.id===activeId);if(latest?.status==='acknowledged')$('bellStatus').textContent=i18n.locale==='zh'?'员工正在过来':'Staff is on the way';if(latest?.status==='completed'){$('bellStatus').textContent=i18n.locale==='zh'?'服务已完成':'Service completed';clearInterval(showBell.statusTimer);}}catch{}},6500);return;}
+ const types=bellConfig.types||[];sheetHtml('<div class="sheet-content"><form id="bellForm"><div id="bellTypes" class="bell-types"></div><label>TABLE <input id="bellTableInput" maxlength="32" required></label><details class="table-guide"><summary>桌号指引 / Table guide</summary><img src="./assets/table-number-guide.jpg" alt="Table number guide"></details><label id="bellNoteWrap" hidden>备注 / Note <textarea id="bellNote" maxlength="50"></textarea></label><p id="bellError" class="tiny-help"></p><button class="button button-primary wide" type="submit">呼叫工作人员 / Call staff</button></form></div>');
+ $('bellTableInput').value=localStorage.getItem('yt-play-table')||'';
+ for(const t of types){const label=document.createElement('label');const input=document.createElement('input');input.type='radio';input.name='bellType';input.value=t.id;input.required=true;input.onchange=()=>{$('bellNoteWrap').hidden=t.id!=='other';};label.append(input,document.createTextNode(i18n.locale==='zh'?t.zh:t.en));$('bellTypes').append(label);}
+ $('bellForm').onsubmit=e=>{e.preventDefault();const type=$('bellForm').querySelector('[name=bellType]:checked')?.value,table=$('bellTableInput').value.trim();if(!type||!table)return;
+  const selected=types.find(item=>item.id===type);if(!confirm(`${i18n.locale==='zh'?'确认呼叫':'Confirm request'} · TABLE ${table} · ${selected?(i18n.locale==='zh'?selected.zh:selected.en):type}`))return;
+  pending(e.submitter,async()=>{if(!navigator.geolocation)throw Error('location_required');
+   const position=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:12000,maximumAge:0}));
+   await db.rpc('yt_play_bell_call',{p_table:table,p_type:type,p_note:type==='other'?$('bellNote').value.trim():'',p_lat:position.coords.latitude,p_lng:position.coords.longitude}).then(unpack);
+   localStorage.setItem('yt-play-table',table);await showBell();
+  }).catch(err=>{$('bellError').textContent=errorText(err)+' · 请确认已允许定位，然后重试。';});};
+}
+function setupBell(){let button=$('customerServiceBell');if(button)return;button=document.createElement('button');button.id='customerServiceBell';button.type='button';button.hidden=true;button.className='customer-service-bell';button.innerHTML='<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>';button.setAttribute('aria-label','Service Bell / 服务铃');button.onclick=()=>showBell().catch(e=>toast(errorText(e),true));document.body.append(button);refreshBell();setInterval(()=>{if(state.user)refreshBell();},30000);}
 function openRewardClaim(){
  showSheet(tr('reward_claim_title'),'REWARD CLAIM');
  sheetHtml('<div class="sheet-content"><p>'+esc(tr('reward_claim_help'))+'</p><form id="rewardClaimForm"><label for="rewardClaimCode">'+esc(tr('reward_claim_label'))+'</label><input id="rewardClaimCode" class="claim-code-input" placeholder="7K3M-9X2P" maxlength="16" autocomplete="off" autocapitalize="characters" spellcheck="false" required/><button id="rewardClaimSubmit" class="button button-primary wide" type="submit">'+esc(tr('reward_claim_button'))+'</button></form><p class="tiny-help">'+esc(tr('reward_claim_terms'))+'</p></div>');
@@ -522,7 +578,7 @@ function renderMyLoyalty(){
   const actions=document.createElement('div');actions.className='loyalty-actions';
   const shop=document.createElement('button');shop.type='button';shop.className='button button-primary';shop.textContent=tr('points_shop');shop.onclick=()=>openPointsShop().catch(e=>toast(errorText(e),true));actions.append(shop);
   const history=document.createElement('button');history.type='button';history.className='button button-outline';history.textContent=tr('points_history');history.onclick=showPointsHistory;actions.append(history);target.append(actions);
-  if(l.referral_enabled){const invite=document.createElement('details');invite.className='loyalty-referral';invite.innerHTML='<summary>'+esc(tr('invite'))+'</summary><div class="yt-loyalty-code"><span>'+esc(tr('invite_code'))+'</span><b>'+esc(l.referral_code||'—')+'</b></div>';const b=document.createElement('button');b.type='button';b.className='button button-outline wide';b.textContent=tr('copy_invite');b.onclick=()=>{const u=new URL('./',location.href);u.search='';u.searchParams.set('invite',l.referral_code);copy(u.href);};invite.append(b);target.append(invite);}
+  if(l.referral_enabled){const invite=document.createElement('details');invite.className='loyalty-referral';invite.innerHTML='<summary>'+esc(tr('invite'))+'</summary><div class="yt-loyalty-code"><span>'+esc(tr('invite_code'))+'</span><b>'+esc(l.referral_code||'—')+'</b></div>';const b=document.createElement('button');b.type='button';b.className='button button-outline wide';b.textContent=tr('copy_invite');b.onclick=async()=>{try{const token=unpack(await db.rpc('yt_play_invite_token'));const u=new URL('./',location.href);u.search='';u.searchParams.set('invite',token.code);u.searchParams.set('invite_token',token.token);copy(u.href);}catch(e){toast(errorText(e),true);}};invite.append(b);const records=document.createElement('button');records.type='button';records.className='button button-outline wide';records.textContent=i18n.locale==='zh'?'我的邀请记录':'My invitations';records.onclick=()=>showInvites().catch(e=>toast(errorText(e),true));invite.append(records);const rules=document.createElement('details');const summary=document.createElement('summary');summary.textContent=i18n.locale==='zh'?'邀请好友 · 活动规则':'Invitation rules';const copy=document.createElement('ol');const ruleItems=i18n.locale==='zh'?['通过专属链接邀请尚未注册的新朋友加入会员。','好友须通过邀请链接注册，并在注册后连续 168 小时内完成首次有效消费。','消费后扫描工作人员的二维码，或出示会员码，由工作人员绑定订单。','首单付款成功且会员绑定完成后，邀请人自动获得活动页面所示奖励。','每位新会员仅可绑定一位邀请人，每位好友仅触发一次奖励。','超过期限未完成首单，邀请奖励资格失效且不补发。','奖励内容、有效期以活动页面为准；虚假消费或无效绑定不符合资格。']:['Invite a new member through your personal link.','Your friend must sign up through the link and make a first qualifying purchase within 168 hours.','Link the purchase by scanning staff’s QR or showing your member code.','Once payment and linking are complete, the inviter receives the displayed reward.','Each new member can have one inviter and count once.','Expired invitations cannot earn a reward.','Reward terms appear on the campaign page. Invalid purchases do not qualify.'];for(const item of ruleItems){const li=document.createElement('li');li.textContent=item;copy.append(li);}rules.append(summary,copy);invite.append(rules);target.append(invite);}
  }
 }
 function showPointsHistory(){
@@ -692,7 +748,7 @@ function bindEvents(){
  $('togglePin').onclick=()=>{const field=$('pin');field.type=field.type==='password'?'text':'password';$('togglePin').textContent=field.type==='password'?'显示':'隐藏';};
  for(const b of document.querySelectorAll('[data-page]'))b.onclick=()=>navigate(b.dataset.page);
  $('homeRewardClaim').onclick=openRewardClaim;$('authRewardClaim').onclick=openRewardClaim;
- $('heroScan').onclick=()=>openScanner('claim');$('accountChangePin').onclick=()=>changeMyPin().catch(e=>toast(errorText(e),true));$('privacyNotice').onclick=()=>{showSheet('会员资料使用说明','YETIPSY PLAY');sheetHtml('<div class="sheet-content"><p>手机号、昵称、生日与会员记录仅用于账户、会员福利、奖励和到店服务。</p><p>如需更正或删除资料，请联系 Yetipsy。</p></div>');};$('openExistingPass').onclick=()=>existingGamePass().catch(e=>toast(errorText(e),true));
+ $('heroScan').onclick=()=>showMemberCode().catch(e=>toast(errorText(e),true));$('accountChangePin').onclick=()=>changeMyPin().catch(e=>toast(errorText(e),true));$('privacyNotice').onclick=()=>{showSheet('会员资料使用说明','YETIPSY PLAY');sheetHtml('<div class="sheet-content"><p>手机号、昵称、生日与会员记录仅用于账户、会员福利、奖励和到店服务。</p><p>如需更正或删除资料，请联系 Yetipsy。</p></div>');};$('openExistingPass').onclick=()=>existingGamePass().catch(e=>toast(errorText(e),true));
  $('homePrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));$('accountPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));$('publicBoardFromAuth').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('homeLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountRecords').onclick=()=>showMyRecords().catch(e=>toast(errorText(e),true));$('homeWallet').onclick=()=>navigate('wallet');$('walletRefresh').onclick=()=>wallet().catch(e=>toast(errorText(e),true));$('accountScan').onclick=()=>openScanner('claim');
  $('accountStaff').onclick=()=>openWorkspace('staff');$('accountOwner').onclick=()=>openWorkspace('owner');
@@ -714,13 +770,15 @@ function bindEvents(){
  $('ownerOpenPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('reloadInsights').onclick=e=>pending(e.currentTarget,loadInsights).catch(()=>{});$('staffAccessGrant').onclick=e=>pending(e.currentTarget,grantStaff).catch(()=>{});
 }
-async function boot(){i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});ambassadorClient=createAmbassadorClient({db,toast:(message,bad)=>toast(message,bad)});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
+async function boot(){i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});ambassadorClient=createAmbassadorClient({db,toast:(message,bad)=>toast(message,bad)});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();setupBell();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
  db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();shell(false);changeAuthMode('phone');}});
   const qs=new URL(location.href).searchParams;
   const invite=(qs.get('invite')||'').toUpperCase();
-  if(/^YT[A-Z0-9]{8}$/.test(invite)){state.referralDraft=invite;$('referralCode').value=invite;}
+  if(/^YT[A-Z0-9]{8}$/.test(invite)&&/^[0-9a-f-]{36}$/i.test(qs.get('invite_token')||'')){if(state.user){history.replaceState(null,'',new URL('./',location.href).href);toast('已有会员无需再次注册，邀请关系不会改变。');}else{state.referralDraft=invite;$('referralCode').value=invite;}}
+  else if(qs.has('invite')){showSheet('邀请链接无效','INVITATION');sheetHtml('<div class="sheet-content"><p>请好友重新分享有效邀请链接。</p><button id="invalidInviteHome" class="button button-outline wide">返回首页</button></div>');$('invalidInviteHome').onclick=()=>{stripLink('invite');stripLink('invite_token');closeSheet();navigate('home');};}
+  if(qs.has('bind')&&state.user)showOrderBinding(qs.get('bind')).catch(e=>toast(errorText(e),true));
   if(state.user)loadMyLoyalty().catch(()=>{});
  if(qs.has('reset')){try{await showResetFlow(qs.get('reset'));}catch(e){toast(errorText(e),true);}}
  else if(qs.has('box')){try{await previewClaim(qs.get('box'),'box');}catch(e){toast(errorText(e),true);}}
