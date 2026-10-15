@@ -29,7 +29,7 @@ assert.match(pos, /draftRedeemScan'\)\.disabled=locked\|\|mutating/);
 assert.match(pos, /productionRows\(\).*isAmbassadorOrder/);
 
 // Freeflow uses the POS basket and normal payment drawer, and remains out of KDS.
-assert.match(pos, /showTab\('orders'\)/);
+assert.match(pos, /state\.ambassadorDraft=.*?renderCart\(\);openCartDrawer\(\)/s, 'Freeflow is added to the standard POS cart and checkout drawer');
 assert.doesNotMatch(pos, /openOrderCart\(data\.id\)/);
 assert.match(sql, /values\('future_pos','fulfilled',ono,'Freeflow'/);
 assert.match(sql, /'Freeflow Male'/);
