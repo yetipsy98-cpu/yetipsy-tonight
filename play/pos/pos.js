@@ -5,6 +5,7 @@ import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261015-revision-badge-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
+import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261015-orders-approvals-v1';
 import {createStoreBox} from './store-box.js?v=20261015-storebox-history-v2';
 import {createAmbassadorTools} from './ambassador.js?v=20261014-qr-black-white-v3';
 
@@ -68,13 +69,13 @@ const isOwnerLimited=()=>state.identity?.can_owner_limited===true;
 const isCashier=()=>state.identity?.can_cashier===true;
 const isStaff=()=>!!state.identity?.role&&state.identity.role!=='owner'&&state.identity.role!=='cashier';
 function updateCreateHint(){const payNow=$('checkoutPayNow').checked;if(isCashier()&&$('cashierDirect').checked)$('createHint').textContent=payNow?'下单后立即打开收款；订单同时进入吧台 KDS。':'订单直接进入吧台 KDS，出品后进入挂单收款。';else $('createHint').textContent=payNow?'若 Owner 开启审核，Cashier 接单后打开收款；若关闭审核，下单后立即打开收款。':'订单按 Owner 的审核设置进入流程；未付款订单可在「待付款」中随时结账。';}
-let consoleUI=null,storeBox=null,limitedReportView=null;
+let consoleUI=null,storeBox=null,limitedReportView=null,orderApprovals=null,approvalCount=null;
 const playUpgrade=createPlayWork({db,notice:(message,bad)=>showNotice(message,bad),isOwner,isCashier,qrLibrary:()=>qrLibrary(),getOrders:()=>[...state.active,...state.paid]});
 function showNotice(message,bad=false,persist=false){const n=$('notice'),label=$('noticeMessage');if(!n)return;if(label)label.textContent=message;else n.textContent=message;n.dataset.message=message;n.classList.remove('hidden');n.classList.toggle('error',bad);n.setAttribute('role',bad?'alert':'status');n.setAttribute('aria-live',bad?'assertive':'polite');clearTimeout(state.noticeTimer);if(!persist)state.noticeTimer=setTimeout(()=>n.classList.add('hidden'),bad?8000:6200);}
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
 async function work(action,data={},signed=false){const headers={'Content-Type':'application/json',apikey:conf.publishableKey};if(signed)headers.Authorization='Bearer '+await getBearer();const endpoint=action.startsWith('reset_')?(conf.url||'')+'/functions/v1/yt-owner-reset':workURL;const resp=await fetch(endpoint,{method:'POST',headers,cache:'no-store',body:JSON.stringify({action,...data})});const res=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));if(!resp.ok||!res.ok)throw Error(res.error||'server_unavailable');return res;}
-function resetLogin(){clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.revisionRequests=[];state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();storeBox?.clear();limitedReportView?.clear();limitedReportView=null;state.cart.clear();state.ambassadorDraft=null;state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.ownerDashboard=null;state.ownerDashboardDay=null;state.ownerDashboardLoading=false;state.storeBoxQueue=[];state.seenStoreBox=new Set();state.seenStoreBoxInitialized=false;state.seenKds=new Set();state.seenKdsInitialized=false;state.seenPending=new Set();state.seenInitialized=false;state.activeView='login';state.identity=null;consoleUI?.roleChanged();$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
+function resetLogin(){clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.revisionRequests=[];state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();storeBox?.clear();limitedReportView?.clear();limitedReportView=null;state.cart.clear();state.ambassadorDraft=null;state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.ownerDashboard=null;state.ownerDashboardDay=null;state.ownerDashboardLoading=false;state.storeBoxQueue=[];state.seenStoreBox=new Set();state.seenStoreBoxInitialized=false;state.seenKds=new Set();state.seenKdsInitialized=false;state.seenPending=new Set();state.seenInitialized=false;state.activeView='login';state.identity=null;consoleUI?.roleChanged();buildNav();$('revisionApprovalTab')?.classList.toggle('hidden',!isOwner());if(!isOwner()){approvalCount=null;$('revisionApprovalCount')?.classList.add('hidden');}$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
 async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
  const username=$('username').value.trim().toLowerCase(),password=$('password').value;
  const result=await work('login',{username,password});
@@ -108,7 +109,7 @@ const defaultTab=()=>limitedRole()?'limited':isOwner()?'admin':state.identity?.r
 const limitedRole=()=>typeof isOwnerLimited==='function'&&isOwnerLimited();
 function ensureLimitedHome(){let section=$('tab-limited');if(!section){document.querySelector('main')?.insertAdjacentHTML('beforeend','<section id="tab-limited" class="tab-view hidden"><div id="limitedReportsRoot"></div></section>');section=$('tab-limited');}else if(!$('limitedReportsRoot'))section.innerHTML='<div id="limitedReportsRoot"></div>';}
 async function loadLimitedReports(){const root=$('limitedReportsRoot');if(!root||!isOwnerLimited())return;const module=await import('./owner-reports.js?v=20261014-limited-report-full-v1');limitedReportView||=module.createOwnerReports({db,root,isOwner:isOwnerLimited,allowExport:false,notice:(message,bad)=>showNotice(message,bad),businessDay:state.businessDay});await limitedReportView.load();}
-function buildNav(){const nav=$('nav');const tabs=limitedRole()
+function buildNav(){const nav=$('nav');$('revisionApprovalTab')?.classList.toggle('hidden',!isOwner());const tabs=limitedRole()
   ?[['limited','报表'],['ambassador','发 Pass']]
   :isOwner()
   ?[['admin','管理'],['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']]
@@ -131,12 +132,12 @@ function showTab(tab,orderId=null){
  if(tab==='ambassador'){globalThis.ytAmbassadorTools?.open().catch(e=>showNotice(errorText(e),true));tab=defaultTab();}
  if(tab==='redeem')tab='create';
  
- if(!['create','pending','orders','unpaid','history','benefits','storebox','bell','redeem','reset','admin','limited'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='admin'&&!isOwner())||(tab==='limited'&&!limitedRole()))tab=defaultTab();
+ if(!['create','pending','orders','unpaid','history','approvals','benefits','storebox','bell','redeem','reset','admin','limited'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='approvals'&&!isOwner())||(tab==='admin'&&!isOwner())||(tab==='limited'&&!limitedRole()))tab=defaultTab();
  $('accountMenu').open=false;
  if(tab==='reset'&&consoleUI){consoleUI.open('pin');return;}
  if(tab!=='create'){closeCartDrawer();stopRedeemCamera();}if(tab!=='redeem')globalThis.ytAmbassadorTools?.pause?.();state.currentTab=tab;
- for(const section of ['create','pending','orders','unpaid','history','benefits','storebox','bell','redeem','reset','admin','limited'])$('tab-'+section)?.classList.toggle('hidden',section!==tab);
- const orderView=['pending','orders','unpaid','history'].includes(tab);$('orderTabs').classList.toggle('hidden',!orderView);
+ for(const section of ['create','pending','orders','unpaid','history','approvals','benefits','storebox','bell','redeem','reset','admin','limited'])$('tab-'+section)?.classList.toggle('hidden',section!==tab);
+ const orderView=['pending','orders','unpaid','history','approvals'].includes(tab);$('orderTabs').classList.toggle('hidden',!orderView);
  for(const b of $('orderTabs').querySelectorAll('button'))b.classList.toggle('active',b.dataset.goTab===tab);
  for(const b of $('nav').querySelectorAll('button'))b.classList.toggle('active',b.dataset.tab===tab||(orderView&&b.dataset.tab==='orders'));
  if(tab==='admin'&&!consoleUI)loadAdmin().then(loadOwnerRewardOffers).catch(e=>showNotice(errorText(e),true));
@@ -145,7 +146,8 @@ function showTab(tab,orderId=null){
  if(tab==='benefits')loadBenefits(orderId).catch(e=>showNotice(errorText(e),true));
  if(tab==='storebox')storeBox?.loadStaff().catch(e=>showNotice(errorText(e),true));
  if(tab==='bell')playUpgrade.poll();
- if(tab==='pending'||tab==='orders'||tab==='unpaid'||tab==='history')refreshOrders(false).catch(e=>showNotice(errorText(e),true));
+ if(tab==='pending'||tab==='orders'||tab==='unpaid'||tab==='history'||tab==='approvals')refreshOrders(false).catch(e=>showNotice(errorText(e),true));
+ if(tab==='approvals')loadOwnerApprovals().catch(e=>showNotice(errorText(e),true));
 }
 const compactNumber=v=>Number(v||0).toLocaleString('en-MY');
 function renderOwnerDashboard(data){
@@ -373,8 +375,12 @@ let lastOrderAnnouncementAt=0;
 function announceNewOrder(){if(state.identity?.role!=='cashier')return;const now=Date.now();if(now-lastOrderAnnouncementAt<2500)return;lastOrderAnnouncementAt=now;try{const synth=window.speechSynthesis,Utterance=window.SpeechSynthesisUtterance;if(!synth||!Utterance)throw Error('voice unavailable');synth.cancel();const message=new Utterance('有新的订单');message.lang='zh-CN';message.rate=1;message.volume=1;const voice=synth.getVoices?.().find(item=>/^zh[-_]/i.test(item.lang));if(voice)message.voice=voice;synth.speak(message);}catch{ping('kds');}}
  async function refreshOrders(silent=true){if(!state.identity||state.refreshing)return;state.refreshing=true;
  try{const context=unpack(await db.rpc('yt_business_context'));if(state.businessDay!==context.day){if(!$('paidDate').value||$('paidDate').value===state.businessDay)$('paidDate').value=context.day;state.businessDay=context.day;}const calls=[db.rpc('yt_pos_orders',{p_scope:'active',p_limit:80}),db.rpc('yt_pos_orders_day',{p_scope:'paid',p_day:$('paidDate').value||null,p_limit:100})];if(isCashier()){calls.push(db.rpc('yt_pos_orders',{p_scope:'pending',p_limit:80}));calls.push(db.rpc('yt_pos_owner_revision_requests_mine'));}const rows=await Promise.all(calls.map(unpackPromise));
- state.active=rows[0]||[];state.paid=rows[1]||[];state.pending=isCashier()?(rows[2]||[]):[];state.revisionRequests=isCashier()?(rows[3]||[]):[];notifyPending();notifyKds();renderOrders();refreshRedeemOrderChoices();if(isCashier())await loadDuitNowProofs(silent);await storeBox?.loadOrderQueue(silent);consoleUI?.refreshOrderApprovalCount?.().catch(()=>{});}
+ state.active=rows[0]||[];state.paid=rows[1]||[];state.pending=isCashier()?(rows[2]||[]):[];state.revisionRequests=isCashier()?(rows[3]||[]):[];notifyPending();notifyKds();renderOrders();refreshRedeemOrderChoices();if(isCashier())await loadDuitNowProofs(silent);await storeBox?.loadOrderQueue(silent);if(isOwner())await refreshOwnerApprovalCount(silent);}
  catch(e){if(!silent)showNotice(errorText(e),true);}finally{state.refreshing=false;}}
+async function refreshOwnerApprovalCount(silent=true){
+ if(!isOwner())return;try{const result=await db.rpc('yt_pos_owner_revision_requests_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],count=rows.filter(row=>row.status==='pending').length,badge=$('revisionApprovalCount');if(badge){badge.textContent=count?String(count):'';badge.classList.toggle('hidden',!count);badge.setAttribute('aria-label',count?count+' 笔待审批':'没有待审批订单');}if(count>0&&(approvalCount===null||count>approvalCount))showNotice('有 '+count+' 笔改单／取消申请等待 Owner 审批');approvalCount=count;}catch(error){if(!silent)throw error;console.warn('改单待审数量载入失败',error);}
+}
+async function loadOwnerApprovals(){if(!isOwner())return;orderApprovals||=createOwnerOrderApprovals({db,root:$('ownerOrderApprovalsRoot'),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onChange:()=>refreshOrders(false)});await orderApprovals.load();await refreshOwnerApprovalCount(false);}
 const unpackPromise=async p=>unpack(await p);
 async function loadDuitNowProofs(silent=true){
  const root=$('duitnowProofList');if(!root||!isCashier())return;
@@ -1087,7 +1093,7 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
  else qr.textContent='二维码图片暂时无法加载，请使用下方领取短码。';
  showNotice('已创建 Reward Claim，奖励绑定规则将在 POS 结账时验证');
  }).catch(()=>{});}
-function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);consoleUI?.refreshOrderApprovalCount?.().catch(()=>{});if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});playUpgrade.poll();}},6500);}
+function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});playUpgrade.poll();}},6500);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
 function bind(){
  if(!$('editCancelOptions'))$('editOwnerOptions')?.insertAdjacentHTML('beforebegin','<div id="editCancelOptions" class="hidden"></div>');
