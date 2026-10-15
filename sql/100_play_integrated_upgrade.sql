@@ -196,10 +196,17 @@ declare e public.yt_play_referral_events%rowtype;begin
  update public.yt_play_referral_events set status='awarded' where invited_customer_id=p_customer;
  return jsonb_build_object('status','awarded');
 end $$;
--- Disable the legacy Game Pass trigger as a referral reward source. Game Pass claims are
--- separately recorded as consumption bindings by the new trigger below.
+-- Preserve the old referral rule for pre-launch memberships. New registrations earn
+-- invite rewards only from the paid-order path above.
 create or replace function private.yt_referral_sale_trigger() returns trigger language plpgsql security definer set search_path='' as $$
-begin return new;end $$;
+begin
+ if new.customer_id is not null and old.customer_id is distinct from new.customer_id
+ and exists(select 1 from public.yt_referral_links l
+  cross join public.yt_play_upgrade_settings s
+  where l.invited_customer_id=new.customer_id and l.invited_at<s.launch_at)
+ then perform private.yt_referral_purchase_activated(new.customer_id);end if;
+ return new;
+end $$;
 create or replace function private.yt_play_paid_order_trigger() returns trigger language plpgsql security definer set search_path='' as $$
 declare b record;begin
  if new.payment_status='paid' and old.payment_status is distinct from 'paid' then
