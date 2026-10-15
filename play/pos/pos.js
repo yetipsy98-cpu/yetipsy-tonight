@@ -3,7 +3,7 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261015-revision-badge-v2';
+import {createConsole} from './console.js?v=20261015-approval-moved-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261015-orders-approvals-v1';
 import {createStoreBox} from './store-box.js?v=20261015-storebox-history-v2';
@@ -378,7 +378,7 @@ function announceNewOrder(){if(state.identity?.role!=='cashier')return;const now
  state.active=rows[0]||[];state.paid=rows[1]||[];state.pending=isCashier()?(rows[2]||[]):[];state.revisionRequests=isCashier()?(rows[3]||[]):[];notifyPending();notifyKds();renderOrders();refreshRedeemOrderChoices();if(isCashier())await loadDuitNowProofs(silent);await storeBox?.loadOrderQueue(silent);if(isOwner())await refreshOwnerApprovalCount(silent);}
  catch(e){if(!silent)showNotice(errorText(e),true);}finally{state.refreshing=false;}}
 async function refreshOwnerApprovalCount(silent=true){
- if(!isOwner())return;try{const result=await db.rpc('yt_pos_owner_revision_requests_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],count=rows.filter(row=>row.status==='pending').length,badge=$('revisionApprovalCount');if(badge){badge.textContent=count?String(count):'';badge.classList.toggle('hidden',!count);badge.setAttribute('aria-label',count?count+' 笔待审批':'没有待审批订单');}if(count>0&&(approvalCount===null||count>approvalCount))showNotice('有 '+count+' 笔改单／取消申请等待 Owner 审批');approvalCount=count;}catch(error){if(!silent)throw error;console.warn('改单待审数量载入失败',error);}
+ if(!isOwner())return;try{const result=await db.rpc('yt_pos_owner_revision_requests_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],count=rows.filter(row=>row.status==='pending').length,badge=$('revisionApprovalCount');if(badge){badge.textContent=count?String(count):'';badge.classList.toggle('hidden',!count);badge.setAttribute('aria-label',count?count+' 笔待审批':'没有待审批订单');}if(approvalCount!==null&&count>approvalCount)showNotice('有 '+count+' 笔改单／取消申请等待 Owner 审批');approvalCount=count;}catch(error){if(!silent)throw error;console.warn('改单待审数量载入失败',error);}
 }
 async function loadOwnerApprovals(){if(!isOwner())return;orderApprovals||=createOwnerOrderApprovals({db,root:$('ownerOrderApprovalsRoot'),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onChange:()=>refreshOrders(false)});await orderApprovals.load();await refreshOwnerApprovalCount(false);}
 const unpackPromise=async p=>unpack(await p);
