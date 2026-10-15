@@ -6,6 +6,8 @@ const html=fs.readFileSync(path.join(root,'play/admin/pos/index.html'),'utf8');
 const consoleJs=fs.readFileSync(path.join(root,'play/pos/console.js'),'utf8');
 const posJs=fs.readFileSync(path.join(root,'play/pos/pos.js'),'utf8');
 
+assert.doesNotMatch(html,/id="rewardMappingList" class="reward-mapping-list"><\/div><\/article><\/div><\/div><\/section><section class="tool-pane hidden" data-pane="team">/);
+assert.match(html,/id="rewardMappingList" class="reward-mapping-list"><\/div><\/article><\/div><\/section><section class="tool-pane hidden" data-pane="team">/);
 assert.match(html,/data-pane="campaign"[\\s\\S]*?data-subpane="activity"[\\s\\S]*?id="ops_ownerCampaign"/);
 assert.match(html,/data-subpane="pool"[\\s\\S]*?id="ops_poolGame"[\\s\\S]*?id="ops_poolEditor"/);
 assert.match(consoleJs,/page\\.toggleAttribute\\('hidden',!visible\\)/);
@@ -14,5 +16,5 @@ assert.match(consoleJs,/sub\\.toggleAttribute\\('hidden',!visible\\)/);
 assert.match(consoleJs,/if\\(!selectedPane\\)[\\s\\S]*?找不到/);
 assert.match(consoleJs,/owner-tools\\.js\\?v=20261015-tool-pane-visibility-fix-v1/);
 assert.match(posJs,/console\\.js\\?v=20261015-tool-pane-visibility-fix-v1/);
-assert.match(html,/pos\\.js\\?v=20261015-tool-pane-visibility-fix-v1/);
-console.log('PASS: Owner campaign and prize pool panes are explicitly revealed, and missing panes report visibly.');
+assert.match(html,/pos\\.js\\?v=20261015-tool-pane-structure-fix-v2/);
+console.log('PASS: Owner tools remain inside the drawer; campaign and prize pool panes are explicitly revealed.');
