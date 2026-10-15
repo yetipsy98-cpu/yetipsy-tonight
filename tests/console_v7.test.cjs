@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const root=path.join(__dirname,'..');
-class El{constructor(){this.flags=new Set();this.dataset={};this.classList={add:k=>this.flags.add(k),remove:k=>this.flags.delete(k),contains:k=>this.flags.has(k),toggle:(k,v)=>v?this.flags.add(k):this.flags.delete(k)};this.children=[];this.disabled=false;this.inert=false;this.value='';this.textContent='';}focus(){this.focused=true;}addEventListener(){}querySelectorAll(){return [];}querySelector(){return null;}}
+class El{constructor(){this.flags=new Set();this.dataset={};this.attrs=new Set();this.classList={add:k=>this.flags.add(k),remove:k=>this.flags.delete(k),contains:k=>this.flags.has(k),toggle:(k,v)=>v?this.flags.add(k):this.flags.delete(k)};this.children=[];this.disabled=false;this.inert=false;this.value='';this.textContent='';}toggleAttribute(name,force){if(force)this.attrs.add(name);else this.attrs.delete(name);}setAttribute(name){this.attrs.add(name);}focus(){this.focused=true;}addEventListener(){}querySelectorAll(){return [];}querySelector(){return null;}}
 (async()=>{
  const pos=fs.readFileSync(path.join(root,'play/pos/pos.js'),'utf8');
  const referenced=[...pos.matchAll(/\$\('([^']+)'\)/g)].map(ref=>ref[1]);
