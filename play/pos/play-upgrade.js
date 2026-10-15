@@ -1,5 +1,5 @@
 // Cashier and Owner additions for Play. No direct browser writes to upgrade tables.
-export function createPlayWork({db,notice,isOwner,isCashier,qrLibrary,getOrders}){
+export function createPlayWork({db,notice,isOwner,isCashier,qrLibrary,getOrders,refreshOrders}){
  const $=id=>document.getElementById(id);
  const rpc=async(name,args={})=>{const {data,error}=await db.rpc(name,args);if(error)throw error;return data;};
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -73,14 +73,17 @@ export function createPlayWork({db,notice,isOwner,isCashier,qrLibrary,getOrders}
  }catch(e){notice(e.message,true);}}
  async function scanMember(orderId){const root=$('playBindDialog');root.classList.remove('hidden');root.innerHTML='<div class="play-bind-card card"><button type="button" id="playBindClose" class="quiet">关闭</button><h2>扫描顾客会员码</h2><div id="playMemberCamera"></div><input id="playMemberInput" placeholder="member:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><button id="playMemberSubmit" class="main-button">确认绑定本单</button></div>';
   const close=async()=>{if(scanner){await scanner.stop().catch(()=>{});await scanner.clear().catch(()=>{});scanner=null;}root.classList.add('hidden');};$('playBindClose').onclick=close;
-  const submit=async text=>{try{const token=String(text).trim().replace(/^member:/,'');if(!/^[0-9a-f-]{36}$/i.test(token))throw Error('会员码格式不正确');const result=await rpc('yt_play_bind_member',{p_order:orderId,p_token:token});notice(result.valid_purchase?'已绑定有效消费':'已预先绑定，付款后生效');await close();}catch(e){notice(e.message,true);}};
+  const error=document.createElement('p');error.id='playMemberError';error.className='field-note error';error.setAttribute('role','alert');error.setAttribute('aria-live','assertive');error.hidden=true;$('playMemberSubmit').after(error);
+  const messages={member_code_expired:'会员码已过期，请让顾客打开会员码重新扫描。',order_already_bound:'这张订单已经绑定其他会员。',order_benefit_already_selected:'本单已选择 Gamepass、Lucky Box 或积分其中一种，不能重复领取。',binding_cancel_unpaid_orders_only:'只有未付款挂单才能取消绑定。',cashier_only:'需要 Cashier 或 Owner 权限。',customer_only:'这个二维码不是有效的顾客会员码。'};
+  const submit=async text=>{try{error.hidden=true;const token=String(text).trim().replace(/^member:/,'');if(!/^[0-9a-f-]{36}$/i.test(token))throw Error('会员码格式不正确');const result=await rpc('yt_play_bind_member',{p_order:orderId,p_token:token});notice(result.valid_purchase?'已绑定有效消费':'已预先绑定，付款后生效');await close();await refreshOrders?.(false);}catch(e){error.textContent=messages[e.message]||`绑定失败：${e.message||'请检查网络后重试。'}`;error.hidden=false;notice(error.textContent,true);}};
   $('playMemberSubmit').onclick=()=>submit($('playMemberInput').value);
   try{if(!window.Html5Qrcode)await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';s.onload=resolve;s.onerror=reject;document.head.append(s);});
    scanner=new window.Html5Qrcode('playMemberCamera');await scanner.start({facingMode:'environment'},{fps:8,qrbox:200},async text=>{if(scanner)await submit(text);});
   }catch{notice('相机不可用，可粘贴会员码',true);}}
+ async function unbindMember(orderId){if(!confirm('只取消这张未付款挂单的会员绑定，确认继续？'))return;try{await rpc('yt_play_unbind_member',{p_order:orderId});notice('会员绑定已取消，可以重新绑定。');await refreshOrders?.(false);}catch(e){notice(({binding_cancel_unpaid_orders_only:'只有未付款挂单才能取消绑定。',member_binding_not_cancellable:'这张订单没有可取消的会员码绑定。',cashier_only:'需要 Cashier 或 Owner 权限。'})[e.message]||e.message,true);}}
  async function refundDecision(orderId){if(!isOwner())return;const revoke=confirm('本单已退款。是否撤回邀请人奖励？\n确认 = 撤回；取消 = 保留。');
   const note=prompt('请填写退款奖励处理原因（至少两个字）');if(note===null||note.trim().length<2){notice('退款已记录；邀请奖励待 Owner 决定，请补充处理原因。',true);return;}
   try{const result=await rpc('yt_play_refund_decide',{p_order:orderId,p_revoke:revoke,p_note:note.trim()});notice(result.status==='reversed'?'邀请奖励已撤回':result.status==='reversal_requested'?'奖励已使用，已转 Owner 人工复核':result.status==='retained'?'已记录保留邀请奖励':'本单无邀请奖励');await loadRefundPending();}catch(e){notice(e.message,true);}}
- function bindOrderClicks(){document.body.addEventListener('click',e=>{const qr=e.target.closest('[data-play-order-qr]');if(qr)showOrderCode(qr.dataset.playOrderQr);const scan=e.target.closest('[data-play-member-scan]');if(scan)scanMember(scan.dataset.playMemberScan);});}
+ function bindOrderClicks(){document.body.addEventListener('click',e=>{const qr=e.target.closest('[data-play-order-qr]');if(qr)showOrderCode(qr.dataset.playOrderQr);const scan=e.target.closest('[data-play-member-scan]');if(scan)scanMember(scan.dataset.playMemberScan);const unbind=e.target.closest('[data-play-member-unbind]');if(unbind)unbindMember(unbind.dataset.playMemberUnbind);});}
  return {mount,poll,bindOrderClicks,refundDecision,loadSettings,loadInviteSettings,mapRefresh:()=>setTimeout(()=>leafletMap?.invalidateSize(),100)};
 }

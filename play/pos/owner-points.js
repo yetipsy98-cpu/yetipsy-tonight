@@ -1,12 +1,12 @@
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function createPointsAdmin({db,root,isOwner,notice}){
- let data=null,epoch=0,tab='games',pending=null;
+ let data=null,bindingRate=null,epoch=0,tab='games',pending=null;
  const read=r=>{if(r.error)throw r.error;return r.data;};
  const options=(list,selected)=>list.map(r=>`<option value="${esc(r.id)}" ${r.id===selected?'selected':''}>${esc(r.name)}</option>`).join('');
- async function load(){if(!isOwner())return;const ticket=++epoch;const result=read(await db.rpc('yt_owner_points_settings'));if(!isOwner()||ticket!==epoch)return;data=result;if(!pending)try{pending=JSON.parse(sessionStorage.getItem('yt-owner-shop:'+data.actor_id)||'null');}catch{}render();}
+ async function load(){if(!isOwner())return;const ticket=++epoch;const [result,rate]=await Promise.all([db.rpc('yt_owner_points_settings'),db.rpc('yt_owner_member_points_get')]);data=read(result);bindingRate=read(rate);if(!isOwner()||ticket!==epoch)return;if(!pending)try{pending=JSON.parse(sessionStorage.getItem('yt-owner-shop:'+data.actor_id)||'null');}catch{}render();}
  async function save(kind,payload,button){if(!isOwner())return;const original=button.textContent;button.disabled=true;try{read(await db.rpc('yt_owner_points_save',{p_kind:kind,p_data:payload}));pending=null;sessionStorage.removeItem('yt-owner-shop:'+data.actor_id);await load();notice(kind==='shop'?'兑换项目已保存；顾客兑换后可马上使用':'已保存；新规则从下一局生效');}catch(e){if(['P0001','23514','23503','22P02','22007','22008'].includes(e.code)){pending=null;sessionStorage.removeItem('yt-owner-shop:'+data.actor_id);root.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=false);}button.textContent='重试保存';notice(({invalid_points_settings:'请核对积分上限与计分范围',reward_not_pos_bound:'请先为奖励绑定可核销权益',stock_below_used:'总库存不能少于已兑换数量',request_conflict:'保存请求不一致，请重新打开设置'})[e.message]||(['23514','22007','22008'].includes(e.code)?'请核对数值与日期，结束时间必须晚于开始时间':e.message||'连接中断，请重试保存'),true);throw e;}finally{button.disabled=false;if(button.textContent!=='重试保存')button.textContent=original;}}
  function render(){
-  root.innerHTML='<nav class="tool-subtabs points-admin-tabs">'+[['games','技巧积分'],['reward','奖励等值'],['shop','积分商场']].map(([key,name])=>`<button type="button" data-point-tab="${key}" class="${tab===key?'active':''}">${name}</button>`).join('')+'</nav><div id="pointAdminContent"></div>';
+  root.innerHTML='<nav class="tool-subtabs points-admin-tabs">'+[['games','技巧积分'],['reward','奖励等值'],['shop','积分商场'],['binding','消费积分']].map(([key,name])=>`<button type="button" data-point-tab="${key}" class="${tab===key?'active':''}">${name}</button>`).join('')+'</nav><div id="pointAdminContent"></div>';
   root.querySelectorAll('[data-point-tab]').forEach(b=>b.onclick=()=>{if(pending){notice('请先重试保存上一笔设置',true);return;}tab=b.dataset.pointTab;render();});
   const box=root.querySelector('#pointAdminContent');
   if(tab==='games'){
@@ -16,6 +16,9 @@ export function createPointsAdmin({db,root,isOwner,notice}){
   }else if(tab==='reward'){
    box.innerHTML=`<form id="rewardPointForm" class="card stack"><h3>奖品等值积分</h3><label>奖励<select name="reward" required>${options(data.rewards)}</select></label><label>等值积分<input name="points" type="number" min="1" max="1000000" placeholder="留空则只能领取奖品"></label><button class="main-button" type="submit">保存等值积分</button></form>`;
    const form=box.querySelector('form');function choose(){form.elements.points.value=data.rewards.find(x=>x.id===form.elements.reward.value)?.points||'';}form.elements.reward.onchange=choose;choose();form.onsubmit=e=>{e.preventDefault();save('reward',{id:form.elements.reward.value,points:form.elements.points.value?Number(form.elements.points.value):null},form.querySelector('button')).catch(()=>{});};
+  }else if(tab==='binding'){
+   box.innerHTML=`<form id="memberBindingPointsForm" class="card stack"><h3>会员消费积分</h3><p class="field-note">会员绑定订单后，整单付款才发积分。按折扣后的实付金额计算；同一订单已选择 Gamepass 或 Lucky Box 时不再发这项积分。</p><label>实付金额的积分比例（0 = 关闭）<div class="pair"><input name="percent" type="number" min="0" max="10" step="0.01" required value="${Number(bindingRate.percent).toFixed(2)}"><span class="field-note">%</span></div></label><p class="field-note">当前每 RM ${Number(bindingRate.points_per_rm)} 积分；按 ${Number(bindingRate.percent)}% 计算，实付 RM100 约得 ${Math.floor(100*Number(bindingRate.percent)*Number(bindingRate.points_per_rm)/100)} 积分。沿用现有积分有效期与兑换价值。</p><button class="main-button" type="submit">保存消费积分比例</button></form>`;
+   const form=box.querySelector('#memberBindingPointsForm');form.onsubmit=async e=>{e.preventDefault();const button=form.querySelector('button');button.disabled=true;try{const percent=Number(form.elements.percent.value);if(!Number.isFinite(percent)||percent<0||percent>10)throw Error('比例需在 0–10% 之间');bindingRate=read(await db.rpc('yt_owner_member_points_save',{p_percent:percent}));notice('会员消费积分比例已保存');await load();}catch(error){notice(error.message||'保存失败，请重试。',true);}finally{button.disabled=false;}};
   }else renderShop(box);
  }
  function renderShop(box){

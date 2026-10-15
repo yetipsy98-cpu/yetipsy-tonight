@@ -1,0 +1,28 @@
+const fs=require('node:fs');
+const assert=require('node:assert/strict');
+const migration=fs.readFileSync('supabase/migrations/20261015064048_member_binding_points_exclusive.sql','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+const play=fs.readFileSync('play/pos/play-upgrade.js','utf8');
+const owner=fs.readFileSync('play/pos/owner-points.js','utf8');
+
+assert.match(migration,/pos_member_binding_percent numeric\(5,2\) not null default 2\.00/);
+assert.match(migration,/order_benefit_already_selected/);
+assert.match(migration,/before insert on public\.yt_play_consumption_bindings/);
+assert.match(migration,/before update of game_pass_id on public\.yt_pos_item_units/);
+assert.match(migration,/before insert on public\.yt_pos_pass_bundles/);
+assert.match(migration,/floor\(greatest\(0,o\.amount_rm\)\*cfg\.pos_member_binding_percent\*cfg\.points_per_rm\/100\)/);
+assert.match(migration,/source='pos_member_binding' and direction='earn'/);
+assert.match(migration,/o\.payment_status<>'unpaid'.*binding_cancel_unpaid_orders_only/);
+assert.match(migration,/'can_unbind',b\.source in \('pos_qr','member_qr'\).*x\.payment_status='unpaid'/);
+assert.match(pos,/binding\?\.member_binding/);
+assert.match(pos,/data-play-member-unbind/);
+assert.match(pos,/refreshOrders:\(\)=>refreshOrders\(false\)/);
+assert.match(play,/id='playMemberError'/);
+assert.match(play,/yt_play_unbind_member/);
+assert.match(play,/order_benefit_already_selected/);
+assert.match(owner,/\['binding','消费积分'\]/);
+assert.match(owner,/yt_owner_member_points_save/);
+const neutralGuard=fs.readFileSync('supabase/migrations/20261015064200_member_order_binding_neutral_for_rewards.sql','utf8');
+assert.match(neutralGuard,/source in \('pos_qr','member_qr','lucky_box'\)/);
+assert.doesNotMatch(neutralGuard,/source in \('customer_order','pos_qr','member_qr'\)/);
+console.log('PASS exclusive order benefits, post-discount member points, held-order unbinding and visible scan errors');
