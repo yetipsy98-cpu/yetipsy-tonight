@@ -24,4 +24,4 @@
 
 /* Client generated Ambassador QR sits directly on the uploaded template. */
 #ytaClientOverlay .yta-template-qr img,#ytaClientOverlay .yta-pass-ticket .yta-qr img{background:transparent;padding:0;border-radius:0}
-@media(min-width:0px){#homePage .yta-client-entry.ready{box-sizing:border-box;width:calc(100% - 36px);margin:0 18px 14px;grid-column:auto}}
+#homePage .yta-client-entry.ready{box-sizing:border-box;width:100%;margin:0;grid-column:1/-1;min-height:64px}

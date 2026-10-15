@@ -2,7 +2,7 @@ const money=v=>'RM'+Number(v||0).toFixed(2);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const errs={ambassador_member_only:'此会员账号没有 Ambassador 权限',invalid_reservation_day:'请选择有效的预约营业日',invalid_planned_pax:'预登记人数需介于 1 至 500',pass_not_editable:'已有核销后不能修改 Pass'};
 const errorText=e=>errs[e?.message]||String(e?.message||e||'操作失败').replaceAll('_',' ');
-function addStyle(){if(document.getElementById('ytaClientStyles'))return;const s=document.createElement('link');s.id='ytaClientStyles';s.rel='stylesheet';s.href=new URL('./ambassador-ui.css?v=20261015-transparent-gold-bottom-nav-v2',import.meta.url).href;document.head.append(s);}
+function addStyle(){if(document.getElementById('ytaClientStyles'))return;const s=document.createElement('link');s.id='ytaClientStyles';s.rel='stylesheet';s.href=new URL('./ambassador-ui.css?v=20261015-long-ambassador-button-v1',import.meta.url).href;document.head.append(s);}
 function overlay(){
  let el=document.getElementById('ytaClientOverlay');if(el)return el;
  el=document.createElement('div');el.id='ytaClientOverlay';el.className='yta-overlay yta-client-overlay';el.innerHTML='<section class="yta-dialog" role="dialog" aria-modal="true"><header class="yta-head"><div><p class="yta-kicker">MEMBER · AMBASSADOR</p><h2>Ambassador 工作台</h2></div><button type="button" class="yta-close" data-yta-client-close>关闭</button></header><div class="yta-body" id="ytaClientBody"></div></section>';
