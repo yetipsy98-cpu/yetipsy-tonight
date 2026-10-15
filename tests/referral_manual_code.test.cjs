@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..');
+const html=fs.readFileSync(path.join(root,'play/index.html'),'utf8');
+const app=fs.readFileSync(path.join(root,'play/app.js'),'utf8');
+const edge=fs.readFileSync(path.join(root,'supabase/functions/yt-pin-auth/index.ts'),'utf8');
+
+assert.match(html,/id="referralCode"[^>]*maxlength="10"/);
+assert.match(app,/referral_code:\$\('referralCode'\)\.value\.trim\(\)\.toUpperCase\(\)/);
+const inviteStart=edge.indexOf("const invite=String(body.referral_code");
+const inviteEnd=edge.indexOf("const {data:existing",inviteStart);
+assert.ok(inviteStart>=0&&inviteEnd>inviteStart,'signup should process referral codes before creating an account');
+const validation=edge.slice(inviteStart,inviteEnd);
+assert.match(validation,/if\(inviteToken\)\s*\{/,'signed-link validation should only run when a token is supplied');
+assert.match(validation,/yt_play_invite_token_check/,'signed invitation links must keep token validation');
+assert.match(validation,/yt_referral_code_check/,'manually entered codes must be validated against active referral codes');
+assert.doesNotMatch(validation,/invite_link_required/,'manual signup must not require an invitation URL');
+assert.match(edge,/yt_member_onboard\(\{p_customer:uid,p_ref_code:invite\|\|null\}\)/,'accepted manual codes must be bound to the new member');
+console.log('PASS: signup accepts valid manual referral codes and retains signed-link validation.');
