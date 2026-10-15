@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 41418)
-Total output lines: 1157
-
 import {createPlayWork} from './play-upgrade.js?v=20261015-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
@@ -412,7 +409,241 @@ async function handleDuitNowProofAction(event){
   const removed=await db.storage.from('yetipsy-payment-proof').remove([result.storage_path]);
   if(removed.error)throw Error(`状态已记录，但截图删除失败：${removed.error.message}。可在此队列重试。`);
   unpack(await db.rpc('yt_pos_duitnow_proof_cleanup_complete',{p_order:row.order_id}));
-  await refreshOrders(false);showNotice(action==='cleanup'?'交易截图已清理。':approve?`${row.order_no} 已确认收款，截图已…6418 tokens truncated…} 份可分配。${state.luckyMode?.mode==='lucky'?(quote.note||'整单一个 Lucky Box，可分杯开箱'):'整单 QR 由一名会员一次领取。'}`;
+  await refreshOrders(false);showNotice(action==='cleanup'?'交易截图已清理。':approve?`${row.order_no} 已确认收款，截图已删除。`:`${row.order_no} 已拒绝，订单恢复未付款，截图已删除。`);
+ }).catch(()=>{});
+}
+async function orderAction(orderId,action,container){if(action==='request_cancel'){await openEditDialog(orderId);$('editCancelOrder').checked=true;state.editDirty=true;await previewOwnerEdit();return;}const btn=container;await busy(btn,async()=>{
+ if(action==='fulfilled_item'||action==='fulfilled_all'){const itemId=action==='fulfilled_item'?btn.dataset.orderItem:null;if(action==='fulfilled_all'&&!window.confirm('确认整单所有商品都已完成出品？'))return;const result=unpack(await db.rpc('yt_pos_item_fulfill',{p_order:orderId,p_order_item:itemId,p_all:action==='fulfilled_all'}));showNotice(result.status==='fulfilled'?'全部商品已出品；订单保留在订单页待收款。':`已确认出品：${result.item_name||'该商品'}。`);await refreshOrders(false);return;}
+ let reason=null,method=null;const sourceRow=[...state.active,...state.pending].find(row=>row.id===orderId);
+ if(action==='reject'||action==='cancel'){reason=window.prompt('请填写拒绝／取消原因（必填）','客人取消');if(reason===null)return;if(reason.trim().length<2)throw Error('reason_required');}
+ if(action==='paid'){const card=btn.closest('.order');method=card?.querySelector('[data-payment]')?.value||'foodcourt';
+   const quote=unpack(await db.rpc('yt_pos_cart_summary',{p_order:orderId}));
+   if(!quote.can_pay)throw Error('coupon_hold_not_ready_or_expired');
+   if(!window.confirm(`确认已收到 ${money(quote.payable_rm)}？\n已预留优惠：−${money(quote.reserved_discount_rm)}\n收款方式：${method.toUpperCase()}\n\n点击确认后才会正式使用顾客奖券。`))return;}
+ if(isOwner()&&['paid','fulfilled','accept'].includes(action)){const row=[...state.active,...state.pending].find(x=>x.id===orderId);if(row&&Date.parse(row.created_at)<=Date.now()-72*3600000){reason=window.prompt('Owner 批准处理超过72小时订单，请填写原因','已现场核对');if(reason===null)return;if(reason.trim().length<2)throw Error('reason_required');}}
+ if(action==='fulfilled'&&!window.confirm('确认整单所有商品都已完成出品？'))return;
+ const result=unpack(await db.rpc('yt_pos_action',{p_order:orderId,p_action:action,p_reason:reason,p_method:method}));
+ showNotice(action==='fulfilled'&&result.payment_status==='paid'?'已完成出品，订单完成':({accept:'已接受，订单进入吧台 KDS',reject:'订单已拒绝',fulfilled:'已完成出品，订单进入挂单',paid:'已经记录收款',cancel:'订单已取消'})[action]||'状态已更新');
+ await refreshOrders(false);
+ if(action==='accept'&&(isCashier()||isOwner()))await promptCashierPackagePrep(orderId);
+ }).catch(()=>{});}
+let bannerManager=null;
+async function loadPOSBanners(){if(!isOwner())return;if(!bannerManager)bannerManager=createBannerManager({db,root:$('ownerBannersPanel'),notify:showNotice});await bannerManager.load();}
+async function loadAdmin(){if(!isOwner())return;await loadPOSBanners();await loadCatalog();await Promise.all([loadRights(),loadRewardRules()]);}
+function renderProductAdmin(){if(!isOwner())return;const root=$('productAdminList');root.innerHTML=state.catalog.length?state.catalog.map(p=>`<div class="admin-entry"><div><strong>${esc(p.name)}</strong><small>${esc(p.category)} · ${money(p.price_rm)} · ${p.active?'可点单':'已停用'} · ${esc(p.series_name||'没有系列权益')}</small></div><div class="admin-entry-actions"><button data-copy-product="${esc(p.id)}" type="button">复制</button><button data-product="${esc(p.id)}" type="button">编辑</button></div></div>`).join(''):'<div class="empty">当前没有产品。请先新增菜单。</div>';}
+async function saveProduct(e){e.preventDefault();await busy($('productForm').querySelector('[type=submit]'),async()=>{
+ const id=$('productId').value||null;const price=Number($('productPrice').value);if(!Number.isFinite(price)||price<0||price>5000)throw Error('请输入正确产品价格');
+ unpack(await db.rpc('yt_pos_owner_product_v2',{p_id:id,p_name:$('productName').value.trim(),p_category:$('productCategory').value.trim(),p_price:price,p_active:$('productActive').checked,p_sort:Number($('productSort').value),p_series:$('productSeries').value||null}));
+ clearProduct();await loadCatalog();showNotice(id?'产品已更新':'产品已加入菜单');
+ }).catch(()=>{});}
+function editProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value=p.id;$('productName').value=p.name;$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=p.sort_order||100;$('productSeries').value=p.series_id||'';window.scrollTo({top:0,behavior:'smooth'});}
+function copyProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value='';$('productName').value=p.name+' 副本';$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=Number(p.sort_order||100)+1;$('productSeries').value=p.series_id||'';$('productName').focus();$('productName').select();}
+function clearProduct(){$('productForm').reset();$('productId').value='';$('productActive').checked=true;$('productSort').value=100;$('productSeries').value='';}
+async function loadRights(){if(!isOwner())return;const staff=unpack(await db.rpc('yt_pos_staff_list'))||[];
+ $('staffRights').innerHTML=staff.length?staff.map(x=>`<div class="admin-entry"><div><strong>${esc(x.username)}</strong><small>${x.active?'Active':'Disabled'} · ${x.role==='cashier'?'Cashier 独立账号':'Staff'}</small></div>${x.role==='cashier'?'<span>独立 Cashier 账号</span>':`<label class="checkline"><input type="checkbox" data-cashier="${esc(x.id)}" ${x.can_cashier?'checked':''} ${!x.active?'disabled':''}><span>收银权限</span></label><label class="checkline"><input type="checkbox" data-edit-staff="${esc(x.id)}" ${x.can_edit_orders?'checked':''} ${!x.active?'disabled':''}><span>改单权限</span></label>`}</div>`).join(''):'<div class="empty">还没有 Staff 账户。</div>';}
+async function loadRewardRules(){
+ if(!isOwner())return;
+ state.rewardRules=await rewardBindingEditor.load();
+ const select=$('mapReward');
+ const old=select.value;select.replaceChildren(new Option('请选择奖品',''));
+ for(const r of state.rewardRules)select.add(new Option(`${r.reward_name}${!r.active?'（已停用）':''}`,r.reward_id));
+ if(state.rewardRules.some(r=>r.reward_id===old))select.value=old;
+ const product=$('mapProduct'),ps=product.value;product.replaceChildren(new Option('选择具体产品',''));
+ for(const item of state.catalog)if(item.active)product.add(new Option(`${item.name} · ${money(item.price_rm)}`,item.id));
+ if(state.catalog.some(x=>x.id===ps))product.value=ps;
+ const series=$('mapSeries'),oldS=series.value;series.replaceChildren(new Option('选择产品系列',''));
+ for(const item of state.series)if(item.active)series.add(new Option(item.name,item.id));
+ if(state.series.some(x=>x.id===oldS))series.value=oldS;
+ updateRewardMapForm();renderRewardMappings();
+}
+function updateRewardMapForm(){
+ const r=state.rewardRules?.find(x=>x.reward_id===$('mapReward').value);
+ $('mapRewardName').value=r?.reward_name||'';$('saveRewardName').disabled=!r;
+ $('mapMode').value=['product','series','any_drink','disabled'].includes(r?.mode)?r.mode:'product';
+ $('mapProduct').value=r?.product_id||'';
+ $('mapSeries').value=r?.series_id||'';
+ $('mapDiscountType').value=r?.discount_type||'free';$('mapDiscountValue').value=r?.discount_value||5;
+ $('mapMinDrinks').value=r?.min_paid_drinks??1;$('mapMinSpend').value=r?.min_spend_rm??0;
+ toggleMapInputs();
+}
+async function saveRewardName(){const btn=$('saveRewardName');await busy(btn,async()=>{
+ if(!isOwner())throw Error('owner_only');
+ const id=$('mapReward').value,name=$('mapRewardName').value.trim();
+ if(!id)throw Error('请先选择奖品');
+ if(name.length<2||name.length>120)throw Error('invalid_reward_name');
+ const {error}=await db.rpc('yt_owner_rename_reward',{p_reward:id,p_name:name});if(error)throw error;
+ await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();await loadOwnerRewardOffers();
+ showNotice('奖励名称已保存，兑奖规则未更改');
+ }).catch(()=>{});}
+
+function toggleMapInputs(){
+ const mode=$('mapMode').value;
+ const free=$('mapDiscountType').options[0];if(free)free.disabled=mode==='any_drink';
+ if(mode==='any_drink'&&$('mapDiscountType').value==='free')$('mapDiscountType').value='fixed';
+ $('mapProductLabel').classList.toggle('hidden',mode!=='product');
+ $('mapSeriesLabel').classList.toggle('hidden',mode!=='series');
+ $('mapDiscountValueLabel').classList.toggle('hidden',$('mapDiscountType').value==='free');
+}
+function renderRewardMappings(){
+ const el=$('rewardMappingList');if(!el)return;
+ el.innerHTML=(state.rewardRules||[]).slice(0,120).map(r=>{
+  const product=state.catalog.find(p=>p.id===r.product_id)?.name;
+  const series=state.series.find(p=>p.id===r.series_id)?.name;
+  const info=r.mode==='product'?'✓ 指定商品：'+(product||'已停售商品'):r.mode==='series'?'✓ 指定系列：'+(series||'历史系列'):r.mode==='any_drink'?'✓ 任意饮品抵扣':r.mode==='disabled'?'暂停兑奖':'未绑定 · 禁止发放和核销';
+  const discount=['product','series','any_drink'].includes(r.mode)?' · '+(r.discount_type==='fixed'?'RM'+r.discount_value+' 抵扣':r.discount_type==='percent'?r.discount_value+'% 折扣':'免费一杯'):'';
+  return `<button class="reward-map-item" type="button" data-reward-map="${esc(r.reward_id)}"><strong>${esc(r.reward_name)}</strong><small>${esc(info+discount+` · 最少 ${r.min_paid_drinks??1} 杯付费饮品`+(Number(r.min_spend_rm)>0?' · 净消费 ≥ RM'+r.min_spend_rm:''))}</small></button>`;
+ }).join('');
+ const pending=(state.rewardRules||[]).filter(r=>!['product','series','any_drink'].includes(r.mode)).length;
+ $('rewardBindingSummary').textContent=pending?`${pending} 种奖品待绑定。`:'所有奖品已绑定。';
+ $('rewardBindingSummary').classList.toggle('all-bound',pending===0);
+}
+async function saveRewardMap(e){e.preventDefault();const btn=e.submitter;await busy(btn,async()=>{
+ const id=$('mapReward').value,mode=$('mapMode').value;
+ if(!id)throw Error('请先选择奖品');
+ const product=mode==='product'?$('mapProduct').value:null;
+ const series=mode==='series'?$('mapSeries').value:null;
+ if(mode==='product'&&!product||mode==='series'&&!series)throw Error('必须选择对应的产品或系列');
+ if(!['product','series','any_drink','disabled'].includes(mode))throw Error('所有奖品必须绑定 POS 商品／系列，或设为暂停');
+ const discountType=$('mapDiscountType').value,discountValue=discountType==='free'?0:Number($('mapDiscountValue').value);
+ if(discountType!=='free'&&(!Number.isFinite(discountValue)||discountValue<=0))throw Error('必须填写正确的 RM 或百分比折扣');
+ const minDrinks=Number($('mapMinDrinks').value),minSpend=Number($('mapMinSpend').value);
+ if(!Number.isInteger(minDrinks)||minDrinks<1||minDrinks>20||!Number.isFinite(minSpend)||minSpend<0||minSpend>10000)throw Error('minimum_paid_drink_required');
+ unpack(await db.rpc('yt_pos_owner_save_reward_v43',{
+  p_reward:id,p_mode:mode,p_product:product||null,p_series:series||null,
+  p_type:discountType,p_value:discountValue,p_min_drinks:minDrinks,p_min_spend:minSpend
+ }));
+ await loadRewardRules();$('mapReward').value=id;updateRewardMapForm();showNotice('兑奖规则已保存');
+ }).catch(()=>{});}
+
+async function preparePinReset(e){e.preventDefault();await busy(e.submitter,async()=>{
+ if(!$('resetConfirmed').checked)throw Error('请先在现场核对顾客身份');
+ const country=$('resetCountry').value;
+ let digits=$('resetPhone').value.trim().replace(/\D/g,'');
+ if(country==='+60'){
+   if(digits.startsWith('60'))digits=digits.slice(2);
+   if(digits.startsWith('0'))digits=digits.slice(1);
+   if(!/^1\d{8,9}$/.test(digits))throw Error('马来西亚手机号格式不正确');
+ }else{
+   if(digits.startsWith('65'))digits=digits.slice(2);
+   if(!/^[89]\d{7}$/.test(digits))throw Error('新加坡手机号格式不正确');
+ }
+ const phone=country+digits,birthday=$('resetBirthday').value;
+ if(!birthday)throw Error('请确认顾客出生日期');
+ const resp=await fetch(conf.url+'/functions/v1/yt-pin-auth',{
+  method:'POST',headers:{'Content-Type':'application/json',apikey:conf.publishableKey},
+  cache:'no-store',body:JSON.stringify({action:'reset_prepare',phone,birthday,onsite_confirmed:true})
+ });
+ const data=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));
+ if(!resp.ok||!data.ok)throw Error(data.message||
+data.error||'PIN 重设失败');
+ const link=portalClientUrl();link.searchParams.set('reset',data.token);
+ const root=$('resetQR');root.classList.remove('hidden');root.replaceChildren();
+ const head=document.createElement('strong');head.textContent='顾客专属重设链接 · 5 分钟有效';
+ const qr=document.createElement('div');qr.className='qr-screen';
+ const text=document.createElement('p');text.className='qr-link';text.textContent=link.href;
+ const copy=document.createElement('button');copy.type='button';copy.className='quiet';copy.textContent='复制重设链接';
+ copy.onclick=()=>navigator.clipboard?.writeText(link.href).then(()=>showNotice('已复制'));
+ root.append(head,qr,text,copy);
+ if(await qrLibrary())new window.QRCode(qr,{text:link.href,width:206,height:206});
+ else qr.textContent='二维码图片暂不可用，可复制链接交给本人。';
+ showNotice('已验证现场资料，PIN 重设二维码已生成');
+ }).catch(()=>{});}
+
+async function changeRight(id,allowed,input){await busy(input,async()=>{if(!window.confirm(`确认${allowed?'授予':'撤销'}这个员工的 Cashier 权限？`)){input.checked=!allowed;return;}unpack(await db.rpc('yt_pos_owner_cashier_access',{p_staff:id,p_allowed:allowed}));showNotice('员工权限已经更新');await loadRights();}).catch(()=>{input.checked=!allowed;});}
+// POS V2 — server-enforced order revisions, per-unit QR benefits, receipts and redemption.
+const friendlyDate=d=>d?stamp(d):'—';
+const portalClientUrl=()=>new URL('../',import.meta.url);
+function receiptInner(r){
+ const paid=r.payment_status==='paid',refunded=r.payment_status==='refunded',balance=Number(r.balance_rm||0),s=r.receipt_settings||{};
+ const lang=['zh','en','bilingual'].includes(s.receipt_language)?s.receipt_language:'bilingual',label=(zh,en)=>lang==='zh'?zh:lang==='en'?en:`${zh} ${en}`;
+ const showTable=s.show_table!==false,showStaff=s.show_staff!==false,showNotes=s.show_notes!==false,showDiscounts=s.show_discounts!==false,width=[58,80].includes(Number(s.paper_width_mm))?Number(s.paper_width_mm):80;
+ const business=esc(s.business_name||'YE·TIPSY'),subtitle=esc(s.subtitle??'KLUANG · POINT OF SALE'),address=esc(s.address_line||''),contact=esc(s.contact_line||''),footer=esc(s.footer_text||'Thank you for visiting Yetipsy.').replace(/\n/g,'<br>');
+ const items=(r.items||[]).map(i=>`<div class="receipt-row"><div><strong>${esc(i.item_name||'Drink')}</strong><small>${Number(i.quantity)} × ${money(i.unit_price_rm)}${showDiscounts&&Number(i.discount_rm)>0?' · '+label('优惠','DISCOUNT')+' −'+money(i.discount_rm):''}</small></div><b>${money(i.line_total_rm)}</b></div>`).join('');
+ const discount=Number(r.discount_total_rm||0);
+ return `<div class="receipt-paper" id="receiptPaper" style="--receipt-width:${width}mm"><div class="receipt-logo">${business}</div>${subtitle?`<div class="receipt-subhead">${subtitle}</div>`:''}${address?`<div class="receipt-business-line">${address}</div>`:''}${contact?`<div class="receipt-business-line">${contact}</div>`:''}
+ <div class="receipt-document">${refunded?label('已退款取消 ·','REFUND RECORD'):['cancelled','rejected'].includes(r.status)?label('已取消 · 非付款凭证','CANCELLED · NOT A RECEIPT'):paid?'✓ '+label('已收款 ·','PAYMENT RECEIPT'):label('尚未结账 ·','UNPAID BILL')}</div>
+ <div class="receipt-facts"><p><strong>#${esc(r.order_no||'—')}</strong></p>${showTable?`<p>${label('桌号','Table')} · ${esc(r.table_label||'Walk-in')}</p>`:''}<p>${label('开单','Created')} · ${esc(friendlyDate(r.created_at))}</p>${showStaff?`<p>${label('员工','By')} · ${esc(r.created_by||'—')}</p>`:''}
+ ${paid?`<p>${label('付款','Paid')} · ${esc(friendlyDate(r.paid_at))}</p><p>${label('方式','Payment')} · ${esc((r.payment_method||'foodcourt').toUpperCase())}</p>`:''}
+ ${showNotes&&r.notes?`<p>${label('备注','Note')} · ${esc(r.notes)}</p>`:''}</div>
+ <div class="receipt-items-head"><span>${label('商品 /','ITEM')}</span><span>${label('金额 /','AMOUNT')}</span></div>${items}
+ <div class="receipt-subtotal"><span>${label('商品原价','SUBTOTAL')}</span><b>${money(r.gross_total_rm)}</b></div>
+ ${showDiscounts?(r.discounts||[]).map(d=>`<div class="receipt-discount"><div><span>${esc(d.reward_name||label('奖励优惠','REWARD'))}</span>${d.item_name?`<small>${esc(d.item_name)}</small>`:''}</div><b>−${money(d.discount_rm)}</b></div>`).join(''):''}
+ ${showDiscounts&&discount>0?`<div class="receipt-subtotal"><span>${label('优惠合计','DISCOUNT')}</span><b>−${money(discount)}</b></div>`:''}
+ <div class="receipt-sum"><span>${refunded?label('修订后金额','REVISED TOTAL'):paid&&balance!==0?label('修订后应付','TOTAL DUE'):paid?label('已收款','TOTAL PAID'):label('应付','AMOUNT DUE')}</span><strong>${money(r.amount_rm)}</strong></div>
+ ${(paid||refunded)&&balance!==0?`<div class="receipt-subtotal"><span>${label('实收净额','NET RECEIVED')}</span><b>${money(r.received_rm)}</b></div><div class="receipt-hold-note">${balance>0?label('尚需补收','BALANCE DUE'):label('尚需退款','REFUND DUE')} ${money(Math.abs(balance))}</div>`:''}
+ ${r.payment_entries?.length>1?`<details class="receipt-payments" open><summary>${label('收款与退款记录','PAYMENT HISTORY')}</summary>${r.payment_entries.map(e=>`<div class="receipt-row"><span>${esc(({cash:label('现金','CASH'),foodcourt:label('食阁','FOODCOURT'),duitnow:'DuitNow',card:label('刷卡','CARD'),bank_transfer:label('转账','TRANSFER'),other:label('其他','OTHER')})[e.method]||e.method)} · ${Number(e.amount_rm)<0?label('退款','REFUND'):e.kind==='adjustment'?label('补收','ADJUSTMENT'):label('收款','PAYMENT')}</span><b>${Number(e.amount_rm)<0?'−':''}${money(Math.abs(e.amount_rm))}</b></div>`).join('')}</details>`:''}
+ ${r.discount_pending?`<p class="receipt-hold-note">${label('上述优惠已预留，完成结账后正式核销。','Discounts are reserved until checkout.')}</p>`:''}
+ ${!paid&&!refunded&&(r.unresolved_count>0||r.minimum_met===false)?`<p class="receipt-hold-note">${label('优惠需要店员重新核对，当前账单尚不能结账。','Discounts need review before checkout.')}</p>`:''}
+ <p class="receipt-bottom">${footer}${footer?'<br>':''}${label('店内账单记录 · 非税务发票','Store bill · Not a tax invoice')}</p>
+ </div>`;
+}
+async function viewReceipt(orderId){
+ const data=unpack(await db.rpc('yt_pos_bill_v8',{p_order:orderId}));
+ $('receiptContent').innerHTML=receiptInner(data);
+ applyReceiptLayout($('receiptContent').querySelector('.receipt-paper'),data.receipt_settings?.layout,data.payment_status==='paid'?'paid':'unpaid');
+ $('receiptTitle').textContent='#'+(data.order_no||'ORDER')+' · '+(data.payment_status==='refunded'?'退款记录':data.payment_status==='paid'?'Receipt':'未付款账单');
+ $('receiptOverlay').classList.remove('hidden');
+ document.body.classList.add('sheet-open');
+ $('receiptClose').focus();
+}
+function closeReceipt(){ $('receiptOverlay').classList.add('hidden');document.body.classList.remove('sheet-open'); }
+async function changeEditRight(id,allowed,input){await busy(input,async()=>{
+ if(!window.confirm(`确认${allowed?'开放':'关闭'}这位 Staff 的改单权限？所有修改会保留 Audit 记录。`)){input.checked=!allowed;return;}
+ unpack(await db.rpc('yt_pos_owner_edit_access',{p_staff:id,p_allowed:allowed}));
+ showNotice('改单权限更新成功');await loadRights();
+}).catch(()=>{input.checked=!allowed});}
+function renderSeriesAdmin(){if(!isOwner())return;
+ const root=$('seriesList');root.innerHTML=state.series.length?state.series.map(s=>`<div class="admin-entry"><div><strong>${esc(s.name)}</strong>
+ <small>${esc(s.benefit_mode)} · ${Number(s.game_plays||0)} 次 · ${s.active?'已开放':'关闭'}${s.game_plays>1?' · 暂不可发放':''}</small></div>
+ <button type="button" data-series="${esc(s.id)}">编辑</button></div>`).join(''):'<div class="empty">还没有系列。先建立 CLASSIC / TOWER 等分类并设置权益。</div>';
+}
+function editSeries(id){const s=state.series.find(x=>x.id===id);if(!s)return;
+ consoleUI?consoleUI.open('catalog','series'):showTab('admin');$('seriesId').value=s.id;$('seriesName').value=s.name;$('seriesMode').value=s.benefit_mode;
+ $('seriesPlays').value=s.game_plays??0;$('seriesPointPercent').value=s.point_percent??'';
+ $('seriesSplit').checked=!!s.can_split;$('seriesActive').checked=!!s.active;
+ $('seriesName').scrollIntoView({block:'center',behavior:'smooth'});
+}
+async function saveSeries(event){event.preventDefault();const btn=$('seriesForm').querySelector('[type=submit]');await busy(btn,async()=>{
+ const mode=$('seriesMode').value,plays=Number($('seriesPlays').value);
+ if(mode!=='pending'&&mode!=='none'&&plays>1 && !window.confirm('目前顾客每张 QR 只提供 1 次游戏。你可以保存多次规则，但发码前还需要升级。继续保存？'))return;
+ unpack(await db.rpc('yt_pos_owner_series',{
+  p_id:$('seriesId').value||null,p_name:$('seriesName').value.trim(),p_mode:mode,p_plays:plays,
+  p_point_percent:$('seriesPointPercent').value===''?null:Number($('seriesPointPercent').value),
+  p_split:$('seriesSplit').checked,p_active:$('seriesActive').checked
+ }));$('seriesForm').reset();$('seriesId').value='';await loadCatalog();showNotice('系列规则已保存');
+}).catch(()=>{});}
+
+async function loadBenefits(preferred=null,poll=false){
+ if(!state.identity)return;
+ const stateResp=unpack(await db.rpc('yt_lucky_public_mode'));
+ state.luckyMode=stateResp;
+ const modeHint=$('benefitModeHint');
+ if(modeHint)modeHint.textContent=stateResp.mode==='lucky'?'当前为 Lucky Box：扫码直接开箱抽积分，整单一个箱子或按单杯分别开。最低合资格实付 RM'+Number(stateResp.minimum_spend_rm).toFixed(2)+
+  '。发码不需要绑定游戏、系列或活动。':stateResp.mode==='off'?'Owner 已暂停新游戏码发放；之前已发的 QR 不受影响。':'当前为 Game Mode：照旧发放 GamePass 供顾客选择游戏。';
+ const ticket=state.benefitListEpoch=(state.benefitListEpoch||0)+1;const existing=preferred||$('benefitOrderSelect').value;
+ const actor=state.identity?.username;const response=unpack(await db.rpc(state.luckyMode?.mode==='lucky'?'yt_lucky_pos_benefit_orders':'yt_pos_benefit_orders'));if(state.identity?.username!==actor||ticket!==state.benefitListEpoch)return;state.businessDay=response.business_day;const list=response.orders||[];
+ const select=$('benefitOrderSelect');select.replaceChildren(new Option('请选择当天仍可分配的订单',''));
+ for(const r of list)select.add(new Option(`#${r.order_no} · ${r.table_label||'Walk-in'} · ${money(r.amount_rm)}`,r.id));
+ if(list.some(x=>x.id===existing))select.value=existing;
+ await loadBenefitCampaigns();
+ await loadSelectedPaidUnits(poll);
+}
+async function loadBenefitCampaigns(){
+ if(state.luckyMode?.mode==='lucky'){$('benefitCampaign').replaceChildren(new Option('Lucky Box · 无需选择活动',''));return;}
+ const selected=$('benefitCampaign').value,actor=state.identity?.username;
+ const r=unpack(await db.from('campaigns').select('id,name,active,is_default,starts_at,ends_at').eq('active',true).order('created_at',{ascending:false}))||[];
+ if(state.identity?.username!==actor)return;const sel=$('benefitCampaign');sel.replaceChildren(new Option('请选择活动',''));
+ const available=r.filter(c=>(!c.starts_at||Date.parse(c.starts_at)<=Date.now())&&(!c.ends_at||Date.parse(c.ends_at)>Date.now()));for(const c of available)sel.add(new Option(c.name+(c.is_default?' · 默认':''),c.id));
+ if(available.some(x=>x.id===selected))sel.value=selected;else if(available.some(x=>x.is_default))sel.value=available.find(x=>x.is_default).id;else if(available.length===1)sel.value=available[0].id;
+}
+let benefitEpoch=0;
+const bundleKey=id=>`yt-pos-v8-bundle:${state.identity?.username||''}:${id}`;
+function cachedBundle(id){try{return JSON.parse(sessionStorage.getItem(bundleKey(id))||'null')}catch{return null}}
+function benefitMode(mode){state.benefitMode=mode;$('benefitWhole').classList.toggle('hidden',mode!=='whole');$('benefitUnits').classList.toggle('hidden',mode!=='single');for(const [id,m] of [['benefitWholeMode','whole'],['benefitSingleMode','single']]){$(id).classList.toggle('active',mode===m);$(id).setAttribute('aria-pressed',String(mode===m));}$('benefitQR').classList.add('hidden');}
+function renderBundleQuote(id,quote){$('cancelWholePass').classList.toggle('hidden',!quote.active_bundle);
+ const pair=cachedBundle(id),active=quote.active_bundle;
+ const recover=active&&pair?.raw&&pair.request===active.request_id;
+ $('benefitWholeInfo').textContent=active?(recover?`已生成 ${active.pass_count} 份 Game Pass，可找回原码。`:'已有整单 QR 待领取，请在原设备找回，或等到期后重新生成。'):`${quote.eligible_units} / ${quote.total_units} 份可分配。${state.luckyMode?.mode==='lucky'?(quote.note||'整单一个 Lucky Box，可分杯开箱'):'整单 QR 由一名会员一次领取。'}`;
  $('issueWholePass').textContent=recover?'重新显示整单 QR':`生成整单 QR${quote.eligible_units?' · '+quote.eligible_units+' 份':''}`;
  $('issueWholePass').disabled=!(recover||quote.can_issue)||(state.luckyMode?.mode==='off'&&!recover);
 }
