@@ -115,3 +115,18 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 
 .service-bell-banner{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:12px;margin:-8px 0 18px;padding:12px 15px;border:1px solid #825d43;border-radius:14px;background:linear-gradient(100deg,#382b22,#28281f);box-shadow:0 8px 22px #0002}.service-bell-banner-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#ff5a50;color:#241a18;font-weight:950;box-shadow:0 0 0 4px #ff5a5024}.service-bell-banner-copy{min-width:0}.service-bell-banner-copy strong{color:#ffe0b7;font-size:13px}.service-bell-banner-copy p{margin:4px 0 0;color:#f5cf9d;font-size:12px;font-weight:750;overflow-wrap:anywhere}.service-bell-banner button{white-space:nowrap;border-color:#a27c50;color:#f6d9a5}.service-ticket .kds-cup-highlight{margin:10px 0 12px}.service-ticket .kds-note{margin:8px 0;color:#ead9b7}.service-ticket>.main-button{margin-top:12px}
 @media(max-width:600px){.service-bell-banner{grid-template-columns:30px minmax(0,1fr);gap:9px;margin:-7px 0 13px;padding:11px}.service-bell-banner-icon{width:28px;height:28px}.service-bell-banner-copy strong{font-size:12px}.service-bell-banner button{grid-column:2;justify-self:start;min-height:38px;padding:8px 11px}}
+
+
+/* Owner controls use full-page category and tool screens. */
+#toolDrawerOverlay{inset:0;background:#111b18;justify-content:stretch;z-index:130}
+#toolDrawer{width:100%;max-width:none;height:100dvh;border-radius:0;box-shadow:none}
+.tool-head{position:sticky;top:0;z-index:5;min-height:64px;padding:12px max(20px,calc((100vw - 1180px)/2))}
+.tool-head h2{flex:1;margin-left:14px}.tool-back{order:-1;white-space:nowrap;background:#26392d;border-color:#5c715f;color:#efdfbc}
+.tool-head .tool-back{width:auto;height:auto;min-height:44px;padding:9px 12px}
+.tool-body{width:100%;padding:24px max(20px,calc((100vw - 1180px)/2))}
+.tool-category-page{max-width:980px;margin:12px auto}.tool-category-page>h3{margin:5px 0 8px;font-size:24px;color:#f0e6cf}
+.tool-child-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:22px}
+.tool-child-grid button{min-height:96px;padding:20px;text-align:left;border:1px solid #536c58;border-radius:16px;background:linear-gradient(135deg,#263a2d,#1b2a22)}
+.tool-child-grid button:hover{border-color:#d0b684;background:#304735}.tool-child-grid strong{display:block;margin-bottom:7px;color:#f0e6cf;font-size:17px}.tool-child-grid span{display:block;color:#bdcbbd;font-size:12px;line-height:1.5}
+.tool-pane{max-width:980px;margin:0 auto}
+@media(max-width:760px){#toolDrawerOverlay{align-items:stretch}#toolDrawer{width:100%;height:100dvh;border-radius:0;padding-bottom:env(safe-area-inset-bottom)}.tool-head{min-height:60px;padding:10px 14px}.tool-head h2{font-size:16px;margin-left:8px}.tool-head .tool-back{min-height:44px;padding:9px 10px}.tool-body{padding:16px 12px calc(24px + env(safe-area-inset-bottom))}.tool-category-page{margin:4px auto}.tool-category-page>h3{font-size:21px}.tool-child-grid{grid-template-columns:1fr;gap:10px;margin-top:16px}.tool-child-grid button{min-height:78px;padding:15px}.tool-child-grid strong{font-size:15px}.tool-pane{width:100%}}

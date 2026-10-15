@@ -17,9 +17,9 @@ assert.match(box,/yt_lucky_claim/);
 assert.match(box,/sessionStorage\.setItem/);
 assert.match(consoleSrc,/createLuckyOwner/);
 assert.match(read('play/pos/lucky-box-owner.js'),/yt_lucky_owner_reset/);
-assert.match(read('play/pos/pos.js'),/console\.js\?v=20261015-(?:approval-moved-v2|owner-dot-v2|member-bell-reorg-v1)/);
+assert.match(read('play/pos/pos.js'),/console\.js\?v=20261015-(?:approval-moved-v2|owner-dot-v2|member-bell-reorg-v1|owner-categories-v1)/);
 assert(read('play/index.html').includes('lucky-box.css?v=20261013-lucky-v2'));
 
-for(const p of ['pos','owner','staff','cashier'])assert.match(read('play/'+p+'/index.html'),/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|revision-status-storebox-history-v1|(?:order-approvals-v2|admin-pos-unified-v3))/);
+for(const p of ['pos','owner','staff','cashier'])assert.match(read('play/'+p+'/index.html'),/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|revision-status-storebox-history-v1|(?:order-approvals-v2|admin-pos-unified-v3|owner-categories-v1))/);
 
 console.log('PASS Lucky Box mode, anonymous reveal, wallet credit, Owner config, protected reset, GamePass QR reuse');

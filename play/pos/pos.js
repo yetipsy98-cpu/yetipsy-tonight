@@ -3,11 +3,11 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261015-member-bell-reorg-v1';
+import {createConsole} from './console.js?v=20261015-owner-categories-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261015-orders-approvals-v1';
 import {createStoreBox} from './store-box.js?v=20261015-storebox-history-v2';
-import {createAmbassadorTools} from './ambassador.js?v=20261015-template-ref-v1';
+import {createAmbassadorTools} from './ambassador.js?v=20261015-owner-fullpage-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.

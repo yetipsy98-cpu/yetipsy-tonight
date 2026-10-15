@@ -9,7 +9,8 @@ assert.doesNotMatch(pos,/cartCheckoutPayment'\)\.value='duitnow'/);
 assert.match(pos,/yt_receipt_settings_get/);
 assert.match(pos,/yetipsy-payment-qr/);
 assert.match(pos,/getPublicUrl\(state\.duitnowQrPath\)/);
-assert.match(consoleSrc,/dataset\.ownerTool='paymentqr'/);
+assert.match(consoleSrc,/operations:[\s\S]*?\['paymentqr','DuitNow 收款二维码'/);
+assert.match(consoleSrc,/dataset\.pane='paymentqr'/);
 assert.match(consoleSrc,/payment-qr-settings\.js\?v=20261013-cashier-qr-v1/);
 assert.match(owner,/if\(!isOwner\(\)\)throw Error\('owner_only'\)/);
 assert.match(owner,/\.from\(bucket\)\.upload/);
@@ -17,7 +18,7 @@ assert.match(owner,/yt_owner_payment_qr_save/);
 for(const page of ['pos','admin/pos','admin/owner','admin/staff','admin/cashier']){
  const html=fs.readFileSync('play/'+page+'/index.html','utf8');
 
- assert.match(html,/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|revision-status-storebox-history-v1|owner-dot-v2|(?:order-approvals-v2|admin-pos-unified-v3))/);
+ assert.match(html,/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|revision-status-storebox-history-v1|owner-dot-v2|(?:order-approvals-v2|admin-pos-unified-v3|owner-categories-v1))/);
 
  assert.match(html,/value="duitnow" selected>DuitNow（默认）/);
  assert.match(html,/id="cashierDuitNowQr"/);
