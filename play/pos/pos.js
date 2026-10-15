@@ -384,7 +384,7 @@ async function refreshOwnerApprovalCount(silent=true){
 async function loadOwnerApprovals(){if(!isOwner())return;orderApprovals||=createOwnerOrderApprovals({db,root:$('ownerOrderApprovalsRoot'),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onChange:()=>refreshOrders(false)});await orderApprovals.load();await refreshOwnerApprovalCount(false);}
 async function refreshBellIndicator(silent=true){
  const button=[...($('nav')?.querySelectorAll('button')||[])].find(item=>item.dataset.tab==='bell');if(!button||(!isOwner()&&!isCashier()))return;
- try{const result=await db.rpc('yt_play_bell_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],pending=rows.filter(row=>row.status==='pending').length;button.classList.remove('has-alert');button.dataset.pendingCount=String(pending);button.setAttribute('aria-label',pending?`服务铃有 ${pending} 个待确认呼叫`:'服务铃');}
+ try{const result=await db.rpc('yt_play_bell_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],pending=rows.some(row=>row.status==='pending');button.classList.toggle('has-alert',pending);button.removeAttribute('data-pending-count');button.setAttribute('aria-label',pending?'服务铃有待确认呼叫':'服务铃');}
  catch(error){if(!silent)console.warn('服务铃状态载入失败',error);}
 }
 const unpackPromise=async p=>unpack(await p);
