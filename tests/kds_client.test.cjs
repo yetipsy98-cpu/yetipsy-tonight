@@ -27,10 +27,12 @@ test('KDS and settlement queues are separated by order state',()=>{
  assert.match(js,/p_checkout_mode:/);
 });
 
-test('Cashier-created orders are silent while staff approval and KDS arrivals announce',()=>{
- assert.match(js,/created_channel!=='cashier'/);
+test('Cashier KDS announces all origins except this Cashier account own order',()=>{
+ assert.match(js,/row\.created_by===state\.authUserId/);
+ assert.match(js,/row=>!state\.seenKds\.has\(row\.id\)/);
  assert.match(js,/Staff 待审核订单/);
  assert.match(js,/吧台新增/);
  assert.match(js,/ping\('approval'\)/);
  assert.match(js,/ping\('kds'\)/);
+ assert.match(js,/announceNewOrder\(\)\{if\(state\.identity\?\.role!=='cashier'\)return;/);
 });
