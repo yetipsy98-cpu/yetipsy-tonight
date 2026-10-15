@@ -1,9 +1,9 @@
-import {createPlayWork} from './play-upgrade.js?v=20261015-v2';
+import {createPlayWork} from './play-upgrade.js?v=20261015-order-bell-ui-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261015-approval-moved-v2';
+import {createConsole} from './console.js?v=20261015-member-bell-reorg-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261015-orders-approvals-v1';
 import {createStoreBox} from './store-box.js?v=20261015-storebox-history-v2';
@@ -71,6 +71,7 @@ const isStaff=()=>!!state.identity?.role&&state.identity.role!=='owner'&&state.i
 function updateCreateHint(){const payNow=$('checkoutPayNow').checked;if(isCashier()&&$('cashierDirect').checked)$('createHint').textContent=payNow?'下单后立即打开收款；订单同时进入吧台 KDS。':'订单直接进入吧台 KDS，出品后进入挂单收款。';else $('createHint').textContent=payNow?'若 Owner 开启审核，Cashier 接单后打开收款；若关闭审核，下单后立即打开收款。':'订单按 Owner 的审核设置进入流程；未付款订单可在「待付款」中随时结账。';}
 let consoleUI=null,storeBox=null,limitedReportView=null,orderApprovals=null,approvalCount=null;
 const playUpgrade=createPlayWork({db,notice:(message,bad)=>showNotice(message,bad),isOwner,isCashier,qrLibrary:()=>qrLibrary(),getOrders:()=>[...state.active,...state.paid]});
+globalThis.ytPlayWork=playUpgrade;
 function showNotice(message,bad=false,persist=false){const n=$('notice'),label=$('noticeMessage');if(!n)return;if(label)label.textContent=message;else n.textContent=message;n.dataset.message=message;n.classList.remove('hidden');n.classList.toggle('error',bad);n.setAttribute('role',bad?'alert':'status');n.setAttribute('aria-live',bad?'assertive':'polite');clearTimeout(state.noticeTimer);if(!persist)state.noticeTimer=setTimeout(()=>n.classList.add('hidden'),bad?8000:6200);}
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
@@ -374,8 +375,8 @@ function ping(kind='kds'){try{unlockAudio();const ctx=alertAudio;if(!ctx)return;
 let lastOrderAnnouncementAt=0;
 function announceNewOrder(){if(state.identity?.role!=='cashier')return;const now=Date.now();if(now-lastOrderAnnouncementAt<2500)return;lastOrderAnnouncementAt=now;try{const synth=window.speechSynthesis,Utterance=window.SpeechSynthesisUtterance;if(!synth||!Utterance)throw Error('voice unavailable');synth.cancel();const message=new Utterance('有新的订单');message.lang='zh-CN';message.rate=1;message.volume=1;const voice=synth.getVoices?.().find(item=>/^zh[-_]/i.test(item.lang));if(voice)message.voice=voice;synth.speak(message);}catch{ping('kds');}}
  async function refreshOrders(silent=true){if(!state.identity||state.refreshing)return;state.refreshing=true;
- try{const context=unpack(await db.rpc('yt_business_context'));if(state.businessDay!==context.day){if(!$('paidDate').value||$('paidDate').value===state.businessDay)$('paidDate').value=context.day;state.businessDay=context.day;}const calls=[db.rpc('yt_pos_orders',{p_scope:'active',p_limit:80}),db.rpc('yt_pos_orders_day',{p_scope:'paid',p_day:$('paidDate').value||null,p_limit:100})];if(isCashier()){calls.push(db.rpc('yt_pos_orders',{p_scope:'pending',p_limit:80}));calls.push(db.rpc('yt_pos_owner_revision_requests_mine'));}const rows=await Promise.all(calls.map(unpackPromise));
- state.active=rows[0]||[];state.paid=rows[1]||[];state.pending=isCashier()?(rows[2]||[]):[];state.revisionRequests=isCashier()?(rows[3]||[]):[];notifyPending();notifyKds();renderOrders();refreshRedeemOrderChoices();if(isCashier())await loadDuitNowProofs(silent);await storeBox?.loadOrderQueue(silent);if(isOwner())await refreshOwnerApprovalCount(silent);if(isCashier()||isOwner())await refreshBellIndicator(silent);}
+ try{const context=unpack(await db.rpc('yt_business_context'));if(state.businessDay!==context.day){if(!$('paidDate').value||$('paidDate').value===state.businessDay)$('paidDate').value=context.day;state.businessDay=context.day;}const calls=[db.rpc('yt_pos_orders',{p_scope:'active',p_limit:80}),db.rpc('yt_pos_orders_day',{p_scope:'paid',p_day:$('paidDate').value||null,p_limit:100})];if(isCashier()){calls.push(db.rpc('yt_pos_orders',{p_scope:'pending',p_limit:80}));if(!isOwner())calls.push(db.rpc('yt_pos_owner_revision_requests_mine'));}const rows=await Promise.all(calls.map(unpackPromise));
+ state.active=rows[0]||[];state.paid=rows[1]||[];state.pending=isCashier()?(rows[2]||[]):[];state.revisionRequests=isCashier()&&!isOwner()?(rows[3]||[]):[];notifyPending();notifyKds();renderOrders();refreshRedeemOrderChoices();if(isCashier())await loadDuitNowProofs(silent);await storeBox?.loadOrderQueue(silent);if(isOwner())await refreshOwnerApprovalCount(silent);if(isCashier()||isOwner())await refreshBellIndicator(silent);}
  catch(e){if(!silent)showNotice(errorText(e),true);}finally{state.refreshing=false;}}
 async function refreshOwnerApprovalCount(silent=true){
  if(!isOwner())return;try{const result=await db.rpc('yt_pos_owner_revision_requests_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],count=rows.filter(row=>row.status==='pending').length,badge=$('revisionApprovalCount');if(badge){badge.textContent='';badge.classList.toggle('hidden',!count);badge.setAttribute('aria-label',count?count+' 笔待审批':'没有待审批订单');}if(approvalCount!==null&&count>approvalCount)showNotice('有 '+count+' 笔改单／取消申请等待 Owner 审批');approvalCount=count;}catch(error){if(!silent)throw error;console.warn('改单待审数量载入失败',error);}
@@ -383,7 +384,7 @@ async function refreshOwnerApprovalCount(silent=true){
 async function loadOwnerApprovals(){if(!isOwner())return;orderApprovals||=createOwnerOrderApprovals({db,root:$('ownerOrderApprovalsRoot'),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onChange:()=>refreshOrders(false)});await orderApprovals.load();await refreshOwnerApprovalCount(false);}
 async function refreshBellIndicator(silent=true){
  const button=[...($('nav')?.querySelectorAll('button')||[])].find(item=>item.dataset.tab==='bell');if(!button||(!isOwner()&&!isCashier()))return;
- try{const result=await db.rpc('yt_play_bell_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],pending=rows.filter(row=>row.status==='pending').length>0;button.classList.toggle('has-alert',pending);button.setAttribute('aria-label',pending?'服务铃有待处理呼叫':'服务铃');}
+ try{const result=await db.rpc('yt_play_bell_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],pending=rows.filter(row=>row.status==='pending').length;button.classList.remove('has-alert');button.dataset.pendingCount=String(pending);button.setAttribute('aria-label',pending?`服务铃有 ${pending} 个待确认呼叫`:'服务铃');}
  catch(error){if(!silent)console.warn('服务铃状态载入失败',error);}
 }
 const unpackPromise=async p=>unpack(await p);

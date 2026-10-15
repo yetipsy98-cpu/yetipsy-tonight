@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const migration=fs.readFileSync('supabase/migrations/20261015150000_order_owner_access_and_service_bell_cancel.sql','utf8');
+const client=fs.readFileSync('play/app.js','utf8');
+const staff=fs.readFileSync('play/pos/play-upgrade.js','utf8');
+assert.match(migration,/where id=p_id and customer_id=auth\.uid\(\)\s+and acknowledged_at is null and cancelled_at is null/,'customer can only cancel own request before staff acknowledgment');
+assert.match(migration,/cancelled_at is null\s+and \(acknowledged_at is null/,'cancelled calls no longer block a later request');
+assert.match(migration,/case when r\.cancelled_at is not null then 'cancelled'/,'cancelled status is exposed to customer and staff');
+assert.match(client,/\['pending','acknowledged'\]\.includes\(r\.status\)/,'cancelled and completed requests do not block a new request');
+assert.match(client,/yt_play_bell_cancel',\{p_id:active\.id\}/,'customer cancellation uses the protected RPC');
+assert.match(client,/active\.status==='pending'/,'cancel control is limited to requests staff have not acknowledged');
+assert.match(staff,/顾客已取消/,'staff request history distinguishes customer cancellations');
+console.log('PASS customer-owned service requests can be cancelled before staff acknowledgment and retried safely');

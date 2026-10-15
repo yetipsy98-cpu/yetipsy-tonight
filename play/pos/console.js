@@ -1,6 +1,6 @@
 import {createFactoryReset} from './factory-reset.js?v=20261012-reset-fix-v23';
 const $=id=>document.getElementById(id);
- const titles={catalog:'商品与系列',storebox:'存酒箱',rewards:'奖励',team:'团队与权限',campaign:'活动与奖池',loyalty:'会员与积分',banners:'轮播广告',insights:'报表中心',ambassador:'Ambassador Pass',receipt:'账单样式',paymentqr:'DuitNow 收款二维码',home:'客户端设计',moon:'Moon 旧码录入',lucky:'Lucky Box',factory:'系统重置',pin:'顾客 PIN 重设',dayclose:'营业日结'};
+ const titles={catalog:'商品与系列',storebox:'存酒箱',rewards:'奖励',team:'团队与权限',campaign:'活动与奖池',loyalty:'会员与积分',service:'服务铃设置',banners:'轮播广告',insights:'报表中心',ambassador:'Ambassador Pass',receipt:'账单样式',paymentqr:'DuitNow 收款二维码',home:'客户端设计',moon:'Moon 旧码录入',lucky:'Lucky Box',factory:'系统重置',pin:'顾客 PIN 重设',dayclose:'营业日结'};
 export function createConsole({db,work,isOwner,isOwnerLimited=()=>false,isCashier,loadAdmin,loadOffers,loadRights,loadStoreBoxOwner,notice,onReset,onOrdersChanged,getBusinessDay,onOwnerEdit}){
  let previousFocus=null,activeKey=null,loadEpoch=0,ownerTools=null,ownerReports=null,dayClose=null,pointsAdmin=null,receiptSettings=null,paymentQrSettings=null,homeEditor=null,moonEditor=null,luckyEditor=null;
  const overlay=$('toolDrawerOverlay'),drawer=$('toolDrawer'),main=document.querySelector('main'),head=document.querySelector('.site-head');
@@ -38,7 +38,7 @@ export function createConsole({db,work,isOwner,isOwnerLimited=()=>false,isCashie
     ownerTools||=await import('../shared/owner-tools.js?v=20261010-copy-v15-4');if(epoch!==loadEpoch)return;
     const identityResult=await db.rpc('yt_pos_identity');if(identityResult.error)throw identityResult.error;
     if(!identityResult.data?.can_owner)throw Error('owner_only');ownerTools.initOwnerTools(db,identityResult.data);await ownerTools.loadOwnerTool(key);
-    if(key==='team'){await loadRights();await loadStaffOrderReview();}if(key==='loyalty'){const module=await import('./owner-points.js?v=20261012-points-rewards-v18');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();}
+    if(key==='team'){await loadRights();await loadStaffOrderReview();}if(key==='loyalty'){const module=await import('./owner-points.js?v=20261012-points-rewards-v18');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();await globalThis.ytPlayWork?.loadInviteSettings?.();}
    }
    if(key==='insights'){const module=await import('./owner-reports.js?v=20261014-limited-report-v2');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner:()=>isOwner()||isOwnerLimited(),allowExport:()=>isOwner(),notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
    if(key==='ambassador'){if(isOwnerLimited())await globalThis.ytAmbassadorTools?.open();else await globalThis.ytAmbassadorTools?.openOwner?.();}
@@ -49,6 +49,7 @@ export function createConsole({db,work,isOwner,isOwnerLimited=()=>false,isCashie
    if(key==='paymentqr'){const module=await import('./payment-qr-settings.js?v=20261013-cashier-qr-v1');if(epoch!==loadEpoch)return;paymentQrSettings||=module.createPaymentQrSettings({db,root:$('paymentQrSettingsRoot'),isOwner,notice});await paymentQrSettings.load();}
    if(key==='dayclose'){const module=await import('./day-close.js?v=20261014-ambassador-pos-sales-v3');if(epoch!==loadEpoch)return;dayClose||=module.createDayClose({db,root:$('dayCloseRoot'),isOwner,notice,onOrdersChanged,onOwnerEdit:id=>{close();return onOwnerEdit?.(id);}});await dayClose.load();}
    if(key==='factory')await reset.resume();
+   if(key==='service'){await globalThis.ytPlayWork?.loadSettings?.();globalThis.ytPlayWork?.mapRefresh?.();}
   }catch(e){notice(e.message||'加载失败，请重试',true);}
  }
  function roleChanged(){
