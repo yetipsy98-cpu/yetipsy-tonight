@@ -1,5 +1,5 @@
 // Cashier and Owner additions for Play. No direct browser writes to upgrade tables.
-export function createPlayWork({db,notice,isOwner,isCashier,qrLibrary,getOrders,refreshOrders,onMemberBound}){
+export function createPlayWork({db,notice,isOwner,isCashier,isCashierAccount=()=>false,qrLibrary,getOrders,refreshOrders,onMemberBound}){
  const $=id=>document.getElementById(id);
  const rpc=async(name,args={})=>{const {data,error}=await db.rpc(name,args);if(error)throw error;return data;};
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -54,11 +54,11 @@ export function createPlayWork({db,notice,isOwner,isCashier,qrLibrary,getOrders,
   const zh=prompt('中文名称',t?.label_zh||'');if(zh===null)return;const en=prompt('English name',t?.label_en||'');if(en===null)return;
   const sortText=prompt('排序数字（越小越靠前）',String(t?.sort_order??99));if(sortText===null)return;const sort=Number(sortText);if(!Number.isInteger(sort))return notice('排序必须是整数',true);
   const active=confirm('确认启用此服务类型？选择取消则保存为关闭');try{await rpc('yt_play_bell_type_save',{p_id:id,p_zh:zh,p_en:en,p_sort:sort,p_enabled:active});await loadSettings();}catch(e){notice(e.message,true);}}
- async function announce(){if(!isCashier()||!window.speechSynthesis)return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance('顾客需要服务');utterance.lang='zh-CN';window.speechSynthesis.speak(utterance);}
+ async function announce(){if(!isCashierAccount()||!window.speechSynthesis)return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance('顾客需要服务');utterance.lang='zh-CN';window.speechSynthesis.speak(utterance);}
  async function poll(){if(!isCashier()&&!isOwner())return;try{
   if(!staffSettingsLoaded){const basic=await rpc('yt_play_bell_staff_config');settings={...settings,...basic};staffSettingsLoaded=true;}
   const rows=await rpc('yt_play_bell_list'),pending=rows.filter(r=>r.status==='pending'),now=Date.now();
-  for(const row of pending){const last=seen.get(row.id)||0;if(now-last>=((settings?.bell_remind_seconds||30)*1000)){seen.set(row.id,now);if(isCashier())announce();}}
+  for(const row of pending){const last=seen.get(row.id)||0;if(now-last>=((settings?.bell_remind_seconds||30)*1000)){seen.set(row.id,now);if(isCashierAccount())announce();}}
   for(const id of seen.keys())if(!pending.some(r=>r.id===id))seen.delete(id);
   const onBell=document.getElementById('tab-bell')&&!document.getElementById('tab-bell').classList.contains('hidden'),banner=$('serviceBellBanner');if(banner){banner.classList.toggle('hidden',!pending.length||onBell);if(pending.length)$('serviceBellBannerText').textContent=`${pending[0].table||'未标桌号'} · ${pending[0].label_zh||'需要协助'}`;}
   const root=$('bellQueue');if(!root)return;root.innerHTML=pending.length?pending.map(r=>`<article class="kds-ticket service-ticket"><div class="kds-ticket-head"><div class="kds-ticket-main"><span class="kds-source">SERVICE REQUEST</span><h3 class="kds-table-number">${esc(r.table||'未标桌号')}</h3></div><span class="kds-state">待确认</span></div><div class="kds-cup-highlight"><strong>!</strong><span>${esc(r.label_zh)}</span></div>${r.note?`<p class="kds-note">${esc(r.note)}</p>`:''}<small>${new Date(r.created_at).toLocaleString('zh-MY')}</small><button type="button" class="main-button" data-bell-ack="${esc(r.id)}">员工确认</button></article>`).join(''):'<p>目前没有待确认的呼叫。</p>';
