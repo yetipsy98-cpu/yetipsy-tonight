@@ -3,10 +3,12 @@ const pos=fs.readFileSync('play/pos/store-box.js','utf8');
 const ambassador=fs.readFileSync('play/ambassador-client.js','utf8')+fs.readFileSync('play/ambassador-ui.css','utf8');
 const migration=fs.readFileSync('sql/059_store_box_owner_claim_audit.sql','utf8');
 
-test('Store Box workbench shows generation, balance, then issued QR queue',()=>{
+test('Store Box generation and issued QR queues share one collapsed space-saving section',()=>{
  const render=pos.slice(pos.indexOf('function renderStaff()'),pos.indexOf('function renderOrderQueue()'));
  assert(render.indexOf('issueMarkup()')<render.indexOf('存酒余额'));
- assert(render.indexOf('存酒余额')<render.indexOf('claimMarkup()'));
+ assert.match(pos,/<details class="storebox-issuance"><summary>/);
+ assert.match(pos,/待生成 \$\{pending\.length\} · 已生成待领取 \$\{state\.claims\.length\}/);
+ assert.match(pos,/\$\{claimMarkup\(\)\}/);
  assert.match(pos,/待生成/);
  assert.match(pos,/已生成 · 待顾客领取/);
 });

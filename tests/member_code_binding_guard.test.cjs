@@ -10,7 +10,7 @@ assert.match(source, /clock_timestamp\(\)\+interval '60 seconds'/);
 assert.match(source, /member_qr/);
 assert.match(app, /await qrcode\(\$\('memberQr'\),'member:'\+code\.token\)/);
 assert.match(pos, /yt_play_bind_member/);
-assert.ok(pos.includes("replace(/^member:/,'')"));
+assert.ok(pos.includes("replace(/^member:/i,'')"));
 assert.match(migration, /unique index if not exists yt_play_one_member_per_order[\s\S]*\(order_id\)/);
 assert.match(migration, /unique index if not exists yt_play_first_purchase_order_uidx[\s\S]*\(order_id\)/);
 assert.match(migration, /o\.customer_id is not null and o\.customer_id<>p_customer then raise exception 'order_already_bound'/);

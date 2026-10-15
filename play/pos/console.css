@@ -130,3 +130,28 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .tool-child-grid button:hover{border-color:#d0b684;background:#304735}.tool-child-grid strong{display:block;margin-bottom:7px;color:#f0e6cf;font-size:17px}.tool-child-grid span{display:block;color:#bdcbbd;font-size:12px;line-height:1.5}
 .tool-pane{max-width:980px;margin:0 auto}
 @media(max-width:760px){#toolDrawerOverlay{align-items:stretch}#toolDrawer{width:100%;height:100dvh;border-radius:0;padding-bottom:env(safe-area-inset-bottom)}.tool-head{min-height:60px;padding:10px 14px}.tool-head h2{font-size:16px;margin-left:8px}.tool-head .tool-back{min-height:44px;padding:9px 10px}.tool-body{padding:16px 12px calc(24px + env(safe-area-inset-bottom))}.tool-category-page{margin:4px auto}.tool-category-page>h3{font-size:21px}.tool-child-grid{grid-template-columns:1fr;gap:10px;margin-top:16px}.tool-child-grid button{min-height:78px;padding:15px}.tool-child-grid strong{font-size:15px}.tool-pane{width:100%}}
+
+/* Mobile work tabs stay in one row under the workspace header, never below the cart. */
+@media(max-width:700px){
+ .tabs{position:sticky;top:70px;bottom:auto;left:auto;right:auto;z-index:80;display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px;margin:0 -12px 14px!important;padding:9px 12px 12px;border-top:0;border-bottom:1px solid #455143;border-radius:0;background:#181f1bf5;box-shadow:0 8px 18px #0004;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+ .tabs::-webkit-scrollbar{display:none}
+ .tabs button{display:block!important;flex:0 0 auto;min-width:max-content;min-height:45px;padding:9px 13px;white-space:nowrap;text-align:center;font-size:12px}
+ .root{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+ #cartDock{bottom:calc(12px + env(safe-area-inset-bottom))}
+}
+.storebox-qr-drawer{position:fixed;inset:0;z-index:1005;display:flex;align-items:flex-end;justify-content:center;background:#050906c9;backdrop-filter:blur(5px)}
+.storebox-qr-dialog{width:min(520px,100%);max-height:min(82dvh,760px);overflow:auto;padding:20px 18px calc(22px + env(safe-area-inset-bottom));border:1px solid #536c58;border-bottom:0;border-radius:22px 22px 0 0;background:linear-gradient(145deg,#23352a,#141d17);box-shadow:0 -18px 55px #0008;text-align:center}
+.storebox-qr-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;text-align:left}
+.storebox-qr-head h3{margin:0;font-size:18px;overflow-wrap:anywhere}
+.storebox-qr-dialog .qr-screen{width:max-content;max-width:100%;margin:12px auto;padding:10px;border-radius:14px;background:#fff}
+.storebox-qr-dialog .help{margin:8px 0 0;color:#ead6ae}
+.storebox-issuance{margin-bottom:16px}
+.storebox-issuance>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;padding:14px 15px;border:1px solid #536c58;border-radius:14px;background:#202d24;color:#efd9a8;font-weight:750}
+.storebox-issuance>summary::-webkit-details-marker{display:none}
+.storebox-issuance[open]>summary{border-radius:14px 14px 0 0}
+.storebox-issuance-body{padding:12px;border:1px solid #536c58;border-top:0;border-radius:0 0 14px 14px;background:#18231c}
+@media(min-width:701px){.storebox-qr-drawer{align-items:center;padding:20px}.storebox-qr-dialog{border-bottom:1px solid #536c58;border-radius:22px}}
+#tab-benefits.benefits-off .block-head .kicker,#tab-benefits.benefits-off .block-head h2{display:none}
+.yta-work-page{max-width:940px;margin:0 auto;padding:4px 0 20px}
+.yta-work-page-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 14px;padding:17px 18px;border:1px solid #3e5a4c;border-radius:17px;background:linear-gradient(145deg,#192f24,#14251d)}
+.yta-work-page-head .yta-kicker{margin:0 0 5px}.yta-work-page-head h2{margin:0;font-size:21px}.yta-work-role{flex:none;padding:7px 10px;border:1px solid #786a4d;border-radius:999px;color:#e5c98e;font-size:10px;font-weight:800;letter-spacing:.08em}

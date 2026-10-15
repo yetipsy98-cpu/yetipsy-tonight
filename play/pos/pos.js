@@ -1,4 +1,4 @@
-import {createPlayWork} from './play-upgrade.js?v=20261015-member-binding-points-v2';
+import {createPlayWork} from './play-upgrade.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createRewardBindingEditor} from '../reward-binding.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
@@ -6,8 +6,8 @@ import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261015-owner-categories-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261015-orders-approvals-v1';
-import {createStoreBox} from './store-box.js?v=20261015-storebox-history-v2';
-import {createAmbassadorTools} from './ambassador.js?v=20261015-owner-fullpage-v1';
+import {createStoreBox} from './store-box.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
+import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -92,9 +92,9 @@ async function launch(){if(!usable){showNotice('尚未配置 /play/config.js 的
  $('cashierCreateChoice').classList.toggle('hidden',!isCashier());$('cashierDirect').checked=isCashier();$('checkoutPayLater').checked=true;
  $('createHint').textContent=isCashier()?'订单会保存在订单页；出品、收款都可稍后处理。':'Staff 点单后等待 Cashier 接受；订单会保存在订单页。';
  $('accountMenu').classList.remove('hidden');
- playUpgrade.mount();buildNav();consoleUI?.roleChanged();if(typeof createAmbassadorTools==='function'){globalThis.ytAmbassadorTools?.destroy();globalThis.ytAmbassadorTools=createAmbassadorTools({db,isOwner,isCashier,role:()=>state.identity?.role,notice:(message,bad)=>showNotice(message,bad),onRedeemPass:token=>scanAmbassadorPass(token),onAccessChange:enabled=>{state.ambassadorAccess=enabled;if(state.identity){buildNav();if(!enabled&&state.currentTab==='redeem')showTab(defaultTab());}}});}
+ playUpgrade.mount();buildNav();consoleUI?.roleChanged();if(typeof createAmbassadorTools==='function'){globalThis.ytAmbassadorTools?.destroy();globalThis.ytAmbassadorTools=createAmbassadorTools({db,isOwner,isCashier,role:()=>state.identity?.role,notice:(message,bad)=>showNotice(message,bad),onRedeemPass:token=>scanAmbassadorPass(token),onClosePage:()=>showTab(defaultTab()),onAccessChange:enabled=>{state.ambassadorAccess=enabled;if(state.identity){buildNav();if(!enabled&&state.currentTab==='ambassador')showTab(defaultTab());}}});}
  if(typeof isOwnerLimited==='function'&&isOwnerLimited()){ensureLimitedHome();showTab('limited');await loadLimitedReports();return;}
- restoreDraft();try{const mode=await db.rpc('yt_lucky_public_mode');if(mode.error)throw mode.error;state.luckyMode=unpack(mode);}catch{state.luckyMode={mode:'game'};}state.luckyModeLoadedAt=Date.now();const context=unpack(await db.rpc('yt_business_context'));state.businessDay=context.day;$('paidDate').value=context.day;if($('kdsHistoryDate'))$('kdsHistoryDate').value=context.day;await Promise.all([loadCatalog(),refreshOrders(false)]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
+ restoreDraft();try{const mode=await db.rpc('yt_lucky_public_mode');if(mode.error)throw mode.error;state.luckyMode=unpack(mode);}catch{state.luckyMode={mode:'game'};}state.luckyModeLoadedAt=Date.now();buildNav();const context=unpack(await db.rpc('yt_business_context'));state.businessDay=context.day;$('paidDate').value=context.day;if($('kdsHistoryDate'))$('kdsHistoryDate').value=context.day;await Promise.all([loadCatalog(),refreshOrders(false)]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
 }
 async function changeCashierFirstPassword(e){e.preventDefault();const button=e.submitter;await busy(button,async()=>{
  const oldPw=$('firstOldPassword').value,newPw=$('firstNewPassword').value;
@@ -110,12 +110,13 @@ const defaultTab=()=>limitedRole()?'limited':isOwner()?'admin':state.identity?.r
 const limitedRole=()=>typeof isOwnerLimited==='function'&&isOwnerLimited();
 function ensureLimitedHome(){let section=$('tab-limited');if(!section){document.querySelector('main')?.insertAdjacentHTML('beforeend','<section id="tab-limited" class="tab-view hidden"><div id="limitedReportsRoot"></div></section>');section=$('tab-limited');}else if(!$('limitedReportsRoot'))section.innerHTML='<div id="limitedReportsRoot"></div>';}
 async function loadLimitedReports(){const root=$('limitedReportsRoot');if(!root||!isOwnerLimited())return;const module=await import('./owner-reports.js?v=20261014-limited-report-full-v1');limitedReportView||=module.createOwnerReports({db,root,isOwner:isOwnerLimited,allowExport:false,notice:(message,bad)=>showNotice(message,bad),businessDay:state.businessDay});await limitedReportView.load();}
-function buildNav(){const nav=$('nav');$('revisionApprovalTab')?.classList.toggle('hidden',!isOwner());$('ownerApprovalShortcut')?.classList.toggle('hidden',!isOwner());const tabs=limitedRole()
+function buildNav(){const nav=$('nav');$('tab-benefits')?.classList.toggle('benefits-off',state.luckyMode?.mode==='off');$('revisionApprovalTab')?.classList.toggle('hidden',!isOwner());$('ownerApprovalShortcut')?.classList.toggle('hidden',!isOwner());const tabs=limitedRole()
   ?[['limited','报表'],['ambassador','发 Pass']]
   :isOwner()
   ?[['admin','管理'],['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']]
   :isCashier()?[['orders','订单'],['create','点单'],['benefits','Game Pass'],['storebox','存酒箱']]
   :[['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']];
+ if(state.luckyMode?.mode==='off'){const index=tabs.findIndex(([key])=>key==='benefits');if(index>=0)tabs.splice(index,1);}
  if(isCashier()||isOwner())tabs.push(['bell','服务铃']);
  if(state.ambassadorAccess&&!limitedRole())tabs.push(['ambassador','发 Pass']);
  $('orderPendingTab').classList.toggle('hidden',!isCashier());
@@ -130,14 +131,13 @@ function showTab(tab,orderId=null){
  if(limitedRole()&&!['limited','insights','ambassador'].includes(tab))tab='limited';
  if(tab==='insights'&&limitedRole())tab='limited';
  if(tab==='more')tab=isOwner()?'admin':'benefits';
- if(tab==='ambassador'){globalThis.ytAmbassadorTools?.open().catch(e=>showNotice(errorText(e),true));tab=defaultTab();}
  if(tab==='redeem')tab='create';
  
- if(!['create','pending','orders','unpaid','history','approvals','benefits','storebox','bell','redeem','reset','admin','limited'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='approvals'&&!isOwner())||(tab==='admin'&&!isOwner())||(tab==='limited'&&!limitedRole()))tab=defaultTab();
+ if(!['create','pending','orders','unpaid','history','approvals','benefits','storebox','ambassador','bell','redeem','reset','admin','limited'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='approvals'&&!isOwner())||(tab==='admin'&&!isOwner())||(tab==='limited'&&!limitedRole())||(tab==='ambassador'&&!state.ambassadorAccess&&!limitedRole()))tab=defaultTab();
  $('accountMenu').open=false;
  if(tab==='reset'&&consoleUI){consoleUI.open('pin');return;}
  if(tab!=='create'){closeCartDrawer();stopRedeemCamera();}if(tab!=='redeem')globalThis.ytAmbassadorTools?.pause?.();state.currentTab=tab;
- for(const section of ['create','pending','orders','unpaid','history','approvals','benefits','storebox','bell','redeem','reset','admin','limited'])$('tab-'+section)?.classList.toggle('hidden',section!==tab);
+ for(const section of ['create','pending','orders','unpaid','history','approvals','benefits','storebox','ambassador','bell','redeem','reset','admin','limited'])$('tab-'+section)?.classList.toggle('hidden',section!==tab);
  const orderView=['pending','orders','unpaid','history','approvals'].includes(tab);$('orderTabs').classList.toggle('hidden',!orderView);
  for(const b of $('orderTabs').querySelectorAll('button'))b.classList.toggle('active',b.dataset.goTab===tab);
  for(const b of $('nav').querySelectorAll('button'))b.classList.toggle('active',b.dataset.tab===tab||(orderView&&b.dataset.tab==='orders'));
@@ -146,6 +146,7 @@ function showTab(tab,orderId=null){
  if(tab==='admin')playUpgrade.mapRefresh();
  if(tab==='benefits')loadBenefits(orderId).catch(e=>showNotice(errorText(e),true));
  if(tab==='storebox')storeBox?.loadStaff().catch(e=>showNotice(errorText(e),true));
+ if(tab==='ambassador')globalThis.ytAmbassadorTools?.open().catch(e=>showNotice(errorText(e),true));
  if(tab==='bell')playUpgrade.poll();
  if(tab==='pending'||tab==='orders'||tab==='unpaid'||tab==='history'||tab==='approvals')refreshOrders(false).catch(e=>showNotice(errorText(e),true));
  if(tab==='approvals')loadOwnerApprovals().catch(e=>showNotice(errorText(e),true));
@@ -379,7 +380,7 @@ function unlockAudio(){try{const C=window.AudioContext||window.webkitAudioContex
 function ping(kind='kds'){try{unlockAudio();const ctx=alertAudio;if(!ctx)return;const notes=kind==='approval'?[740,940,740]:[880,1100,1320],start=ctx.currentTime+.02;notes.forEach((frequency,index)=>{const osc=ctx.createOscillator(),gain=ctx.createGain(),at=start+index*.16;osc.frequency.value=frequency;gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(.07,at+.015);gain.gain.exponentialRampToValueAtTime(.0001,at+.12);osc.connect(gain);gain.connect(ctx.destination);osc.start(at);osc.stop(at+.13);});}catch{}}
 let lastOrderAnnouncementAt=0;
 function announceNewOrder(){if(state.identity?.role!=='cashier')return;const now=Date.now();if(now-lastOrderAnnouncementAt<2500)return;lastOrderAnnouncementAt=now;try{const synth=window.speechSynthesis,Utterance=window.SpeechSynthesisUtterance;if(!synth||!Utterance)throw Error('voice unavailable');synth.cancel();const message=new Utterance('有新的订单');message.lang='zh-CN';message.rate=1;message.volume=1;const voice=synth.getVoices?.().find(item=>/^zh[-_]/i.test(item.lang));if(voice)message.voice=voice;synth.speak(message);}catch{ping('kds');}}
-async function refreshLuckyMode(force=false){if(!force&&Date.now()-state.luckyModeLoadedAt<30000)return;try{const response=await db.rpc('yt_lucky_public_mode');if(response.error)throw response.error;state.luckyMode=unpack(response);state.luckyModeLoadedAt=Date.now();state.luckyModeLoadFailed=false;}catch(error){state.luckyMode={mode:'game'};state.luckyModeLoadedAt=Date.now();state.luckyModeLoadFailed=true;console.warn('Unable to read active benefit mode; member-points binding stays hidden.',error?.message||error);}}
+async function refreshLuckyMode(force=false){if(!force&&Date.now()-state.luckyModeLoadedAt<30000)return;try{const response=await db.rpc('yt_lucky_public_mode');if(response.error)throw response.error;const previous=state.luckyMode?.mode;state.luckyMode=unpack(response);state.luckyModeLoadedAt=Date.now();state.luckyModeLoadFailed=false;if(previous!==state.luckyMode?.mode&&state.identity){buildNav();if(state.luckyMode?.mode==='off'&&state.currentTab==='benefits')showTab(defaultTab());}}catch(error){state.luckyMode={mode:'game'};state.luckyModeLoadedAt=Date.now();state.luckyModeLoadFailed=true;console.warn('Unable to read active benefit mode; member-points binding stays hidden.',error?.message||error);}}
  async function refreshOrders(silent=true){if(!state.identity||state.refreshing)return;state.refreshing=true;
  try{await refreshLuckyMode();const context=unpack(await db.rpc('yt_business_context'));if(state.businessDay!==context.day){if(!$('paidDate').value||$('paidDate').value===state.businessDay)$('paidDate').value=context.day;state.businessDay=context.day;}const calls=[db.rpc('yt_pos_orders',{p_scope:'active',p_limit:80}),db.rpc('yt_pos_orders_day',{p_scope:'paid',p_day:$('paidDate').value||null,p_limit:100})];if(isCashier()){calls.push(db.rpc('yt_pos_orders',{p_scope:'pending',p_limit:80}));if(!isOwner())calls.push(db.rpc('yt_pos_owner_revision_requests_mine'));}const rows=await Promise.all(calls.map(unpackPromise));
  state.active=rows[0]||[];state.paid=rows[1]||[];state.pending=isCashier()?(rows[2]||[]):[];state.revisionRequests=isCashier()&&!isOwner()?(rows[3]||[]):[];notifyPending();notifyKds();renderOrders();refreshRedeemOrderChoices();if(isCashier())await loadDuitNowProofs(silent);await storeBox?.loadOrderQueue(silent);if(isOwner())await refreshOwnerApprovalCount(silent);if(isCashier()||isOwner())await refreshBellIndicator(silent);}
@@ -636,7 +637,7 @@ async function saveSeries(event){event.preventDefault();const btn=$('seriesForm'
 async function loadBenefits(preferred=null,poll=false){
  if(!state.identity)return;
  const stateResp=unpack(await db.rpc('yt_lucky_public_mode'));
- state.luckyMode=stateResp;state.luckyModeLoadedAt=Date.now();state.luckyModeLoadFailed=false;renderOrders();
+ state.luckyMode=stateResp;state.luckyModeLoadedAt=Date.now();state.luckyModeLoadFailed=false;buildNav();renderOrders();
  const modeHint=$('benefitModeHint');
  if(modeHint)modeHint.textContent=stateResp.mode==='lucky'?'当前为 Lucky Box：扫码直接开箱抽积分，整单一个箱子或按单杯分别开。最低合资格实付 RM'+Number(stateResp.minimum_spend_rm).toFixed(2)+
   '。发码不需要绑定游戏、系列或活动。':stateResp.mode==='off'?'Owner 已暂停新游戏码发放；之前已发的 QR 不受影响。':'当前为 Game Mode：照旧发放 GamePass 供顾客选择游戏。';
