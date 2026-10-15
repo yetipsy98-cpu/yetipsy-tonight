@@ -29,21 +29,18 @@
 
 按相同方式上传同名文件并提交。保持文件名不变时，安装清单路径无需修改。管理端现在的标签页图标和 iPhone 主屏幕图标也都使用 `admin-icon-192.png`。
 
-管理端 PWA 配置位于 `play/admin.webmanifest`；iPhone 主屏幕图标路径还写在以下入口页中：
+管理端唯一正式入口为 `/play/admin/pos/`。Owner、Staff、Cashier 与旧 POS 地址都是跳转别名，不再单独维护界面。管理端 PWA 配置位于 `play/admin/admin.webmanifest`；iPhone 主屏幕图标只在正式入口页设置：
 
-- `play/owner/index.html`
-- `play/staff/index.html`
-- `play/cashier/index.html`
-- `play/pos/index.html`
+- `play/admin/pos/index.html`
 
-覆盖图标后更新 `play/admin.webmanifest` 图标路径中的 `v=`，并更新这四个入口页的 favicon 与 `apple-touch-icon` 链接版本。若改了文件名或目录，还要同步修改上述所有路径。更新管理端 `play/admin-sw.js` 的缓存名称（`CACHE`），让已安装的管理端加载新图标。
+覆盖图标后更新 `play/admin/admin.webmanifest` 图标路径中的 `v=`，并更新正式入口的 favicon 与 `apple-touch-icon` 链接版本。若改了文件名或目录，还要同步修改上述路径。更新管理端 `play/admin-sw.js` 的缓存名称（`CACHE`），让已安装的管理端加载新图标。
 
 ## 让手机显示新图标
 
 提交后等待 GitHub Pages 更新，再从浏览器打开对应页面并重新添加到主屏幕。已安装的旧图标可能会继续缓存；如果没有变化，先移除旧快捷方式，再重新添加。
 
 - 会员端入口：网站的 `/play-v12/` 客户端页面
-- 管理端入口：`/play-v12/owner/`、`/play-v12/staff/` 或 `/play-v12/cashier/`
+- 管理端入口：`/play/admin/pos/`（所有工作身份共用此入口，登录后按身份显示功能）
 
 ## GitHub 上传步骤
 

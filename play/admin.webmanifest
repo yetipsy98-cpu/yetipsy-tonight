@@ -1,8 +1,8 @@
 {
-  "id": "./owner/",
+  "id": "./pos/",
   "name": "Yetipsy POS Management",
   "short_name": "Yetipsy POS",
-  "start_url": "./owner/",
+  "start_url": "./pos/",
   "scope": "./",
   "display": "standalone",
   "theme_color": "#111614",

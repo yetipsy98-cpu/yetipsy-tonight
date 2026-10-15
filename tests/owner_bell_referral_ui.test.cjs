@@ -10,6 +10,8 @@ assert.match(pos,/button\.classList\.toggle\('has-alert',pending\)/,'service bel
 assert.doesNotMatch(pos,/pendingCount=String\(pending\)/,'service bell never shows a numeric count');
 assert.doesNotMatch(service,/bellAttention|notice\(`🔔 顾客需要服务/,'service bell does not cover the screen with a banner or toast');
 assert.match(service,/class="kds-ticket service-ticket"/,'service call cards follow the KDS ticket visual hierarchy');
+assert.match(service,/serviceBellBanner/,'a compact in-page banner gives access to pending service calls');
+assert.doesNotMatch(fs.readFileSync('play/pos/console.css','utf8'),/\.service-bell-banner\{[^}]*position:\s*fixed/,'service banner stays in page flow and does not block the screen');
 assert.match(pos,/if\(!isOwner\(\)\)calls\.push\(db\.rpc\('yt_pos_owner_revision_requests_mine'\)\)/,'Owner does not call the Cashier-only personal revision history');
 assert.doesNotMatch(pos,/badge\.textContent=count\?String\(count\)/,'approval indicator does not show a numeral');
 assert.match(pos,/badge\.textContent=''/,'approval indicator is a dot only');
@@ -18,7 +20,7 @@ assert.match(html,/id="ownerOrderApprovalsRoot"/,'approval content is mounted in
 assert.match(ownerHtml,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/,'Owner portal has an approvals subtab in Orders');
 assert.match(ownerHtml,/id="ownerOrderApprovalsRoot"/,'Owner portal mounts the approvals queue in Orders');
 
-assert.match(html,/pos\.js\?v=20261015-order-approvals-v2/,'live page loads the current POS module');
+assert.match(html,/pos\.js\?v=20261015-admin-pos-unified-v3/,'live page loads the current POS module');
 assert.match(html,/data-owner-tool="loyalty"[^]*?<div id="playInviteSettingsRoot"><\/div>/,'invitation settings are placed with membership settings');
 assert.match(html,/data-owner-tool="service"[^]*?<div id="playBellSettingsRoot"><\/div>/,'service bell settings have their own management tool');
 assert.match(ownerHtml,/data-owner-tool="service"[^]*?<div id="playBellSettingsRoot"><\/div>/,'Owner portal has a direct Service Bell settings entry');
@@ -26,5 +28,5 @@ assert.match(ownerHtml,/data-owner-tool="loyalty"[^]*?<div id="playInviteSetting
 assert.match(clientHtml,/id="referralGroup"[^>]*class="hide"/,'referral field is initially hidden outside signup');
 assert.match(clientHtml,/id="referralCode"[^>]*maxlength="10"/,'signup contains optional referral code input');
 assert.match(client,/\$\('referralGroup'\)\.classList\.toggle\('hide',!signup\)/,'referral input is visible only for signup');
-assert.match(html,/pos\.js\?v=20261015-order-approvals-v2/,'live module cache is refreshed on the actual entry page');
+assert.match(html,/pos\.js\?v=20261015-admin-pos-unified-v3/,'live module cache is refreshed on the actual entry page');
 console.log('PASS owner approvals, red-dot service alerts, KDS-style service tickets, management settings, and optional signup referral code');
