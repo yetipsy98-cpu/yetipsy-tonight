@@ -10,7 +10,7 @@ test('Work and member authentication do not impose attempt lockouts',()=>{
  const ownerReset=read('supabase/functions/yt-owner-reset/index.ts');
  const pin=read('supabase/functions/yt-pin-auth/index.ts');
  assert.doesNotMatch(work,/yt_work_gate|too_many_attempts/);
- assert.doesNotMatch(reset,/rate\\(|too_many_attempts/);
+ assert.doesNotMatch(reset,/rate\(|too_many_attempts/);
  assert.doesNotMatch(ownerReset,/yt_work_gate|too_many_attempts/);
  assert.doesNotMatch(pin,/yt_pin_gate|yt_pin_lookup_gate|too_many_attempts/);
 });
