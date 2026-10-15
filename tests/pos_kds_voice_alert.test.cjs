@@ -6,7 +6,10 @@ assert(pos.includes("new Utterance('有新的订单')"),'KDS voice says new orde
 assert.match(pos,/function announceNewOrder\(\)\{if\(state\.identity\?\.role!=='cashier'\)return;/,'only independent Cashier identity can play speech');
 assert.match(pos,/ping\('approval'\);announceNewOrder\(\)/,'pending approvals also announce by voice');
 assert(pos.includes('synth.speak(message)'), 'use browser speech synthesis');
-assert(pos.includes("row.created_channel!=='cashier'"),'Cashier-created orders stay silent');
+assert.match(pos,/const added=rows\.filter\(row=>!state\.seenKds\.has\(row\.id\)\);const audible=added\.filter\(/,'all newly arrived KDS orders are considered before self-order filtering');
+assert.match(pos,/row\.created_by===state\.authUserId/,'only orders placed by this signed-in Cashier are excluded');
+assert.doesNotMatch(pos,/rows\.filter\(row=>row\.created_channel!=='cashier'/,'Owner and other order sources are not suppressed');
+assert.match(pos,/db\.auth\.getSession\?\.\(\)/,'read current auth user for self-order detection');
 assert(pos.includes("added.filter(row=>row.request_source!=='cashier_checkout')"), 'Owner direct requests speak; cashier checkout prep remains silent');
 assert(queueFix.includes("e.metadata->>'source'"),'KDS queue exposes the request origin');
 assert(queueFix.includes('end request_source'),'KDS queue returns request_source');
@@ -15,4 +18,4 @@ const liveHtml=fs.readFileSync('play/admin/pos/index.html','utf8');
 
 assert.match(liveHtml,/pos\.js\?v=20261015-benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12]|reward-editor-modes-v1/,'fresh JS cache on live POS route');
 
-console.log('PASS Cashier KDS voice covers pending, customer and Owner direct store-box requests while excluding cashier-created work');
+console.log('PASS Cashier KDS voice covers every source except this Cashier account\'s own orders');
