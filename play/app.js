@@ -66,7 +66,7 @@ function changeAuthMode(mode='phone'){
  const signup=mode==='register';
  $('nicknameGroup').classList.toggle('hide',!signup);
  $('birthdayGroup').classList.toggle('hide',!signup);
- $('referralGroup').classList.add('hide');
+ $('referralGroup').classList.toggle('hide',!signup);
   if(signup && state.referralDraft)$('referralCode').value=state.referralDraft;
  $('confirmPinGroup').classList.toggle('hide',!signup);
  $('consentGroup').classList.toggle('hide',!signup);
