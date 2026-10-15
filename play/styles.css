@@ -142,3 +142,10 @@
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 
 .pwa-action{min-height:34px;padding:0 12px;border:1px solid #dabc83;border-radius:999px;background:#25271f;color:#f0d39d;font-size:11px;font-weight:750;white-space:nowrap}.pwa-notice{position:fixed;z-index:30;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(92vw,460px);padding:13px 16px;border:1px solid #dabc83;border-radius:14px;background:#202520;color:#f4e6ca;box-shadow:0 12px 36px #0008;font-size:13px;text-align:center}.pwa-notice.hide{display:none!important}@media(max-width:380px){.topbar{gap:8px}.pwa-action{padding-inline:8px;font-size:10px}}
+/* Play service and invitation additions */
+.customer-service-bell{position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:35;width:54px;height:54px;border-radius:50%;border:1px solid #b99b61;background:#181a18;color:#eacb82;font-size:30px;box-shadow:0 6px 22px #0007;cursor:pointer}
+.customer-service-bell[hidden]{display:none}
+.bell-types{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+.bell-types label{display:flex;align-items:center;gap:8px;padding:12px;border:1px solid #9d8659;border-radius:12px}
+.yt-invite-row{padding:14px 0;border-bottom:1px solid #a8956644}
+.yt-invite-row progress{display:block;width:100%;accent-color:#caa768}

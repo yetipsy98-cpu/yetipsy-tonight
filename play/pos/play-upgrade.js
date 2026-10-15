@@ -1,0 +1,81 @@
+// Cashier and Owner additions for Play. No direct browser writes to upgrade tables.
+export function createPlayWork({db,notice,isOwner,isCashier,qrLibrary,getOrders}){
+ const $=id=>document.getElementById(id);
+ const rpc=async(name,args={})=>{const {data,error}=await db.rpc(name,args);if(error)throw error;return data;};
+ const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ let settings=null,seen=new Map(),sound=false,scanner=null,leafletMap=null,leafletCircle=null,staffSettingsLoaded=false;
+ function mount(){
+  if(!$('playBindDialog')){const dialog=document.createElement('div');dialog.id='playBindDialog';dialog.className='play-bind-overlay hidden';document.body.append(dialog);dialog.onclick=e=>{if(e.target===dialog)dialog.classList.add('hidden');};}
+  if(!$('tab-bell')){const pane=document.createElement('section');pane.id='tab-bell';pane.className='tab-view hidden';pane.innerHTML='<article class="card"><div class="block-head"><div><p class="kicker">SERVICE BELL</p><h2>服务铃</h2></div><button id="bellSound" type="button" class="quiet">开启声音</button></div><p class="field-note">顾客呼叫只在这里处理；切换到其他标签仍会提醒。</p><div id="bellQueue" class="orders-list"></div><details><summary>服务请求历史与响应统计</summary><div id="bellHistory"></div></details></article>';
+   ($('tab-orders')?.parentElement||$('dashboard')).append(pane);
+   $('bellSound').onclick=()=>{sound=true;announce();$('bellSound').textContent='声音已开启';};}
+  if(isOwner()&&!$('playOwnerPanel')){const panel=document.createElement('article');panel.id='playOwnerPanel';panel.className='card';panel.innerHTML=`<h2>Yetipsy Play · 会员与服务铃</h2><p class="field-note">最低消费留空表示不限。服务铃中心点请在地图上选择，保存后再启用。</p><div class="pair"><label>邀请首单最低消费 RM<input id="playMinSpend" type="number" min="0" step="0.01" placeholder="留空不限"></label><label class="checkline"><input id="playBellEnabled" type="checkbox"> 启用服务铃</label></div><div id="playBellMap" style="height:260px;margin:12px 0;border-radius:12px;background:#eee"></div><div class="pair"><label>纬度<input id="playBellLat" type="number" step="any" min="-90" max="90"></label><label>经度<input id="playBellLng" type="number" step="any" min="-180" max="180"></label></div><div class="pair"><label>半径（30–300 米）<input id="playBellRadius" type="number" min="30" max="300"></label><label>提醒间隔（秒）<input id="playBellRemind" type="number" min="10" max="300"></label><label>确认后完成（秒）<input id="playBellComplete" type="number" min="10" max="3600"></label></div><button id="playSettingsSave" type="button" class="main-button">保存设置</button><h3>服务类型</h3><div id="playBellTypes"></div><button id="playBellAddType" type="button" class="quiet">新增服务类型</button><h3>邀请奖励待处理</h3><div id="playReferralPending"></div><h3>退款奖励待决定</h3><div id="playRefundPending"></div>`;
+   $('tab-admin').append(panel);const jump=document.createElement('button');jump.type='button';jump.className='quiet';jump.textContent='会员与服务铃设置';jump.onclick=()=>panel.scrollIntoView({behavior:'smooth',block:'start'});$('tab-admin').prepend(jump);
+   $('playSettingsSave').onclick=saveSettings;$('playBellAddType').onclick=()=>editType();
+   for(const id of ['playBellLat','playBellLng','playBellRadius'])$(id).addEventListener('change',syncMap);
+   loadSettings().catch(e=>notice(e.message,true));}
+ }
+ async function loadSettings(){if(!isOwner())return;settings=await rpc('yt_play_bell_settings');
+  $('playMinSpend').value=settings.invite_min_spend_rm??'';$('playBellEnabled').checked=!!settings.bell_enabled;
+  $('playBellLat').value=settings.bell_lat??'';$('playBellLng').value=settings.bell_lng??'';
+  $('playBellRadius').value=settings.bell_radius_m??100;$('playBellRemind').value=settings.bell_remind_seconds??30;
+  $('playBellComplete').value=settings.bell_complete_seconds??60;
+  $('playBellTypes').innerHTML=(settings.types||[]).map(t=>`<div class="action-row"><span>${esc(t.label_zh)} / ${esc(t.label_en)} · ${t.enabled?'启用':'关闭'}</span><button type="button" data-bell-type="${esc(t.id)}" class="quiet">编辑</button></div>`).join('');
+  $('playBellTypes').onclick=e=>{const b=e.target.closest('[data-bell-type]');if(b)editType(settings.types.find(t=>t.id===b.dataset.bellType));};
+  await mapInit();await loadPending();await loadRefundPending();}
+ async function loadPending(){const rows=await rpc('yt_play_referral_pending');const root=$('playReferralPending');if(!root)return;
+  root.innerHTML=rows.length?rows.map(r=>`<div class="action-row"><span>会员 ${esc(r.customer_id)} · 订单 ${esc(r.order_id)} · ${new Date(r.created_at).toLocaleString('zh-MY')}</span><button type="button" class="quiet" data-referral-retry="${esc(r.customer_id)}">重试发放</button></div>`).join(''):'<p class="field-note">没有待处理的邀请奖励。</p>';
+  root.onclick=async e=>{const button=e.target.closest('[data-referral-retry]');if(!button)return;button.disabled=true;try{const result=await rpc('yt_play_referral_retry',{p_customer:button.dataset.referralRetry});notice(result.status==='awarded'?'奖励已发放':'仍需人工核查');await loadPending();}catch(error){notice(error.message,true);button.disabled=false;}};}
+ async function loadRefundPending(){const rows=await rpc('yt_play_refund_pending');const root=$('playRefundPending');if(!root)return;
+  root.innerHTML=rows.length?rows.map(r=>`<div class="action-row"><span>订单 ${esc(r.order_id)} · ${esc(r.status)}</span><button type="button" class="quiet" data-refund-decide="${esc(r.order_id)}">处理奖励</button></div>`).join(''):'<p class="field-note">没有待决定的退款奖励。</p>';
+  root.onclick=async e=>{const button=e.target.closest('[data-refund-decide]');if(button){await refundDecision(button.dataset.refundDecide);await loadRefundPending();}};}
+ async function mapInit(){if(leafletMap||!$('playBellMap'))return;
+  if(!window.L){const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.append(css);await new Promise((resolve,reject)=>{const js=document.createElement('script');js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';js.onload=resolve;js.onerror=reject;document.head.append(js);});}
+  const lat=Number(settings.bell_lat)||2.03,lng=Number(settings.bell_lng)||103.32;
+  leafletMap=window.L.map('playBellMap').setView([lat,lng],17);
+  window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(leafletMap);
+  leafletCircle=window.L.circle([lat,lng],{radius:Number(settings.bell_radius_m)||100,color:'#b6954f'}).addTo(leafletMap);
+  leafletMap.on('click',e=>{setCenter(e.latlng);});
+  const marker=window.L.marker([lat,lng],{draggable:true}).addTo(leafletMap);marker.on('dragend',()=>setCenter(marker.getLatLng()));
+  function setCenter(point){$('playBellLat').value=point.lat.toFixed(6);$('playBellLng').value=point.lng.toFixed(6);marker.setLatLng(point);syncMap();}
+  setTimeout(()=>leafletMap.invalidateSize(),100);
+ }
+ function syncMap(){if(!leafletCircle)return;const lat=Number($('playBellLat').value),lng=Number($('playBellLng').value),radius=Number($('playBellRadius').value);if(Number.isFinite(lat)&&Number.isFinite(lng)){leafletCircle.setLatLng([lat,lng]);if(Number.isFinite(radius)&&radius>0)leafletCircle.setRadius(radius);}}
+ async function saveSettings(){try{const data={invite_min_spend_rm:$('playMinSpend').value.trim(),bell_enabled:$('playBellEnabled').checked,
+   bell_lat:$('playBellLat').value?Number($('playBellLat').value):null,bell_lng:$('playBellLng').value?Number($('playBellLng').value):null,
+   bell_radius_m:Number($('playBellRadius').value),bell_remind_seconds:Number($('playBellRemind').value),bell_complete_seconds:Number($('playBellComplete').value)};
+  if(data.bell_enabled&&(data.bell_lat===null||data.bell_lng===null))throw Error('请先设置服务铃中心点');
+  settings=await rpc('yt_play_bell_settings',{p_data:data});notice('Yetipsy Play 设置已保存');}catch(e){notice(e.message,true);}}
+ async function editType(t){const id=t?.id||prompt('服务 ID（英文小写、数字、下划线）');if(!id)return;
+  const zh=prompt('中文名称',t?.label_zh||'');if(zh===null)return;const en=prompt('English name',t?.label_en||'');if(en===null)return;
+  const sortText=prompt('排序数字（越小越靠前）',String(t?.sort_order??99));if(sortText===null)return;const sort=Number(sortText);if(!Number.isInteger(sort))return notice('排序必须是整数',true);
+  const active=confirm('确认启用此服务类型？选择取消则保存为关闭');try{await rpc('yt_play_bell_type_save',{p_id:id,p_zh:zh,p_en:en,p_sort:sort,p_enabled:active});await loadSettings();}catch(e){notice(e.message,true);}}
+ async function announce(){if(!sound||!window.speechSynthesis)return;window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance('顾客需要服务');utterance.lang='zh-CN';window.speechSynthesis.speak(utterance);}
+ async function poll(){if(!isCashier()&&!isOwner())return;try{
+  if(!staffSettingsLoaded){const basic=await rpc('yt_play_bell_staff_config');settings={...settings,...basic};staffSettingsLoaded=true;}
+  const rows=await rpc('yt_play_bell_list'),pending=rows.filter(r=>r.status==='pending'),now=Date.now();
+  for(const row of pending){const last=seen.get(row.id)||0;if(now-last>=((settings?.bell_remind_seconds||30)*1000)){seen.set(row.id,now);announce();if(!sound&&last===0)notice(`顾客需要服务 · ${row.table}`);}}
+  for(const id of seen.keys())if(!pending.some(r=>r.id===id))seen.delete(id);
+  const root=$('bellQueue');if(!root)return;root.innerHTML=pending.length?pending.map(r=>`<article class="card"><strong>${esc(r.table)} · ${esc(r.label_zh)}</strong><p>${esc(r.note||'')}</p><small>${new Date(r.created_at).toLocaleString('zh-MY')}</small><button type="button" class="main-button" data-bell-ack="${esc(r.id)}">确认</button></article>`).join(''):'<p>目前没有待确认的呼叫。</p>';
+  root.onclick=async e=>{const b=e.target.closest('[data-bell-ack]');if(!b)return;try{b.disabled=true;await rpc('yt_play_bell_ack',{p_id:b.dataset.bellAck});seen.delete(b.dataset.bellAck);await poll();}catch(error){notice(error.message,true);}};
+  const history=$('bellHistory');if(history){const all=isOwner()?await rpc('yt_play_bell_history'):rows;const completed=all.filter(r=>r.acknowledged_at),avg=completed.length?Math.round(completed.reduce((sum,r)=>sum+(Date.parse(r.acknowledged_at)-Date.parse(r.created_at))/1000,0)/completed.length):0;
+   history.innerHTML=`<p>最近 ${all.length} 次 · 已确认 ${completed.length} 次 · 平均等待 ${avg} 秒</p>`+all.map(r=>`<p>${esc(r.table)} · ${esc(r.type)} · ${r.acknowledged_at?'已确认':'待确认'} · ${new Date(r.created_at).toLocaleString('zh-MY')}</p>`).join('');}
+  const tab=[...document.querySelectorAll('#nav button')].find(b=>b.dataset.tab==='bell');if(tab)tab.textContent=`服务铃${pending.length?' · '+pending.length:''}`;
+ }catch(e){console.warn('Bell poll:',e.message);}}
+ async function showOrderCode(orderId){try{const result=await rpc('yt_play_order_token',{p_order:orderId});const url=new URL(location.pathname.includes('/admin/')?'../../':'../',location.href);url.search='';url.searchParams.set('bind',result.token);
+  const root=$('playBindDialog');root.classList.remove('hidden');root.innerHTML='<div class="play-bind-card card"><button type="button" id="playBindClose" class="quiet">关闭</button><h2>顾客扫码绑定本单</h2><p>挂单可预绑定；整单付款后才计入有效消费。</p><div id="playBindQr" class="qr-screen"></div><p id="playBindLink"></p></div>';
+  $('playBindClose').onclick=()=>root.classList.add('hidden');$('playBindLink').textContent=url.href;if(await qrLibrary())new window.QRCode($('playBindQr'),{text:url.href,width:220,height:220});
+ }catch(e){notice(e.message,true);}}
+ async function scanMember(orderId){const root=$('playBindDialog');root.classList.remove('hidden');root.innerHTML='<div class="play-bind-card card"><button type="button" id="playBindClose" class="quiet">关闭</button><h2>扫描顾客会员码</h2><div id="playMemberCamera"></div><input id="playMemberInput" placeholder="member:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"><button id="playMemberSubmit" class="main-button">确认绑定本单</button></div>';
+  const close=async()=>{if(scanner){await scanner.stop().catch(()=>{});await scanner.clear().catch(()=>{});scanner=null;}root.classList.add('hidden');};$('playBindClose').onclick=close;
+  const submit=async text=>{try{const token=String(text).trim().replace(/^member:/,'');if(!/^[0-9a-f-]{36}$/i.test(token))throw Error('会员码格式不正确');const result=await rpc('yt_play_bind_member',{p_order:orderId,p_token:token});notice(result.valid_purchase?'已绑定有效消费':'已预先绑定，付款后生效');await close();}catch(e){notice(e.message,true);}};
+  $('playMemberSubmit').onclick=()=>submit($('playMemberInput').value);
+  try{if(!window.Html5Qrcode)await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';s.onload=resolve;s.onerror=reject;document.head.append(s);});
+   scanner=new window.Html5Qrcode('playMemberCamera');await scanner.start({facingMode:'environment'},{fps:8,qrbox:200},async text=>{if(scanner)await submit(text);});
+  }catch{notice('相机不可用，可粘贴会员码',true);}}
+ async function refundDecision(orderId){if(!isOwner())return;const revoke=confirm('本单已退款。是否撤回邀请人奖励？\n确认 = 撤回；取消 = 保留。');
+  const note=prompt('请填写退款奖励处理原因（至少两个字）');if(note===null||note.trim().length<2){notice('退款已记录；邀请奖励待 Owner 决定，请补充处理原因。',true);return;}
+  try{const result=await rpc('yt_play_refund_decide',{p_order:orderId,p_revoke:revoke,p_note:note.trim()});notice(result.status==='reversed'?'邀请奖励已撤回':result.status==='reversal_requested'?'奖励已使用，已转 Owner 人工复核':result.status==='retained'?'已记录保留邀请奖励':'本单无邀请奖励');await loadRefundPending();}catch(e){notice(e.message,true);}}
+ function bindOrderClicks(){document.body.addEventListener('click',e=>{const qr=e.target.closest('[data-play-order-qr]');if(qr)showOrderCode(qr.dataset.playOrderQr);const scan=e.target.closest('[data-play-member-scan]');if(scan)scanMember(scan.dataset.playMemberScan);});}
+ return {mount,poll,bindOrderClicks,refundDecision,loadSettings,mapRefresh:()=>setTimeout(()=>leafletMap?.invalidateSize(),100)};
+}
