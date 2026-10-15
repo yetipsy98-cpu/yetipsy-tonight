@@ -3,6 +3,7 @@ const root=fs.readFileSync('play/pos/factory-reset.js','utf8');
 const sql=fs.readFileSync('sql/050_repair_owner_reset_where_guards.sql','utf8');
 const client=fs.readFileSync('play/pos/pos.js','utf8');
 const fix=fs.readFileSync('sql/051_owner_reset_new_order_children.sql','utf8');
+const playFix=fs.readFileSync('supabase/migrations/20261015124500_owner_reset_play_order_children.sql','utf8');
 const consoleSrc=fs.readFileSync('play/pos/console.js','utf8');
 assert.match(client,/console\.js\?v=20261015-(?:approval-moved-v2|owner-dot-v2|member-bell-reorg-v1|owner-categories-v1)/);
 assert.match(consoleSrc,/factory-reset\.js\?v=20261012-reset-fix-v23/);
@@ -14,5 +15,9 @@ assert.match(sql,/update public\.games set points_max=100,reaction_perfect_ms=20
 assert.match(sql,/delete from public\.yt_point_shop_items where true/);
 assert.match(sql,/update public\.yt_store_boxes b[\s\S]*?where b\.source_order_id=o\.id/);
 assert.match(fix,/yt_lucky_day_reservations,public\.yt_moon_preorder_holds/,'new order-linked reservations are cleared before orders');
+for(const table of ['yt_play_order_tokens','yt_play_consumption_bindings','yt_play_first_purchases','yt_play_referral_events']){
+ assert.match(playFix,new RegExp(`public\\.${table}`),`${table} must be truncated with its order parent`);
+}
+assert.match(playFix,/public\.yt_referral_links restart identity/,'reset patch must fail closed when its expected v9 anchor changes');
 assert.doesNotMatch(sql,/delete from public\.[a-z_]+;/i);
-console.log('PASS: Reset SQL safe-update guards and descriptive second-confirmation errors.');
+console.log('PASS: Reset SQL guards, second-confirmation errors, and Play order FK children.');

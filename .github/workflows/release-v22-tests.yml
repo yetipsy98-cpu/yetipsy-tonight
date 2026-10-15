@@ -2,6 +2,7 @@ name: Yetipsy V2.2 checks
 on:
   push:
     branches:
+      - main
       - 'fix/safe-reset-home-receipt-20261012'
   pull_request:
     branches: [main]
