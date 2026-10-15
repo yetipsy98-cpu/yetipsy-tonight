@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+const html=fs.readFileSync('play/admin/pos/index.html','utf8');
+const client=fs.readFileSync('play/app.js','utf8');
+const clientHtml=fs.readFileSync('play/index.html','utf8');
+assert.match(pos,/async function refreshBellIndicator/,'POS refreshes service bell status');
+assert.match(pos,/button\.classList\.toggle\('has-alert',pending\)/,'service bell indicates pending calls with its alert dot');
+assert.doesNotMatch(pos,/button\.textContent\s*=.*(?:bellCount|pendingCount)/i,'service bell does not append a numeric count');
+assert.match(html,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/,'Owner approval subtab is in the live admin POS page');
+assert.match(html,/id="ownerOrderApprovalsRoot"/,'approval content is mounted in the live admin POS page');
+assert.match(html,/pos\.js\?v=20261015-approval-moved-v2/,'live page loads the current POS module');
+assert.match(clientHtml,/id="referralGroup"[^>]*class="hide"/,'referral field is initially hidden outside signup');
+assert.match(clientHtml,/id="referralCode"[^>]*maxlength="10"/,'signup contains optional referral code input');
+assert.match(client,/\$\('referralGroup'\)\.classList\.toggle\('hide',!signup\)/,'referral input is visible only for signup');
+console.log('PASS service bell dot, live owner approval route, and optional signup referral code');
