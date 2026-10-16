@@ -179,4 +179,4 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .storebox-balance-panel .storebox-box .storebox-meter{height:5px}
 .storebox-balance-panel .storebox-box .storebox-counts span{padding:5px 6px;font-size:9px}
 .storebox-balance-panel .storebox-box .storebox-counts b{font-size:14px}
-@media(max-width:700px){.storebox-balance-panel .storebox-fold-body>.storebox-stack{grid-template-columns:1fr;gap:8px}}
+@media(max-width:700px){.storebox-balance-panel .storebox-fold-body>.storebox-stack{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.storebox-balance-panel .storebox-box .kds-table-number{font-size:16px}.storebox-balance-panel .storebox-box .kds-cup-highlight{min-width:76px;padding:5px 7px}.storebox-balance-panel .storebox-box .kds-cup-highlight strong{font-size:19px}}@media(max-width:380px){.storebox-balance-panel .storebox-fold-body>.storebox-stack{grid-template-columns:1fr}}
