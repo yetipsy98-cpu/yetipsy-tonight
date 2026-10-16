@@ -155,7 +155,7 @@ begin
  if stale then return jsonb_build_object('ok',false,'error_code','custom_reprice_required','id',d.id,
   'name',d.public_name,'cost_rm',calc->'cost_rm','suggested_min_rm',calc->'suggested_min_rm',
   'suggested_max_rm',calc->'suggested_max_rm','recipe',calc->'recipe'); end if;
- return jsonb_build_object('ok',true,'product',jsonb_build_object('id',d.product_id,'name',d.public_name,
+ return jsonb_build_object('ok',true,'product',jsonb_build_object('id',d.product_id,'custom_id',d.id,'share_token',d.share_token,'name',d.public_name,
   'price_rm',d.quote_rm,'active',true,'category','CUSTOM','is_drink',false),'name',d.public_name);
 end;$function$;
 
@@ -177,7 +177,7 @@ begin
  insert into public.yt_pos_custom_drink_versions(custom_drink_id,version,recipe_snapshot,total_cost_rm,
   suggested_min_rm,suggested_max_rm,quote_rm,changed_by,change_kind)
  values(d.id,v,d.recipe_snapshot,d.total_cost_rm,d.suggested_min_rm,d.suggested_max_rm,d.quote_rm,auth.uid(),'repriced');
- return jsonb_build_object('ok',true,'id',d.id,'product',jsonb_build_object('id',d.product_id,
+ return jsonb_build_object('ok',true,'id',d.id,'product',jsonb_build_object('id',d.product_id,'custom_id',d.id,'share_token',d.share_token,
   'name',d.public_name,'price_rm',d.quote_rm,'active',true,'category','CUSTOM','is_drink',false));
 end;$function$;
 
