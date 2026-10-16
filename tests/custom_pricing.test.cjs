@@ -131,3 +131,7 @@ assert.match(sharedCustomMembers, /create or replace function private\.yt_pos_cu
 assert.match(sharedCustomMembers, /revoke all on public\.yt_pos_custom_drink_members from public, anon, authenticated, service_role/);
 assert.doesNotMatch(sharedCustomMembers, /custom_already_bound/);
 console.log('PASS shared custom drink members, Cashier history editing, and cart drawer');
+
+const memberAccessDeny = read('supabase/migrations/20261016064133_custom_drink_member_direct_access_deny.sql');
+assert.match(memberAccessDeny, /create policy yt_pos_custom_drink_members_deny_direct_access/);
+assert.match(memberAccessDeny, /using \(false\)[\s\S]*?with check \(false\)/);
