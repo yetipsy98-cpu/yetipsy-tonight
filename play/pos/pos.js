@@ -1,6 +1,7 @@
 import {createPlayWork} from './play-upgrade.js?v=20261015-service-bell-cashier-only-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
+import {createCustomPricing} from './custom-pricing.js?v=20261016-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261015-tool-pane-visibility-fix-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
@@ -84,7 +85,7 @@ async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
 });}
 async function launch(){if(!usable){showNotice('尚未配置 /play/config.js 的 Supabase 连接',true,true);return;}
  const identity=unpack(await db.rpc('yt_pos_identity'));if(!identity)throw Error('staff_only');try{const authSession=await db.auth.getSession?.();state.authUserId=authSession?.data?.session?.user?.id||null;}catch{state.authUserId=null;}
-  state.identity={...identity,can_owner:identity.role==='owner'||identity.can_owner===true,can_cashier:identity.role==='owner'||identity.can_cashier===true,can_edit_orders:identity.role==='owner'||identity.can_edit_orders===true};state.activeView='dashboard';$('signin').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');
+  state.identity={...identity,can_owner:identity.role==='owner'||identity.can_owner===true,can_cashier:identity.role==='owner'||identity.can_cashier===true,can_edit_orders:identity.role==='owner'||identity.can_edit_orders===true};customPricing.refreshAccess();state.activeView='dashboard';$('signin').classList.add('hidden');$('dashboard').classList.remove('hidden');$('logout').classList.remove('hidden');
  $('accountName').textContent=identity.username+' · '+(isOwner()?'OWNER':identity.can_owner_limited?'OWNER LIMITED':identity.role==='cashier'?'CASHIER':isCashier()?'STAFF + CASHIER':'STAFF');$('permissionPill').textContent=isOwner()?'OWNER':identity.can_owner_limited?'OWNER LIMITED':identity.role==='cashier'?'CASHIER':isCashier()?'STAFF + CASHIER':'STAFF';
  $('workspaceSubtitle').textContent=identity.can_owner_limited?'报表 · Ambassador Pass':isOwner()?'经营总览 · 现场订单 · 店铺设置':isCashier()?'待审核 · 收款结账 · Game Pass':'快速点单 · 出品跟进 · Game Pass';
  $('cashierCreateChoice').classList.toggle('hidden',!isCashier());$('cashierDirect').checked=isCashier();$('checkoutPayNow').checked=true;$('checkoutPayLater').checked=false;
@@ -262,7 +263,7 @@ async function scanAmbassadorPass(raw){
  }).catch(()=>{});
 }
 async function scanDraftReward(){return draftOperation(async()=>{
- const raw=$('draftRedeemToken').value.trim();if(isAmbassadorToken(raw)){await scanAmbassadorPass(raw);return;}
+ const raw=$('draftRedeemToken').value.trim();const custom=await customPricing?.scan(raw);if(custom){if(custom.cancelled){$('draftRedeemToken').value='';return;}if(!state.catalog.some(x=>x.id===custom.id))state.catalog.push({...custom,active:true});state.cart.set(custom.id,(state.cart.get(custom.id)||0)+1);$('draftRedeemToken').value='';saveDraft();await refreshDraftSummary();showNotice('订制饮品已通过 Redeem 加入购物车');return;}if(isAmbassadorToken(raw)){await scanAmbassadorPass(raw);return;}
  if(!state.cart.size)throw Error('cart_requires_paid_drink');
  const moonCode=extractMoonCode(raw);
  let h=null;
@@ -1140,7 +1141,9 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
  }).catch(()=>{});}
 function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});playUpgrade.poll();}},6500);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
+const customPricing=createCustomPricing({db,isOwner,isCashier,notice:(message,bad)=>showNotice(message,bad),onAddProduct:async d=>{if(!state.catalog.some(x=>x.id===d.product_id))state.catalog.push({id:d.product_id,name:d.name,price_rm:d.price_rm,active:true,category:'CUSTOM',is_drink:true});state.cart.set(d.product_id,(state.cart.get(d.product_id)||0)+1);saveDraft();await refreshDraftSummary();}});
 function bind(){
+ customPricing.init();
  if(!$('editCancelOptions'))$('editOwnerOptions')?.insertAdjacentHTML('beforebegin','<div id="editCancelOptions" class="hidden"></div>');
  $('noticeDismiss')?.addEventListener('click',()=>{$('notice').classList.add('hidden');clearTimeout(state.noticeTimer);});
  document.addEventListener('pointerdown',unlockAudio,{once:true});
