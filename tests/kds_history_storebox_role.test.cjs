@@ -14,11 +14,8 @@ test('KDS foregrounds table and cup quantity while keeping notes visible',()=>{
 });
 
 test('staff can open dated KDS history for regular and Store Box tickets',()=>{
- for(const role of ['pos','owner','staff','cashier','admin/pos','admin/owner','admin/staff','admin/cashier']){
-  const page=fs.readFileSync(`play/${role}/index.html`,'utf8');
-  assert.match(page,/id="kdsHistoryDetails"/,role);
-  assert.match(page,/id="kdsHistoryDate"/,role);
- }
+ for(const id of ['kdsHistoryDetails','kdsHistoryDate'])assert.match(html,new RegExp(`id="${id}"`));
+ for(const role of ['pos','owner','staff','cashier'])assert(fs.readFileSync(`play/${role}/index.html`,'utf8').includes('admin/pos/'),role+' alias route');
  assert.match(pos,/yt_kds_history/);
  assert.match(pos,/store_box_requests/);
  assert.match(sql,/coalesce\(jsonb_agg\(to_jsonb\(x\) order by x\.event_at desc\)/);
