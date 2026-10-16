@@ -240,3 +240,48 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .storebox-stack:has(> .storebox-box.kds-ticket),.storebox-stack:has(> .storebox-issue-item.kds-ticket),.storebox-stack:has(> .storebox-claim.kds-ticket){grid-template-columns:1fr}
 .storebox-box.kds-ticket,.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket{aspect-ratio:auto;min-height:0}
 }
+
+
+/* Store Box cards size to their contents; history uses the same compact ticket style. */
+.storebox-stack:has(> .storebox-box.kds-ticket),
+.storebox-stack:has(> .storebox-issue-item.kds-ticket),
+.storebox-stack:has(> .storebox-claim.kds-ticket){grid-template-columns:minmax(0,1fr);align-items:start;gap:8px}
+.storebox-box.kds-ticket,.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket{aspect-ratio:auto;min-height:0;height:auto;align-content:start;gap:7px;padding:11px 12px}
+.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket{grid-template-columns:minmax(0,1fr) auto;align-items:start}
+.storebox-issue-item.kds-ticket .kds-ticket-head,.storebox-claim.kds-ticket .kds-ticket-head{grid-column:1;grid-row:1;min-width:0}
+.storebox-issue-item.kds-ticket .storebox-issue-highlight,.storebox-claim.kds-ticket .storebox-issue-highlight{grid-column:2;grid-row:1;align-self:start;width:max-content;min-height:0;padding:7px 10px}
+.storebox-issue-item.kds-ticket .kds-items,.storebox-issue-item.kds-ticket .storebox-remaining-note{grid-column:1/-1}
+.storebox-issue-item.kds-ticket .action-row,.storebox-claim.kds-ticket .action-row{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0}
+.storebox-issue-item>.action-row button,.storebox-claim>.action-row button{width:100%;min-height:40px;padding:7px 10px;font-size:11px}
+.storebox-box.kds-ticket{grid-template-columns:minmax(0,1fr) auto}
+.storebox-box.kds-ticket .kds-ticket-head{grid-column:1;grid-row:1;min-width:0}
+.storebox-box.kds-ticket .storebox-balance-highlight{grid-column:2;grid-row:1;align-self:start;width:max-content;min-height:0;padding:7px 10px}
+.storebox-box.kds-ticket .storebox-meter,.storebox-box.kds-ticket .storebox-counts,.storebox-box.kds-ticket>.action-row{grid-column:1/-1}
+.storebox-box.kds-ticket>.action-row{display:flex;margin:0}
+.storebox-box.kds-ticket>.action-row button,.storebox-box.kds-ticket>[data-box-progress]{width:auto;min-height:38px;padding:7px 12px}
+.storebox-issue-item .kds-ticket-main,.storebox-claim .kds-ticket-main,.storebox-box .kds-ticket-main{min-width:0;overflow-wrap:anywhere}
+.storebox-issue-item .kds-table-number,.storebox-claim .kds-table-number,.storebox-box .kds-table-number{font-size:clamp(20px,4vw,27px);line-height:1.08}
+.storebox-issue-item .kds-ticket-main>small,.storebox-claim .kds-ticket-main>small,.storebox-box .kds-ticket-main>small{font-size:10px;line-height:1.35}
+.storebox-issue-item .kds-items{margin:0;font-size:11px;line-height:1.35;overflow-wrap:anywhere}
+.storebox-issue-item .storebox-remaining-note{font-size:10px;line-height:1.3}
+.storebox-issue-item .storebox-issue-highlight strong,.storebox-claim .storebox-issue-highlight strong,.storebox-box .storebox-balance-highlight strong{font-size:clamp(23px,5vw,31px)}
+.storebox-issue-item .storebox-issue-highlight span,.storebox-claim .storebox-issue-highlight span,.storebox-box .storebox-balance-highlight span{font-size:11px}
+.storebox-box .storebox-counts{gap:6px}
+.storebox-box .storebox-counts span{padding:6px 8px;font-size:10px}
+.storebox-box .storebox-counts b{font-size:15px}
+.storebox-box .storebox-meter{margin:0;height:5px}
+.storebox-history-panel [data-box-history-list]{display:grid;gap:8px}
+.storebox-history-event.kds-ticket{aspect-ratio:auto;min-height:0;height:auto;padding:11px 12px;border-radius:13px}
+.storebox-history-event .kds-ticket-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.storebox-history-event .kds-ticket-main{min-width:0;overflow-wrap:anywhere}
+.storebox-history-event .kds-source{font-size:10px}
+.storebox-history-event .kds-table-number{margin:3px 0;font-size:20px;line-height:1.1}
+.storebox-history-event .kds-ticket-main>small{font-size:10px;line-height:1.4}
+.storebox-history-event .storebox-history-quantity{flex:none;align-self:center}
+@media(max-width:420px){
+.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket,.storebox-box.kds-ticket{padding:10px;gap:6px}
+.storebox-issue-item .kds-table-number,.storebox-claim .kds-table-number,.storebox-box .kds-table-number{font-size:20px}
+.storebox-issue-item .kds-ticket-main>small,.storebox-claim .kds-ticket-main>small,.storebox-box .kds-ticket-main>small{font-size:9px}
+.storebox-issue-item .kds-items{font-size:10px}
+.storebox-issue-item>.action-row button,.storebox-claim>.action-row button{min-height:38px;padding:6px;font-size:10px}
+}
