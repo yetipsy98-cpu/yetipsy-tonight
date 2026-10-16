@@ -756,14 +756,19 @@ async function changeMyPin(){
  }).catch(()=>{});};
 }
 async function loadMyCustom(){
- let root=$('myCustomRoot');if(!document.getElementById('customMemberStyles')){const style=document.createElement('style');style.id='customMemberStyles';style.textContent='.custom-member-list{margin:18px 24px 26px;display:grid;gap:10px}.custom-member-list.hide{display:none}.custom-member-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px;border:1px solid #536456;border-radius:16px;background:linear-gradient(145deg,#203229,#17241d)}.custom-member-card strong{display:block;color:#f1e7d4}.custom-member-card small{display:block;color:#aeb5aa;margin-top:5px}.custom-member-card button{border:1px solid #d8bc83;border-radius:11px;background:#d8bc83;color:#20241f;padding:10px 13px;font-weight:700;white-space:nowrap}@media(max-width:420px){.custom-member-list{margin-left:16px;margin-right:16px}.custom-member-card{align-items:flex-start;flex-direction:column}.custom-member-card button{width:100%}}';document.head.append(style);}if(!root){root=document.createElement('section');root.id='myCustomRoot';root.className='custom-member-list hide';const page=$('accountPage');page?.append(root);}
- root.classList.remove('hide');root.innerHTML='<div class="empty-state">正在读取我的订制…</div>';
- const {data,error}=await db.rpc('yt_pos_custom_my_list');if(error)throw error;
- const rows=Array.isArray(data)?data:[];
- root.innerHTML='<div class="section-row"><h2>我的订制 · MY CUSTOM</h2><button id="myCustomRefresh" class="text-cta" type="button">刷新</button></div>'+(
-  rows.length?rows.map(x=>'<article class="item-card custom-member-card"><div><strong>'+esc(x.name)+'</strong><small>'+new Date(x.created_at).toLocaleString()+'</small></div><button type="button" class="text-cta" data-custom-share="'+esc(x.share_token)+'" data-custom-name="'+esc(x.name)+'">出示 QR</button></article>').join(''):'<div class="empty-state">付款并绑定会员后，订制酒会显示在这里。</div>');
- root.querySelector('#myCustomRefresh')?.addEventListener('click',()=>loadMyCustom().catch(e=>toast(errorText(e),true)));
- root.querySelectorAll('[data-custom-share]').forEach(b=>b.onclick=()=>{const url=new URL('./',location.href);url.searchParams.set('custom',b.dataset.customShare);showCodeSheet('订制饮品 · '+b.dataset.customName,'请让 Cashier 在 POS 的 Redeem 扫描此 QR。',url.href,false);});
+ showSheet('我的订制','MY CUSTOM DRINKS');
+ sheetHtml('<div class="sheet-content custom-my-drawer"><p class="custom-my-help">这里只显示已付款并绑定到当前会员的订制饮品。每项可出示二维码，让 Cashier 扫码查看订制内容。</p><div id="myCustomRows" class="custom-my-list"><div class="empty-state">正在读取我的订制…</div></div><button id="myCustomRefresh" type="button" class="button button-outline wide">刷新列表</button></div>');
+ const root=$('myCustomRows');
+ const load=async()=>{
+  root.innerHTML='<div class="empty-state">正在读取我的订制…</div>';
+  const {data,error}=await db.rpc('yt_pos_custom_my_list');
+  if(error){root.innerHTML='<div class="empty-state">读取失败，请点下方刷新重试。</div>';throw error;}
+  const rows=Array.isArray(data)?data:[];
+  root.innerHTML=rows.length?rows.map(x=>'<article class="custom-my-card"><div class="custom-my-card-main"><strong>'+esc(x.name)+'</strong><small>绑定时间 · '+esc(fmt(x.created_at))+'</small></div><button type="button" class="button button-primary custom-my-qr" data-custom-share="'+esc(x.share_token)+'" data-custom-name="'+esc(x.name)+'">出示 QR</button></article>').join(''):'<div class="empty-state"><span class="empty-symbol">◈</span>暂时没有已绑定到这个会员的订制饮品。<small>已付款并完成会员绑定的订制会显示在这里。</small></div>';
+  root.querySelectorAll('[data-custom-share]').forEach(b=>b.onclick=()=>{const url=new URL('./',location.href);url.searchParams.set('custom',b.dataset.customShare);showCodeSheet('订制饮品 · '+b.dataset.customName,'请让 Cashier 在 POS 的 Redeem 扫描此 QR。',url.href,false);});
+ };
+ $('myCustomRefresh').onclick=()=>load().catch(e=>toast(errorText(e),true));
+ await load();
 }
 function bindEvents(){
  $('phoneCheckForm').addEventListener('submit',submitPhone);$('authForm').addEventListener('submit',submitAuth);window.YT_CLIENT_READY=true;$('authBack').onclick=()=>changeAuthMode('phone');
@@ -772,7 +777,7 @@ function bindEvents(){
  $('homeRewardClaim').onclick=openRewardClaim;$('authRewardClaim').onclick=openRewardClaim;
  $('heroScan').onclick=()=>showMemberCode().catch(e=>toast(errorText(e),true));$('accountChangePin').onclick=()=>changeMyPin().catch(e=>toast(errorText(e),true));$('privacyNotice').onclick=()=>{showSheet('会员资料使用说明','YETIPSY PLAY');sheetHtml('<div class="sheet-content"><p>手机号、昵称、生日与会员记录仅用于账户、会员福利、奖励和到店服务。</p><p>如需更正或删除资料，请联系 Yetipsy。</p></div>');};$('openExistingPass').onclick=()=>existingGamePass().catch(e=>toast(errorText(e),true));
  $('homePrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));$('accountPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));$('publicBoardFromAuth').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
- $('homeLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountRecords').onclick=()=>showMyRecords().catch(e=>toast(errorText(e),true));$('homeWallet').onclick=()=>navigate('wallet');$('walletRefresh').onclick=()=>wallet().catch(e=>toast(errorText(e),true));$('accountScan').onclick=()=>openScanner('claim');const customButton=document.createElement('button');customButton.id='accountCustom';customButton.type='button';customButton.className=$('accountScan').className;customButton.innerHTML='<span>◇</span><b>我的订制 · MY CUSTOM</b><i>↗</i>';const actions=$('accountPage')?.querySelector('.account-actions');if(actions&&!$('accountCustom'))actions.insertBefore(customButton,$('signOut'));customButton.onclick=()=>{const root=$('myCustomRoot');if(root&&!root.classList.contains('hide')){root.classList.add('hide');return;}loadMyCustom().catch(e=>toast(errorText(e),true));};
+ $('homeLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountRecords').onclick=()=>showMyRecords().catch(e=>toast(errorText(e),true));$('homeWallet').onclick=()=>navigate('wallet');$('walletRefresh').onclick=()=>wallet().catch(e=>toast(errorText(e),true));$('accountScan').onclick=()=>openScanner('claim');let customButton=$('accountCustom');if(!customButton){customButton=document.createElement('button');customButton.id='accountCustom';customButton.type='button';customButton.innerHTML='<span>◇</span><b>我的订制 · MY CUSTOM</b><i>↗</i>';const actions=$('accountPage')?.querySelector('.account-actions');if(actions)actions.insertBefore(customButton,$('signOut'));}customButton.onclick=()=>loadMyCustom().catch(e=>toast(errorText(e),true));
  $('accountStaff').onclick=()=>openWorkspace('staff');$('accountOwner').onclick=()=>openWorkspace('owner');
  $('workspaceBack').onclick=()=>navigate('account');
  $('signOut').onclick=async()=>{if(!confirm('确认退出 Yetipsy Play？'))return;await closeSheet();const {error}=await db.auth.signOut();if(error)return toast(error.message,true);state.user=null;state.profile=null;state.role=null;customerStoreBox?.clear();shell(false);changeAuthMode('login');toast('已安全退出');};
