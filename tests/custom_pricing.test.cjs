@@ -15,6 +15,7 @@ const reset = read('supabase/migrations/20261016021716_custom_drink_reset_integr
 const globalPricing = read('supabase/migrations/20261016030000_custom_drink_global_pricing_v2.sql');
 const unlimitedMaterials = read('supabase/migrations/20261016031000_custom_drink_unlimited_materials.sql');
 const customPricingGrants = read('supabase/migrations/20261016032900_custom_pricing_rpc_exec_grants.sql');
+const unlimitedQuantity = read('supabase/migrations/20261016040355_custom_drink_unlimited_quantity.sql');
 
 assert.match(ui, /yt_pos_custom_material_save_v2/);
 assert.match(ui, /yt_pos_custom_settings_save/);
@@ -24,6 +25,11 @@ assert.match(ui, /建议售价/);
 assert.match(ui, /最低售价（最高 Discount 后）/);
 assert.match(ui, /cp-material-grid/);
 assert.match(ui, /data-cp-add/);
+assert.match(ui, /type=\"number\" inputmode=\"numeric\" min=\"1\" step=\"1\" value=\"\\$\\{qty\\}\" data-cp-qty/);
+assert.match(ui, /recipeLines\\.onchange/);
+assert.doesNotMatch(ui, /max=\"50\"|Math\\.min\\(50/);
+assert.match(unlimitedQuantity, /q<>trunc\\(q\\)/);
+assert.doesNotMatch(unlimitedQuantity, /q>50/);
 assert.match(ui, /最高 Discount %/);
 assert.match(ui, /yt_pos_custom_reprice/);
 assert.match(ui, /yt_pos_custom_scan/);
