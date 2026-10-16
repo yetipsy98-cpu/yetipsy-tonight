@@ -19,8 +19,8 @@ for(const text of [
   '当前没有手机 OTP 验证',
   '顾客和 Staff 都无法获取权重数据',
   '真正扫码并结账时才会标记为已使用'
-])assert(!html.includes(text),${role} still contains note-like copy: ${text});
+])assert(!html.includes(text),role+' still contains note-like copy: '+text);
 assert(html.includes('所选数据清空后无法撤销'),'destructive reset warning must remain');
-for(const alias of ['pos','owner','staff','cashier'])assert(fs.readFileSync(`play/${alias}/index.html`,'utf8').includes('admin/pos/'),${alias} alias must redirect to canonical POS);
+for(const alias of ['pos','owner','staff','cashier'])assert(fs.readFileSync('play/'+alias+'/index.html','utf8').includes('admin/pos/'),alias+' alias must redirect to canonical POS');
 
 console.log('PASS: customer and canonical POS surfaces hide internal notes while destructive-action warnings remain.');
