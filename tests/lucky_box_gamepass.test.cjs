@@ -17,7 +17,7 @@ assert.match(box,/yt_lucky_claim/);
 assert.match(box,/sessionStorage\.setItem/);
 assert.match(consoleSrc,/createLuckyOwner/);
 assert.match(read('play/pos/lucky-box-owner.js'),/yt_lucky_owner_reset/);
-assert(read('play/pos/pos.js').includes('console.js?v=20261016-custom-pricing-navigation-v1'));
+assert(read('play/pos/pos.js').includes('console.js?v=20261016-backdate-tools-v2'));
 assert(read('play/index.html').includes('lucky-box.css?v=20261013-lucky-v2'));
 
  assert(read('play/admin/pos/index.html').includes('pos.js?v=20261016-shared-history-drawer-v1'));for(const role of ['pos','owner','staff','cashier'])assert(read('play/'+role+'/index.html').includes('admin/pos/'),role+' alias route');
