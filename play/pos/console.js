@@ -39,7 +39,7 @@ export function createConsole({db,work,isOwner,isOwnerLimited=()=>false,isCashie
    if(key==='custompricing')await customPricing?.openSettings($('customPricingOwnerRoot'));
    if(epoch!==loadEpoch)return;if(key==='rewards')await loadOffers();
    if(['team','campaign','loyalty'].includes(key)){
-    ownerTools||=await import('../shared/owner-tools.js?v=20261015-tool-pane-visibility-fix-v1');if(epoch!==loadEpoch)return;
+    ownerTools||=await import('../shared/owner-tools.js?v=20261016-custom-usernames-v1');if(epoch!==loadEpoch)return;
     const identityResult=await db.rpc('yt_pos_identity');if(identityResult.error)throw identityResult.error;
     if(!identityResult.data?.can_owner)throw Error('owner_only');ownerTools.initOwnerTools(db,identityResult.data);await ownerTools.loadOwnerTool(key);
     if(key==='team'){await loadRights();await loadStaffOrderReview();}if(key==='loyalty'){const module=await import('./owner-points.js?v=20261012-points-rewards-v18');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();await globalThis.ytPlayWork?.loadInviteSettings?.();}
