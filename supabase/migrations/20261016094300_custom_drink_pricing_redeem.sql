@@ -128,7 +128,7 @@ begin
  calc:=private.yt_pos_custom_calculate(p_recipe); quote:=round(p_quote,2);
  if quote is null or quote< (calc->>'cost_rm')::numeric or quote>5000 then raise exception 'custom_quote_below_cost'; end if;
  insert into public.yt_shop_products(title,category,price_rm,redeem_points,active,sort_order,series_id,is_drink)
- values(btrim(p_name),'CUSTOM',quote,null,true,999999,null,false) returning id into pid;
+ values(btrim(p_name),'CUSTOM',quote,null,true,999999,null,true) returning id into pid;
  insert into public.yt_pos_custom_drinks(product_id,public_name,recipe_snapshot,total_cost_rm,suggested_min_rm,suggested_max_rm,quote_rm,created_by)
  values(pid,btrim(p_name),calc->'recipe',(calc->>'cost_rm')::numeric,(calc->>'suggested_min_rm')::numeric,
   (calc->>'suggested_max_rm')::numeric,quote,auth.uid()) returning * into d;
@@ -137,7 +137,7 @@ begin
  values(d.id,1,d.recipe_snapshot,d.total_cost_rm,d.suggested_min_rm,d.suggested_max_rm,d.quote_rm,auth.uid(),'created');
  return jsonb_build_object('ok',true,'id',d.id,'product_id',d.product_id,'share_token',d.share_token,
   'name',d.public_name,'price_rm',d.quote_rm,'cost_rm',d.total_cost_rm,
-  'suggested_min_rm',d.suggested_min_rm,'suggested_max_rm',d.suggested_max_rm,'active',true,'category','CUSTOM','is_drink',false);
+  'suggested_min_rm',d.suggested_min_rm,'suggested_max_rm',d.suggested_max_rm,'active',true,'category','CUSTOM','is_drink',true);
 end;$function$;
 
 create or replace function private.yt_pos_custom_scan(p_token uuid)
