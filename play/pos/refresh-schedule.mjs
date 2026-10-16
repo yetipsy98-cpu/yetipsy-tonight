@@ -1,0 +1,4 @@
+const BUSINESS_TIME_ZONE='Asia/Kuala_Lumpur';
+function minuteOfDay(date){const parts=new Intl.DateTimeFormat('en-GB',{timeZone:BUSINESS_TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);const read=type=>Number(parts.find(part=>part.type===type)?.value);return read('hour')*60+read('minute');}
+function parseClock(value){if(typeof value!=='string'||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))return null;const [hour,minute]=value.split(':').map(Number);return hour*60+minute;}
+export function isRefreshWindowOpen(config,now=new Date()){if(!config||config.enabled!==true)return false;const start=parseClock(config.start_time),end=parseClock(config.end_time);if(start===null||end===null||start===end)return false;const current=minuteOfDay(now);return start<end?current>=start&&current<end:(current>=start||current<end);}
