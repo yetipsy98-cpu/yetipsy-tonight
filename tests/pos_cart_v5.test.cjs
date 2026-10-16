@@ -56,6 +56,7 @@ function harness(role='staff') {
  const body=new Element();body.dataset.entry=role==='cashier'?'cashier':'work';
  const query={select(){return this;},not(){return this;},order(){return this;},limit:async()=>({data:[],error:null})};
  const context={console,crypto:webcrypto,URL,Intl,Option:function(label,value){this.label=label;this.value=value;},navigator:{},location:{href:'https://example.test/play/pos/'},window:{YETIPSY_PLAY_CONFIG:{url:'https://test.supabase.co',publishableKey:'sb_publishable_TEST'},confirm:()=>true},document:{body,head:new Element(),getElementById:id=>elements[id]||null,createElement:()=>new Element(),addEventListener(){},visibilityState:'visible'},sessionStorage:{getItem:k=>session.get(k)||null,setItem:(k,v)=>session.set(k,v)},setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},createClient:()=>({rpc,from:()=>query})};
+ context.createCustomPricing=()=>({open(){},scan(){},openSettings(){},close(){}});
  context.createPlayWork=()=>({mount(){},poll(){},bindOrderClicks(){},refundDecision(){},mapRefresh(){}});
  context.createRewardBindingEditor=({db})=>({load:async()=>(await db.rpc('yt_pos_owner_reward_rules')).data});
  vm.createContext(context);
