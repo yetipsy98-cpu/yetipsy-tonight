@@ -107,3 +107,15 @@ test('custom drink bindings are one customer per order and reusable across disti
  assert.match(pos,/customItems\.some\(item=>!item\.custom_bound\)/);
  assert.match(upgrade,/custom_order_already_bound:'本单已绑定其他会员/);
 });
+
+test('Staff can bind regular paid POS orders and Cashier Store Box calls auto-accept into KDS',()=>{
+ const migration=read('supabase/migrations/20261016110920_pos_member_binding_staff_storebox_auto_accept.sql');
+ const pos=read('play/pos/pos.js'),box=read('play/pos/store-box.js'),css=read('play/pos/console.css');
+ assert.match(migration,/yt_pos_work_staff\(\) or private\.yt_work_owner\(\)/);
+ assert.match(migration,/status,accepted_by,accepted_at/);
+ assert.match(migration,/'accepted',actor,clock_timestamp\(\)/);
+ assert.match(pos,/isCashier\(\)\|\|isOwner\(\)\|\|isStaff\(\)/);
+ assert.match(pos,/row\.pos_business_day===state\.businessDay/);
+ assert.match(box,/storebox-qr-table/);
+ assert.match(css,/storebox-issue-item\.kds-ticket,\.storebox-claim\.kds-ticket\{display:grid/);
+});
