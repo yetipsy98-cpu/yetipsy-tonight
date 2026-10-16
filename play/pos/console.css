@@ -285,3 +285,46 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .storebox-issue-item .kds-items{font-size:10px}
 .storebox-issue-item>.action-row button,.storebox-claim>.action-row button{min-height:38px;padding:6px;font-size:10px}
 }
+
+
+/* Store Box: short horizontal cards with content-driven height. */
+.storebox-balance-panel .storebox-fold-body>.storebox-stack,
+.storebox-history-panel [data-box-history-list],
+.storebox-issue-section .storebox-stack,
+.storebox-claim-section .storebox-stack,
+.storebox-stack:has(> .storebox-box.kds-ticket),
+.storebox-stack:has(> .storebox-issue-item.kds-ticket),
+.storebox-stack:has(> .storebox-claim.kds-ticket){display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+.storebox-box.kds-ticket,.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket,.storebox-history-event.kds-ticket{aspect-ratio:auto!important;width:100%;height:auto!important;min-height:0!important;align-content:start;gap:5px;padding:8px 10px;border-radius:11px}
+.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket,.storebox-box.kds-ticket{grid-template-columns:minmax(0,1fr) auto;align-items:start}
+.storebox-issue-item.kds-ticket .kds-ticket-head,.storebox-claim.kds-ticket .kds-ticket-head,.storebox-box.kds-ticket .kds-ticket-head{grid-column:1;grid-row:1;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:2px 8px;min-width:0;margin:0}
+.storebox-issue-item .kds-ticket-main,.storebox-claim .kds-ticket-main,.storebox-box .kds-ticket-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0;overflow-wrap:anywhere}
+.storebox-issue-item .kds-table-number,.storebox-claim .kds-table-number,.storebox-box .kds-table-number{margin:0;font-size:20px;line-height:1.05}
+.storebox-issue-item .kds-ticket-main>small,.storebox-claim .kds-ticket-main>small,.storebox-box .kds-ticket-main>small{display:inline-block;margin:0;font-size:9px;line-height:1.25}
+.storebox-issue-item .kds-ticket-main>strong{font-size:11px;line-height:1.25}
+.storebox-issue-item.kds-ticket .storebox-issue-highlight,.storebox-claim.kds-ticket .storebox-issue-highlight,.storebox-box.kds-ticket .storebox-balance-highlight{grid-column:2;grid-row:1;align-self:start;width:max-content;max-width:132px;min-width:0;min-height:0;margin:0;padding:6px 9px;box-sizing:border-box}
+.storebox-issue-item .storebox-issue-highlight strong,.storebox-claim .storebox-issue-highlight strong,.storebox-box .storebox-balance-highlight strong{font-size:22px;line-height:1}
+.storebox-issue-item .storebox-issue-highlight span,.storebox-claim .storebox-issue-highlight span,.storebox-box .storebox-balance-highlight span{font-size:9px;line-height:1.15}
+.storebox-issue-item.kds-ticket .kds-items,.storebox-issue-item.kds-ticket .storebox-remaining-note{grid-column:1/-1;margin:0;font-size:9px;line-height:1.25}
+.storebox-issue-item.kds-ticket>.action-row,.storebox-claim.kds-ticket>.action-row{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0}
+.storebox-issue-item>.action-row button,.storebox-claim>.action-row button{width:100%;min-height:32px;padding:5px 8px;font-size:10px;line-height:1.15}
+.storebox-box.kds-ticket .storebox-meter,.storebox-box.kds-ticket .storebox-counts,.storebox-box.kds-ticket>.action-row{grid-column:1/-1;margin:0}
+.storebox-box.kds-ticket .storebox-meter{height:4px}
+.storebox-box.kds-ticket .storebox-counts{gap:4px}
+.storebox-box.kds-ticket .storebox-counts span{padding:4px 6px;font-size:9px;line-height:1.1}
+.storebox-box.kds-ticket .storebox-counts b{font-size:13px;margin-top:1px}
+.storebox-box.kds-ticket>.action-row{display:flex}
+.storebox-box.kds-ticket>.action-row button,.storebox-box.kds-ticket>[data-box-progress]{width:auto;min-height:31px;padding:5px 9px;font-size:10px}
+.storebox-history-event.kds-ticket{display:block}
+.storebox-history-event .kds-ticket-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 10px;margin:0}
+.storebox-history-event .kds-ticket-main{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0;overflow-wrap:anywhere}
+.storebox-history-event .kds-source{font-size:9px;line-height:1.2}
+.storebox-history-event .kds-table-number{margin:0;font-size:18px;line-height:1.05}
+.storebox-history-event .kds-ticket-main>small{display:inline-block;margin:0;font-size:9px;line-height:1.25}
+.storebox-history-event .storebox-history-quantity{grid-column:2;grid-row:1;align-self:center;white-space:nowrap;font-size:11px}
+@media(max-width:420px){
+.storebox-box.kds-ticket,.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket,.storebox-history-event.kds-ticket{padding:7px 8px;gap:4px}
+.storebox-issue-item .kds-table-number,.storebox-claim .kds-table-number,.storebox-box .kds-table-number{font-size:18px}
+.storebox-issue-item .kds-ticket-main>small,.storebox-claim .kds-ticket-main>small,.storebox-box .kds-ticket-main>small,.storebox-history-event .kds-ticket-main>small{font-size:8px}
+.storebox-issue-item>.action-row button,.storebox-claim>.action-row button{min-height:30px;padding:4px 6px;font-size:9px}
+}
