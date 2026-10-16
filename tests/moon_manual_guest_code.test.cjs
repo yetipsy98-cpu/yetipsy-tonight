@@ -8,13 +8,7 @@ assert.match(code,/AFTER UPDATE OF payment_status,status/);
 assert.match(integration,/NEW\.amount_rm:=OLD\.amount_rm-v_discount-v_moon/);
 assert.match(integration,/moon_codes/);
 assert.match(integration,/status='available',reserved_order_id=NULL/);
-for(const page of ['pos','owner','cashier','staff']){
- const html=read('play/'+page+'/index.html');
- assert(!html.includes('moonGuestPanel')&&!html.includes('moonGuestDrink'),page+' must use shared redemption UI');
- assert(html.includes('draftRedeemToken'),page+' shared Moon code input missing');
- const ids=[...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]);
- assert.equal(ids.length,new Set(ids).size,page+' duplicate ids');
-}
+const html=read('play/admin/pos/index.html');assert(!html.includes('moonGuestPanel')&&!html.includes('moonGuestDrink'),'canonical POS uses shared redemption UI');assert(html.includes('draftRedeemToken'),'shared Moon code input missing');const ids=[...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]);assert.equal(ids.length,new Set(ids).size,'canonical POS duplicate ids');for(const page of ['pos','owner','cashier','staff'])assert(read('play/'+page+'/index.html').includes('admin/pos/'),page+' alias route');
 assert.match(read('play/pos/console.js'),/moon-code-editor\.js/);
 assert.doesNotMatch(read('play/pos/pos.js'),/yt_moon_owner_bind_reward|yt_moon_owner_reward_bindings|mapMoonKind/);
 assert.doesNotMatch(read('play/pos/moon-code-editor.js'),/moonKind|moon_owner_reward_bindings/);
