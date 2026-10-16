@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const migration=fs.readFileSync('supabase/migrations/20261014120443_package_prep_intent.sql','utf8');
-assert.match(pos,/if\(orderId&&\(isCashier\(\)\|\|isOwner\(\)\)\)await promptCashierPackagePrep\(orderId\);if\(checkoutMode==='pay_now'\)/,'Cashier / Owner choose prep before pay-now checkout; pay-later remains on ordering page');
+assert.match(pos,/if\(orderId&&\(isCashier\(\)\|\|isOwner\(\)\)\)await promptCashierPackagePrep\(orderId\);if\(data\.backdate_approval_status==='pending'\).*?else if\(checkoutMode==='pay_now'\)/,'Cashier / Owner choose prep before pay-now checkout; pay-later remains on ordering page');
 assert.match(pos,/async function promptCashierPackagePrep\(orderId\)/,'order success asks whether to pre-pour eligible Package / Challenge cups');
 assert.match(pos,/if\(action==='accept'&&\(isCashier\(\)\|\|isOwner\(\)\)\)await promptCashierPackagePrep\(orderId\)/,'Cashier acceptance prompts for Staff-created eligible orders');
 assert.match(pos,/yt_store_box_prep_intent_save/,'prompt persists choices for pay-later orders');
