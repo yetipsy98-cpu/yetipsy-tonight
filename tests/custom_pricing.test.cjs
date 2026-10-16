@@ -158,3 +158,8 @@ assert.match(ownerDeleteFix, /deleted_at is null/);
 console.log('PASS visible custom cart line, return to POS, and Owner soft-delete');
 
 assert.match(pos, /openCartDrawer\(\)/);
+
+const customResetFix = read('supabase/migrations/20261016072328_custom_member_associations_owner_reset_v9.sql');
+assert.match(customResetFix, /yt_pos_custom_drink_members/);
+assert.match(customResetFix, /订制会员绑定/);
+console.log('PASS reset clears custom member links and reports their count');

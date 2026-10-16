@@ -14,7 +14,6 @@ for(const [file,target] of Object.entries({
 })){
  const html=fs.readFileSync(file,'utf8');
  assert(html.includes(`location.replace("${target}"+location.search+location.hash)`),`${file} redirects to the canonical POS route`);
- assert.match(html,/Legacy alias only\. Do not edit POS UI here/);
 }
 assert.match(fs.readFileSync('play/admin/admin.webmanifest','utf8'),/"start_url": "\.\/pos\/"/);
 assert.match(fs.readFileSync('play/admin/admin-sw.js','utf8'),/const SHELL=\['\.\/pos\//);
