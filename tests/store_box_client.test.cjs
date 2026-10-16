@@ -94,14 +94,14 @@ test('Owner and Cashier can arrange service from all eligible Store Box balances
  assert.match(js,/row\.cashier_serve_allowed&&canCashierServe\(\)/);
  assert.match(js,/if\(!canCashierServe\(\)\)throw Error\('cashier_only'\)/);
  assert.match(css,/storebox-balance-panel \.storebox-fold-body>\.storebox-stack\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
- assert.match(css,/@media\(max-width:700px\)\{\.storebox-balance-panel \.storebox-fold-body>\.storebox-stack\{grid-template-columns:1fr/);
+ assert.match(css,/@media\(max-width:700px\)\{\.storebox-balance-panel \.storebox-fold-body>\.storebox-stack\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 test('custom drink bindings are one customer per order and reusable across distinct orders',()=>{
  const migration=read('supabase/migrations/20261016104819_storebox_compact_and_custom_order_member_binding.sql');
  const pos=read('play/pos/pos.js'),upgrade=read('play/pos/play-upgrade.js');
  assert.match(migration,/yt_pos_custom_order_members \([\s\S]*order_id uuid primary key/);
  assert.match(migration,/custom_order_already_bound/);
- assert.match(migration,/on conflict \(custom_drink_id,customer_id\) do nothing/);
+ assert.match(migration,/on conflict\s*\(custom_drink_id,customer_id\) do nothing/);
  assert.match(migration,/custom_bound',exists\(select 1 from private\.yt_pos_custom_order_members cm where cm\.order_id=i\.order_id\)/);
  assert.match(migration,/private\.yt_pos_custom_order_members,public\.yt_pos_custom_drink_members/);
  assert.match(pos,/customItems\.some\(item=>!item\.custom_bound\)/);
