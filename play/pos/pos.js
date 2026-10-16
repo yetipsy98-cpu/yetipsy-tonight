@@ -1,4 +1,5 @@
-import {createPlayWork} from './play-upgrade.js?v=20261016-log-ingestion-poll-v1';
+import {createPlayWork} from './play-upgrade.js?v=20261016-refresh-settings-v1';
+import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-settings-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
@@ -6,13 +7,13 @@ import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261016-backdate-tools-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
-import {createStoreBox} from './store-box.js?v=20261015-storebox-stability-v1&reopen=20261016-v1';
+import {createStoreBox} from './store-box.js?v=20261016-kds-storebox-refresh-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
 const $=id=>document.getElementById(id);
-const POLL_INTERVAL_MS=15000;
+const POLL_CLOCK_TICK_MS=5000;
 let lastOwnerApprovalCountPollAt=0;
 const conf=window.YETIPSY_PLAY_CONFIG||{};
 const portal='work';
@@ -23,7 +24,7 @@ const db=usable?createClient(conf.url,conf.publishableKey,{auth:{storageKey:'yt-
 const workURL=(conf.url||'')+'/functions/v1/yt-work-auth';
 const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   active:[],paid:[],pending:[],revisionRequests:[],seenPending:new Set(),seenInitialized:false,seenKds:new Set(),seenKdsInitialized:false,storeBoxQueue:[],seenStoreBox:new Set(),seenStoreBoxInitialized:false,ambassadorAccess:false,ambassadorDraft:null,
-  currentRequestId:null,refreshing:false,interval:null,noticeTimer:null,activeView:'login',
+  currentRequestId:null,refreshing:false,interval:null,refreshSchedule:null,lastAutoPollAt:0,noticeTimer:null,activeView:'login',
   series:[],rewardRules:[],editOrder:null,editCart:new Map(),redeemPending:null,scanStream:null,scanTimer:null,luckyMode:null,luckyModeLoadedAt:0,
   selectedOrderCart:null,activeRewardHold:null,ownerMemberList:[],draftId:null,draftSummary:null,draftEpoch:0,draftLoading:false,draftSaving:false,draftMutating:false,draftSelection:null,pendingSubmit:null,scanEpoch:0,
   ownerDashboard:null,ownerDashboardDay:null,ownerDashboardLoading:false,duitnowQrPath:null,duitnowQrLoaded:false,duitnowQrError:null,kdsHistory:null,kdsHistoryDay:null,kdsHistoryLoading:false,duitnowProofFile:null,duitnowProofUrl:null,duitnowProofStream:null,duitnowProofs:[],authUserId:null};
@@ -95,7 +96,7 @@ async function launch(){if(!usable){showNotice('尚未配置 /play/config.js 的
  $('accountMenu').classList.remove('hidden');
  playUpgrade.mount();buildNav();consoleUI?.roleChanged();if(typeof createAmbassadorTools==='function'){globalThis.ytAmbassadorTools?.destroy();globalThis.ytAmbassadorTools=createAmbassadorTools({db,isOwner,isCashier,role:()=>state.identity?.role,notice:(message,bad)=>showNotice(message,bad),onRedeemPass:token=>scanAmbassadorPass(token),onClosePage:()=>showTab(defaultTab()),onAccessChange:enabled=>{state.ambassadorAccess=enabled;if(state.identity){buildNav();if(!enabled&&state.currentTab==='ambassador')showTab(defaultTab());}}});}
  if(typeof isOwnerLimited==='function'&&isOwnerLimited()){ensureLimitedHome();showTab('limited');await loadLimitedReports();return;}
- restoreDraft();try{const mode=await db.rpc('yt_lucky_public_mode');if(mode.error)throw mode.error;state.luckyMode=unpack(mode);}catch{state.luckyMode={mode:'game'};}state.luckyModeLoadedAt=Date.now();buildNav();const context=unpack(await db.rpc('yt_business_context'));state.businessDay=context.day;$('paidDate').value=context.day;if($('kdsHistoryDate'))$('kdsHistoryDate').value=context.day;if($('orderBusinessDay')){$('orderBusinessDay').max=context.day;$('orderBusinessDayControl')?.classList.toggle('hidden',!(isOwner()||isCashier()));if(!$('orderBusinessDay').value)$('orderBusinessDay').value=context.day;}await Promise.all([loadCatalog(),refreshOrders(false)]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
+ restoreDraft();try{const mode=await db.rpc('yt_lucky_public_mode');if(mode.error)throw mode.error;state.luckyMode=unpack(mode);}catch{state.luckyMode={mode:'game'};}state.luckyModeLoadedAt=Date.now();buildNav();const context=unpack(await db.rpc('yt_business_context'));state.businessDay=context.day;$('paidDate').value=context.day;if($('kdsHistoryDate'))$('kdsHistoryDate').value=context.day;if($('orderBusinessDay')){$('orderBusinessDay').max=context.day;$('orderBusinessDayControl')?.classList.toggle('hidden',!(isOwner()||isCashier()));if(!$('orderBusinessDay').value)$('orderBusinessDay').value=context.day;}await Promise.all([loadCatalog(),refreshOrders(false),loadRefreshSchedule()]);showTab(new URL(location.href).searchParams.get('tab')||defaultTab());startPolling();
 }
 async function changeCashierFirstPassword(e){e.preventDefault();const button=e.submitter;await busy(button,async()=>{
  const oldPw=$('firstOldPassword').value,newPw=$('firstNewPassword').value;
@@ -1148,8 +1149,10 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
  else qr.textContent='二维码图片暂时无法加载，请使用下方领取短码。';
  showNotice('已创建 Reward Claim，奖励绑定规则将在 POS 结账时验证');
  }).catch(()=>{});}
-function pollVisibleWorkspace(){if(document.visibilityState==='hidden'||state.activeView!=='dashboard')return;refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});playUpgrade.poll();}
-function startPolling(){stopPolling();state.interval=setInterval(pollVisibleWorkspace,POLL_INTERVAL_MS);}
+async function loadRefreshSchedule(){try{state.refreshSchedule=unpack(await db.rpc('yt_pos_refresh_schedule',{p_data:null}));}catch(error){state.refreshSchedule={enabled:false,start_time:'18:30',end_time:'00:30',interval_seconds:15};console.warn('Refresh schedule unavailable; automatic polling disabled.',error);}}
+window.addEventListener('yt-pos-refresh-schedule-updated',event=>{state.refreshSchedule=event.detail||null;state.lastAutoPollAt=0;});
+function pollVisibleWorkspace(){if(document.visibilityState==='hidden'||state.activeView!=='dashboard')return;const schedule=state.refreshSchedule;if(!schedule||!isRefreshWindowOpen(schedule,new Date()))return;const interval=Math.max(15,Number(schedule.interval_seconds)||15)*1000;if(Date.now()-state.lastAutoPollAt<interval)return;state.lastAutoPollAt=Date.now();refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});playUpgrade.poll();}
+function startPolling(){stopPolling();state.interval=setInterval(pollVisibleWorkspace,POLL_CLOCK_TICK_MS);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
 const customPricing=createCustomPricing({db,isOwner,isCashier,notice:(message,bad)=>showNotice(message,bad),onClose:()=>showTab('create'),onAddProduct:async d=>{const productId=d?.product_id||d?.id;const customId=d?.custom_id||(d?.product_id?d.id:null);if(!productId)throw new Error('订制商品编号缺失，未加入购物车');const product={id:productId,custom_id:customId,share_token:d.share_token,name:d.name,price_rm:d.price_rm,active:true,category:'CUSTOM',is_drink:true};const existing=state.catalog.find(x=>x.id===productId);if(existing)Object.assign(existing,product);else state.catalog.push(product);state.cart.set(productId,(state.cart.get(productId)||0)+1);renderCart();showTab('create');openCartDrawer();}});
 function bind(){
@@ -1214,7 +1217,7 @@ eipt();}});
  $('ownerSendGift').onclick=ownerDirectGift;$('ownerIssueGiftQR').onclick=ownerGiftClaimQR;
  document.body.addEventListener('click',e=>{const prep=e.target.closest('[data-order-prep]');if(prep){promptCashierPackagePrep(prep.dataset.orderPrep).catch(err=>showNotice(errorText(err),true));return;}const btn=e.target.closest('[data-order-cart]');if(btn)openOrderCart(btn.dataset.orderCart).catch(err=>showNotice(errorText(err),true));});
 
- document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')stopRedeemCamera();if(document.visibilityState==='visible'&&state.activeView==='dashboard')refreshOrders(true);});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')stopRedeemCamera();});
 }
 async function boot(){bind();playUpgrade.bindOrderClicks();window.YT_WORK_READY=true;if(!usable){resetLogin();showNotice('请检查 /play/config.js，POS 尚未连上 Supabase',true,true);return;}
  const {data,error}=await db.auth.getSession();if(!error&&data?.session){try{await launch();return;}catch(e){showNotice('请重新登录工作账号：'+errorText(e),true);}}
