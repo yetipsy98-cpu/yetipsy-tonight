@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const box=fs.readFileSync('play/pos/store-box.js','utf8');
-const html=fs.readFileSync('play/pos/index.html','utf8');
+const html=fs.readFileSync('play/admin/pos/index.html','utf8');
 const css=fs.readFileSync('play/pos/console.css','utf8');
 const sql=fs.readFileSync('sql/096_kds_history_storebox_role_privacy.sql','utf8');
 
