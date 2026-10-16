@@ -102,3 +102,16 @@ assert.doesNotMatch(createResponse, /cost_rm|unit_cost_rm|recipe/);
 assert.doesNotMatch(scanResponse, /cost_rm|unit_cost_rm|recipe/);
 
 console.log('PASS custom pricing, Redeem QR, stale quote guard, points exclusion, member privacy, and reset coverage');
+
+const customHistoryMigration = read('supabase/migrations/20261016061702_custom_drink_history_edit.sql');
+const customNameMigration = read('supabase/migrations/20261016062051_custom_drink_history_name_snapshot.sql');
+assert.match(ui, /data-edit-history/);
+assert.match(ui, /yt_pos_custom_update/);
+assert.match(ui, /以哪个历史版本为基础/);
+assert.match(ui, /修改前的完整版本已保留/);
+assert.match(customHistoryMigration, /change_kind.*edited/);
+assert.match(customHistoryMigration, /yt_pos_custom_update/);
+assert.match(customHistoryMigration, /greatest\(d\.current_version/);
+assert.match(customNameMigration, /add column if not exists public_name/);
+assert.match(customNameMigration, /before insert on public\.yt_pos_custom_drink_versions/);
+assert.match(customNameMigration, /'name',v\.public_name/);
