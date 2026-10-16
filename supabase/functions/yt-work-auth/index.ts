@@ -1,4 +1,5 @@
 import {createOwnerReset} from './owner-reset.ts';
+import {workUsername} from './username.mjs';
 import { createClient } from 'npm:@supabase/supabase-js@2.117.2';
 
 const URL=Deno.env.get('SUPABASE_URL')||'';
@@ -11,14 +12,12 @@ function headers(){return {'Access-Control-Allow-Origin':ORIGIN,'Access-Control-
 function send(data:unknown,status=200){return new Response(JSON.stringify(data),{status,headers:headers()});}
 function err(code:string,status=400){return send({ok:false,error:code},status);}
 const now=()=>new Date().toISOString();
-function username(value:unknown):string{
- const v=String(value||'').trim().toLowerCase();
- if(!/^[a-z][a-z0-9_]{2,23}$/.test(v))throw Error('invalid_username');
- return v;
+function username(value:unknown,allowCustom=false):string{
+ return workUsername(value,allowCustom);
 }
 function strong(password:unknown,user=''):string{
  const p=String(password||'');
- if(p.length<12||p.length>128||!/[A-Z]/.test(p)||!/[a-z]/.test(p)||!/\d/.test(p)||p.toLowerCase().includes(user.toLowerCase()))throw Error('weak_password');
+ if(p.length<12||p.length>128||!/[A-Z]/.test(p)||!/[a-z]/.test(p)||!/\d/.test(p)||(Array.from(user).length>=3&&p.toLowerCase().includes(user.toLowerCase())))throw Error('weak_password');
  return p;
 }
 async function sha(s:string):Promise<string>{
@@ -98,7 +97,7 @@ async function activate(body:any,req:Request){
  }
 }
 async function login(body:any,req:Request){
- const u=username(body.username);
+ const u=username(body.username,true);
  const plain=String(body.password||'');
  if(plain.length<1||plain.length>128)return err('invalid_credentials',401);
  const {data:acct,error:ae}=await admin.from('work_accounts')
@@ -129,7 +128,7 @@ async function updatePassword(body:any,req:Request){
 }
 async function createStaff(body:any,req:Request){
  const owner=await ownerFromRequest(req);
- const u=username(body.username);
+ const u=username(body.username,true);
  if(u==='owner')return err('invalid_username');
  const temporary=strong(body.temporary_password,u);
  const {data:exists,error:ee}=await admin.from('work_accounts').select('auth_user_id').eq('username',u).maybeSingle();
@@ -162,7 +161,7 @@ async function listStaff(req:Request){
 }
 async function changeStaff(body:any,req:Request,mode:'staff_toggle'|'staff_reset'){
  const owner=await ownerFromRequest(req);
- const u=username(body.username);
+ const u=username(body.username,true);
  const {data:staff,error}=await admin.from('work_accounts').select('auth_user_id,username,role,active,must_change_password').eq('username',u).maybeSingle();
  if(error||!staff||staff.role!=='staff')return err('staff_not_found',404);
  if(mode==='staff_toggle'){
@@ -188,7 +187,7 @@ async function changeStaff(body:any,req:Request,mode:'staff_toggle'|'staff_reset
 
 async function createCashier(body:any,req:Request){
   const owner=await ownerFromRequest(req);
-  const u=username(body.username);
+  const u=username(body.username,true);
   if(u==='owner')return err('invalid_username');
   const temporary=strong(body.temporary_password,u);
   const {data:exists,error:ee}=await admin.from('work_accounts').select('auth_user_id').eq('username',u).maybeSingle();
@@ -222,7 +221,7 @@ async function listCashier(req:Request){
 }
 async function manageCashier(body:any,req:Request,mode:'cashier_toggle'|'cashier_reset'){
   const owner=await ownerFromRequest(req);
-  const u=username(body.username);
+  const u=username(body.username,true);
   const {data:acct,error}=await admin.from('work_accounts')
     .select('auth_user_id,username,role,active,must_change_password')
     .eq('username',u).maybeSingle();
