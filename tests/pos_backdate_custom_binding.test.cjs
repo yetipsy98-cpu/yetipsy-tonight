@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const migration=fs.readFileSync('supabase/migrations/20261016085351_pos_backdate_custom_bindings_management_tools.sql','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+const approvals=fs.readFileSync('play/pos/owner-order-approvals.js','utf8');
+const consoleJs=fs.readFileSync('play/pos/console.js','utf8');
+const admin=fs.readFileSync('play/admin/pos/index.html','utf8');
+
+assert.match(migration,/ADD COLUMN IF NOT EXISTS pos_business_day date/);
+assert.match(migration,/backdate_approval_status='pending'/);
+assert.match(migration,/raise exception 'backdate_approval_pending'/);
+assert.match(migration,/coalesce\(new\.pos_business_day,private\.yt_business_day\(new\.paid_at\)\)/);
+assert.match(migration,/coalesce\(o\.pos_business_day,private\.yt_business_day\(o\.paid_at\)\) between p_start and p_end/);
+assert.match(migration,/yt_pos_order_backdate_requests,public\.yt_member_orders/);
+assert.match(migration,/ON DELETE CASCADE/);
+assert.match(migration,/ALTER TABLE public\.yt_pos_order_backdate_requests ENABLE ROW LEVEL SECURITY/);
+assert.match(pos,/yt_pos_create_order_with_rewards_v4/);
+assert.match(pos,/p_business_day:\$\('orderBusinessDay'\)/);
+assert.match(pos,/等待 Owner 批准营业日回填后才能收款/);
+assert.match(pos,/data-custom-binding-details/);
+assert.doesNotMatch(pos,/customItems\.some\(item=>!item\.custom_bound\)/);
+assert.match(approvals,/yt_pos_owner_backdate_requests_list/);
+assert.match(approvals,/yt_pos_owner_backdate_request_review/);
+assert.match(consoleJs,/data-pane=\"ambassador\"/);
+for(const key of ['home','moon','lucky','custompricing'])assert.match(consoleJs,new RegExp('data-pane=\\"'+key+'\\"'));
+assert.match(admin,/id=\"orderBusinessDay\"/);
+assert.match(admin,/backdate-custom-bindings-v2/);
+console.log('POS backdate, custom-member sharing, and owner-tool pane checks passed');
