@@ -1,4 +1,4 @@
-import {createPlayWork} from './play-upgrade.js?v=20261016-member-binding-staff-v3';
+import {createPlayWork} from './play-upgrade.js?v=20261016-log-ingestion-poll-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
@@ -12,6 +12,8 @@ import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
 const $=id=>document.getElementById(id);
+const POLL_INTERVAL_MS=15000;
+let lastOwnerApprovalCountPollAt=0;
 const conf=window.YETIPSY_PLAY_CONFIG||{};
 const portal='work';
 // Keep an existing Cashier login when all entry points adopt the shared workspace.
@@ -410,17 +412,12 @@ async function refreshLuckyMode(force=false){if(!force&&Date.now()-state.luckyMo
  state.active=rows[0]||[];state.paid=rows[1]||[];state.pending=isCashier()?(rows[2]||[]):[];state.revisionRequests=isCashier()&&!isOwner()?(rows[3]||[]):[];
  const packageOrderIds=state.active.filter(row=>row.status==='confirmed'&&(row.items||[]).some(item=>item.store_box_item)).map(row=>row.id);if(packageOrderIds.length){try{const prepMap=unpack(await db.rpc('yt_pos_kds_package_preps',{p_orders:packageOrderIds}))||{};for(const row of state.active)row.package_preps=prepMap[row.id]||[];}catch(error){console.warn('KDS Package 预出杯信息载入失败',error?.message||error);}}
  if((isCashier()||isOwner())&&state.paid.length){try{const ids=state.paid.filter(row=>row.payment_status==='paid').map(row=>row.id);if(ids.length){const summaries=unpack(await db.rpc('yt_pos_order_benefit_summaries',{p_orders:ids}))||{};for(const row of state.paid)row.benefit_summary=summaries[row.id]||null;}}catch(error){console.warn('订单权益摘要载入失败',error?.message||error);}}
- notifyPending();notifyKds();renderOrders();refreshRedeemOrderChoices();if(isCashier())await loadDuitNowProofs(silent);await storeBox?.loadOrderQueue(silent);if(isOwner())await refreshOwnerApprovalCount(silent);if(isCashier()||isOwner())await refreshBellIndicator(silent);}
+ notifyPending();notifyKds();renderOrders();refreshRedeemOrderChoices();if(isCashier())await loadDuitNowProofs(silent);await storeBox?.loadOrderQueue(silent);if(isOwner()&&(!silent||Date.now()-lastOwnerApprovalCountPollAt>=45000)){await refreshOwnerApprovalCount(silent);lastOwnerApprovalCountPollAt=Date.now();}}
  catch(e){if(!silent)showNotice(errorText(e),true);}finally{state.refreshing=false;}}
 async function refreshOwnerApprovalCount(silent=true){
  if(!isOwner())return;try{const [result,backdates]=await Promise.all([db.rpc('yt_pos_owner_revision_requests_list'),db.rpc('yt_pos_owner_backdate_requests_list')]);if(result.error)throw result.error;if(backdates.error)throw backdates.error;const rows=Array.isArray(result.data)?result.data:[],backdateRows=Array.isArray(backdates.data)?backdates.data:[],count=rows.filter(row=>row.status==='pending').length+backdateRows.filter(row=>row.status==='pending').length,badge=$('revisionApprovalCount');if(badge){badge.textContent='';badge.classList.toggle('hidden',!count);badge.setAttribute('aria-label',count?count+' 笔订单待审批':'没有待审批订单');}document.querySelectorAll('[data-owner-approval-dot]').forEach(dot=>dot.classList.toggle('hidden',!count));if(approvalCount!==null&&count>approvalCount)showNotice('有 '+count+' 笔改单、取消或营业日回填申请等待 Owner 审批');approvalCount=count;}catch(error){if(!silent)throw error;console.warn('订单待审数量载入失败',error);}
 }
 async function loadOwnerApprovals(){if(!isOwner())return;orderApprovals||=createOwnerOrderApprovals({db,root:$('ownerOrderApprovalsRoot'),notice:(message,bad)=>showNotice(errorText(Error(message)),bad),onChange:()=>refreshOrders(false)});await orderApprovals.load();await refreshOwnerApprovalCount(false);}
-async function refreshBellIndicator(silent=true){
- const button=[...($('nav')?.querySelectorAll('button')||[])].find(item=>item.dataset.tab==='bell');if(!button||(!isOwner()&&!isCashier()))return;
- try{const result=await db.rpc('yt_play_bell_list');if(result.error)throw result.error;const rows=Array.isArray(result.data)?result.data:[],pending=rows.some(row=>row.status==='pending');button.classList.toggle('has-alert',pending);button.removeAttribute('data-pending-count');button.setAttribute('aria-label',pending?'服务铃有待确认呼叫':'服务铃');}
- catch(error){if(!silent)console.warn('服务铃状态载入失败',error);}
-}
 const unpackPromise=async p=>unpack(await p);
 async function loadDuitNowProofs(silent=true){
  const root=$('duitnowProofList');if(!root||!isCashier())return;
@@ -1150,10 +1147,12 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
  else qr.textContent='二维码图片暂时无法加载，请使用下方领取短码。';
  showNotice('已创建 Reward Claim，奖励绑定规则将在 POS 结账时验证');
  }).catch(()=>{});}
-function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});playUpgrade.poll();}},6500);}
+function pollVisibleWorkspace(){if(document.visibilityState==='hidden'||state.activeView!=='dashboard')return;refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});playUpgrade.poll();}
+function startPolling(){stopPolling();state.interval=setInterval(pollVisibleWorkspace,POLL_INTERVAL_MS);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
 const customPricing=createCustomPricing({db,isOwner,isCashier,notice:(message,bad)=>showNotice(message,bad),onClose:()=>showTab('create'),onAddProduct:async d=>{const productId=d?.product_id||d?.id;const customId=d?.custom_id||(d?.product_id?d.id:null);if(!productId)throw new Error('订制商品编号缺失，未加入购物车');const product={id:productId,custom_id:customId,share_token:d.share_token,name:d.name,price_rm:d.price_rm,active:true,category:'CUSTOM',is_drink:true};const existing=state.catalog.find(x=>x.id===productId);if(existing)Object.assign(existing,product);else state.catalog.push(product);state.cart.set(productId,(state.cart.get(productId)||0)+1);renderCart();showTab('create');openCartDrawer();}});
 function bind(){
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pollVisibleWorkspace();});
  customPricing.init();
  if(!$('editCancelOptions'))$('editOwnerOptions')?.insertAdjacentHTML('beforebegin','<div id="editCancelOptions" class="hidden"></div>');
  $('noticeDismiss')?.addEventListener('click',()=>{$('notice').classList.add('hidden');clearTimeout(state.noticeTimer);});
