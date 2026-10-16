@@ -41,3 +41,44 @@ test('Package and challenge checkout issues the customer claim code immediately'
 test('Owner can copy an existing menu item into an editable new item',()=>{
  const js=read('play/pos/pos.js');assert.match(js,/data-copy-product/);assert.match(js,/function copyProduct\(id\)/);assert.match(js,/productId'\)\.value=''/);assert.match(js,/副本/);
 });
+
+
+test('Cashier can arrange KDS service for claimed Store Box balances and Owner can approve reopen requests',()=>{
+ const js=read('play/pos/store-box.js');
+ assert.match(js,/cashier_serve_allowed/);
+ assert.match(js,/yt_store_box_cashier_request/);
+ assert.match(js,/yt_store_box_staff_search/);
+ assert.match(js,/data-box-search/);
+ assert.match(js,/yt_store_box_reopen_list/);
+ assert.match(js,/yt_store_box_reopen_review/);
+ assert.match(js,/data-box-reopen-action/);
+ assert.match(js,/存酒编号/);
+});
+
+test('customer sees each box number, reopen status, and timestamped serving staff history',()=>{
+ const js=read('play/customer-store-box.js');
+ assert.match(js,/row\.box_number/);
+ assert.match(js,/yt_store_box_reopen_request/);
+ assert.match(js,/served_history/);
+ assert.match(js,/served_by_name/);
+ assert.match(js,/data-store-box-reopen/);
+ assert.match(js,/year:'numeric'/);
+});
+
+test('business day choice is scoped to one submitted order and resets to today',()=>{
+ const js=read('play/pos/pos.js');
+ assert.match(js,/p_business_day:\$\('orderBusinessDay'\)\?\.value\|\|state\.businessDay/);
+ assert.match(js,/orderBusinessDay'\)\.value=state\.businessDay/);
+ const html=read('play/admin/pos/index.html');
+ assert.match(html,/修改仅适用于本单，下单后恢复今天/);
+});
+
+test('Store Box migration keeps reopen requests server-only and reuses configured expiry days',()=>{
+ const sql=read('sql/20261016101745_store_box_numbers_cashier_reopen_history.sql');
+ assert.match(sql,/yt_store_boxes_box_number_uidx/);
+ assert.match(sql,/yt_store_box_reopen_one_pending_uidx/);
+ assert.match(sql,/enable row level security/);
+ assert.match(sql,/revoke all on public\.yt_store_box_reopen_requests from public,anon,authenticated/);
+ assert.match(sql,/private\.yt_business_start\(private\.yt_business_day\(clock_timestamp\(\)\)\+greatest\(1,b\.expiry_days\)\)/);
+ assert.match(sql,/b\.customer_id is not null and b\.status='active'/);
+});

@@ -17,4 +17,4 @@ jobs:
           for f in tests/*.test.cjs; do node "$f"; done
           for f in tests/*.test.mjs; do node "$f"; done
       - run: |
-          for f in play/app.js play/lucky-box.js play/pos/pos.js play/pos/console.js play/pos/lucky-box-owner.js play/pos/ambassador.js play/ambassador-client.js; do node --check "$f"; done
+          for f in play/app.js play/lucky-box.js play/pos/pos.js play/pos/store-box.js play/customer-store-box.js play/pos/console.js play/pos/lucky-box-owner.js play/pos/ambassador.js play/ambassador-client.js; do node --check "$f"; done
