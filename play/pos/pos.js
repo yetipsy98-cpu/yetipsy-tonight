@@ -1,7 +1,7 @@
 import {createPlayWork} from './play-upgrade.js?v=20261016-custom-member-binding-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
-import {createCustomPricing} from './custom-pricing.js?v=20261016-history-cart-payload-v1';
+import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261016-custom-pricing-navigation-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
@@ -1146,7 +1146,7 @@ async function ownerGiftClaimQR(){const btn=$('ownerIssueGiftQR');await busy(btn
  }).catch(()=>{});}
 function startPolling(){stopPolling();state.interval=setInterval(()=>{if(state.activeView==='dashboard'){refreshOrders(true);if(state.currentTab==='benefits'&&!state.benefitLoading){state.benefitLoading=true;loadBenefits(null,true).catch(()=>{}).finally(()=>{state.benefitLoading=false;});}if(state.currentTab==='storebox')storeBox?.loadStaff(true).catch(()=>{});playUpgrade.poll();}},6500);}
 function stopPolling(){if(state.interval){clearInterval(state.interval);state.interval=null;}}
-const customPricing=createCustomPricing({db,isOwner,isCashier,notice:(message,bad)=>showNotice(message,bad),onClose:()=>showTab('create'),onAddProduct:async d=>{const productId=d?.product_id||d?.id;const customId=d?.custom_id||(d?.product_id?d.id:null);if(!productId)throw new Error('订制商品编号缺失，未加入购物车');const product={id:productId,custom_id:customId,share_token:d.share_token,name:d.name,price_rm:d.price_rm,active:true,category:'CUSTOM',is_drink:true};const existing=state.catalog.find(x=>x.id===productId);if(existing)Object.assign(existing,product);else state.catalog.push(product);state.cart.set(productId,(state.cart.get(productId)||0)+1);saveDraft();await refreshDraftSummary();}});
+const customPricing=createCustomPricing({db,isOwner,isCashier,notice:(message,bad)=>showNotice(message,bad),onClose:()=>showTab('create'),onAddProduct:async d=>{const productId=d?.product_id||d?.id;const customId=d?.custom_id||(d?.product_id?d.id:null);if(!productId)throw new Error('订制商品编号缺失，未加入购物车');const product={id:productId,custom_id:customId,share_token:d.share_token,name:d.name,price_rm:d.price_rm,active:true,category:'CUSTOM',is_drink:true};const existing=state.catalog.find(x=>x.id===productId);if(existing)Object.assign(existing,product);else state.catalog.push(product);state.cart.set(productId,(state.cart.get(productId)||0)+1);renderCart();showTab('create');}});
 function bind(){
  customPricing.init();
  if(!$('editCancelOptions'))$('editOwnerOptions')?.insertAdjacentHTML('beforebegin','<div id="editCancelOptions" class="hidden"></div>');

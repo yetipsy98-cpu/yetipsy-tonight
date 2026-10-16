@@ -90,7 +90,7 @@ export function createCustomPricing({db,isOwner,isCashier,notice,onAddProduct,on
     }).join('');
     const canEdit=!!(d.versions&&d.versions.length);
     return '<article class="cp-card cp-history"><strong>'+esc(d.name)+'</strong><small class="cp-muted">创建 '+new Date(d.created_at).toLocaleString()+' · 制作员工 '+esc(d.created_by_name||d.created_by)+' · '+identity+'</small>'+
-     '<div class="cp-history-actions">'+(d.share_token?'<button type="button" class="cp-action primary" data-add-history="'+esc(d.id)+'">加入购物车</button>':'')+(canEdit?'<button type="button" class="cp-action" data-edit-history="'+esc(d.id)+'">修改订制</button>':'')+'</div>'+
+     '<div class="cp-history-actions">'+(d.share_token?'<button type="button" class="cp-action primary" data-add-history="'+esc(d.id)+'">加入购物车</button>':'')+(canEdit?'<button type="button" class="cp-action" data-edit-history="'+esc(d.id)+'">修改订制</button>':'')+(isOwner()?'<button type="button" class="cp-action" style="border-color:#a65f55;color:#f0c5be" data-delete-history="'+esc(d.id)+'">删除订制</button>':'')+'</div>'+
      '<div class="hidden" data-history-editor="'+esc(d.id)+'"></div>'+details+'</article>';
    }).join(''):'<div class="cp-empty">暂无订制历史。</div>';
    root.querySelectorAll('[data-edit-history]').forEach(button=>button.onclick=()=>{
@@ -103,6 +103,13 @@ export function createCustomPricing({db,isOwner,isCashier,notice,onAddProduct,on
     try{const product=await scan('CUSTOM:'+d.share_token);if(product&&!product.cancelled){await onAddProduct?.(product);notice('历史订制已加入购物车。');}}
     catch(e){notice(errorText(e),true);}
     finally{button.disabled=false;}
+   });
+   root.querySelectorAll('[data-delete-history]').forEach(button=>button.onclick=async()=>{
+    const d=rows.find(x=>x.id===button.dataset.deleteHistory);if(!d)return;
+    if(!window.confirm('删除「'+d.name+'」？删除后不能再扫码或加入购物车，已完成订单和历史版本会保留。'))return;
+    button.disabled=true;
+    try{const result=await rpc('yt_pos_custom_delete',{p_id:d.id});if(result?.ok===false)throw new Error(result.error_code||'删除未完成');notice('订制已删除，已完成订单记录仍保留。');await loadHistory(host,cashier);}
+    catch(e){notice(errorText(e),true);button.disabled=false;}
    });
   }catch(e){root.innerHTML='<div class="cp-error">'+esc(errorText(e))+'</div>';}
  }

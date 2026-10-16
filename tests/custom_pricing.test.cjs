@@ -145,3 +145,14 @@ assert.match(ownerHistoryReuse, /'customer_count',\(select count\(\*\) from publ
 assert.match(custom, /data-add-history/);
 assert.match(custom, /已关联 '\+linkedCount\+' 位会员/);
 console.log('PASS custom history reuse payload and Owner add-to-cart');
+
+const ownerDeleteFix = read('supabase/migrations/20261016070909_custom_drink_owner_delete_and_cart_visibility_fix.sql');
+assert.match(pos, /state\.cart\.set\(productId,\(state\.cart\.get\(productId\)\|\|0\)\+1\);renderCart\(\);showTab\('create'\)/);
+assert.match(custom, /data-delete-history/);
+assert.match(custom, /yt_pos_custom_delete/);
+assert.match(ownerDeleteFix, /if not private\.yt_work_owner\(\) then raise exception 'owner_only'/);
+assert.match(ownerDeleteFix, /set active=false/);
+assert.match(ownerDeleteFix, /where d\.deleted_at is null/);
+assert.match(ownerDeleteFix, /where d\.deleted_at is null and/);
+assert.match(ownerDeleteFix, /deleted_at is null/);
+console.log('PASS visible custom cart line, return to POS, and Owner soft-delete');
