@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const migration=fs.readFileSync('supabase/migrations/20261016100650_pos_package_prep_auto_accept_kds.sql','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+const save=pos.slice(pos.indexOf('async function promptCashierPackagePrep'),pos.indexOf('async function loadCashierPackagePrep'));
+assert.match(migration,/if o\.status='pending' then[\s\S]*?set status='confirmed',accepted_by=actor,accepted_at=clock_timestamp\(\)/);
+assert.match(migration,/yt_pos_order_chits/);
+assert.match(migration,/values\(p_order,actor,'accepted','cashier'/);
+assert.match(migration,/order_status',v_order_status/);
+assert.match(save,/yt_store_box_prep_intent_save/);
+assert.match(save,/await refreshOrders\(false\)/);
+assert.match(save,/订单无需接单，已直接进入 KDS 待出品/);
+assert.match(save,/item\.mode==='challenge'&&count!==1/);
+console.log('Cashier Package / Challenge pre-serve auto-accepts and loads into KDS');
