@@ -120,7 +120,6 @@ async function initialize(){if(!db)return;const {data:{user},error}=await db.aut
  db.from('profiles').select('id,display_name,phone').eq('id',user.id).maybeSingle()
  ]);
  state.role=unpack(role)?.role||null;state.profile=unpack(profile)||null;
- refreshBell().catch(()=>{});
  $('accountStaff').classList.toggle('hide',!isStaff());$('accountOwner').classList.toggle('hide',!isOwner());
  await Promise.all([refreshPasses(),loadGames(),wallet(true)]);
  navigate('home');
@@ -301,7 +300,7 @@ async function showBell(){
  $('bellForm').onsubmit=e=>{e.preventDefault();const type=$('bellForm').querySelector('[name=bellType]:checked')?.value,table=$('bellTableInput').value.trim();if(!type||!table)return;
   pending(e.submitter,async()=>{if(!navigator.geolocation)throw Error('location_required');const position=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:12000,maximumAge:0}));unpack(await db.rpc('yt_play_bell_call',{p_table:table,p_type:type,p_note:type==='other'?$('bellNote').value.trim():'',p_lat:position.coords.latitude,p_lng:position.coords.longitude}));localStorage.setItem('yt-play-table',table);await showBell();}).catch(err=>{$('bellError').textContent=errorText(err)+(i18n.lang==='zh'?' · 请确认已允许定位，然后重试。':' · Check location permission and retry.');});};
 }
-function setupBell(){let button=$('customerServiceBell');if(button)return;button=document.createElement('button');button.id='customerServiceBell';button.type='button';button.className='customer-service-bell';button.innerHTML='<svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="customerServiceBellLabel"></span>';button.setAttribute('aria-label','Service Bell / 服务铃');button.onclick=()=>showBell().catch(e=>toast(errorText(e),true));document.body.append(button);$('customerServiceBellLabel').textContent=i18n.lang==='zh'?'服务铃':'Service';refreshBell();setInterval(()=>{if(state.user)refreshBell();},30000);}
+function setupBell(){let button=$('customerServiceBell');if(button)return;button=document.createElement('button');button.id='customerServiceBell';button.type='button';button.className='customer-service-bell';button.innerHTML='<svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span id="customerServiceBellLabel"></span>';button.setAttribute('aria-label','Service Bell / 服务铃');button.onclick=()=>showBell().catch(e=>toast(errorText(e),true));document.body.append(button);$('customerServiceBellLabel').textContent=i18n.lang==='zh'?'服务铃':'Service';}
 function openRewardClaim(){openScanner('claim').catch(e=>toast(errorText(e),true));}
 async function manualClaimSubmit(){const raw=$('scanManual').value.trim();await previewClaim(raw);}
 async function openScanner(mode='claim'){
