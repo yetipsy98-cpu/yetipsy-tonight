@@ -4,6 +4,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 const migration = read('supabase/migrations/20261016050536_custom_drink_member_binding.sql');
+const grantMigration = read('supabase/migrations/20261016051221_custom_drink_member_binding_execute_grant.sql');
 const pos = read('play/pos/pos.js');
 const work = read('play/pos/play-upgrade.js');
 const page = read('play/admin/pos/index.html');
@@ -17,6 +18,7 @@ assert.match(migration, /join public\.yt_pos_custom_drinks d on d\.product_id=i\
 assert.match(migration, /d\.customer_id is not null and d\.customer_id<>v_customer/);
 assert.doesNotMatch(migration, /insert into public\.yt_play_consumption_bindings/);
 assert.doesNotMatch(migration, /yt_play_grant_member_binding_points/);
+assert.match(grantMigration, /grant execute on function private\.yt_pos_custom_bind_member\(uuid,uuid\) to authenticated/);
 assert.match(migration, /'custom_drink',cd\.id is not null/);
 assert.match(migration, /'custom_bound',cd\.customer_id is not null/);
 assert.match(pos, /customItems=\(row\.items\|\|\[\]\)\.filter\(item=>item\.custom_drink\)/);
