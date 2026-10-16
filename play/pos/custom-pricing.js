@@ -80,7 +80,7 @@ export function createCustomPricing({db,isOwner,isCashier,notice,onAddProduct,on
   try{
    const rows=await rpc(cashier?'yt_pos_custom_cashier_history':'yt_pos_custom_owner_history');
    root.innerHTML=rows.length?rows.map(d=>{
-    const identity=isOwner()?('会员 '+esc(d.customer_name||d.customer_id||'未绑定')):('已关联 '+Number(d.customer_count||0)+' 位顾客');
+    const linkedCount=Number(d.customer_count||(d.customer_id?1:0));const identity=isOwner()?(linkedCount?('已关联 '+linkedCount+' 位会员'+(d.customer_name?' · 首位 '+esc(d.customer_name):'')):'未绑定会员'):('已关联 '+Number(d.customer_count||0)+' 位顾客');
     const details=(d.versions||[]).map(v=>{
      const recipe=(v.recipe||[]).map(x=>isOwner()
       ?esc(x.name)+' × '+x.quantity+(x.charge_full_bottle?'（整瓶）':'')+'（成本 '+money(x.unit_cost_rm)+' × '+(x.billed_quantity??x.quantity)+' = '+money(Number(x.unit_cost_rm)*(x.billed_quantity??x.quantity))+'；备注 '+esc(x.note||'无')+'）'

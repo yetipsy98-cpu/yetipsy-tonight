@@ -135,3 +135,13 @@ console.log('PASS shared custom drink members, Cashier history editing, and cart
 const memberAccessDeny = read('supabase/migrations/20261016064133_custom_drink_member_direct_access_deny.sql');
 assert.match(memberAccessDeny, /create policy yt_pos_custom_drink_members_deny_direct_access/);
 assert.match(memberAccessDeny, /using \(false\)[\s\S]*?with check \(false\)/);
+
+const ownerHistoryReuse = read('supabase/migrations/20261016064843_custom_drink_owner_history_reuse.sql');
+assert.match(pos, /const productId=d\?\.product_id\|\|d\?\.id/);
+assert.match(pos, /const customId=d\?\.custom_id\|\|\(d\?\.product_id\?d\.id:null\)/);
+assert.match(pos, /state\.catalog\.find\(x=>x\.id===productId\)/);
+assert.match(ownerHistoryReuse, /'share_token',d\.share_token/);
+assert.match(ownerHistoryReuse, /'customer_count',\(select count\(\*\) from public\.yt_pos_custom_drink_members/);
+assert.match(custom, /data-add-history/);
+assert.match(custom, /已关联 '\+linkedCount\+' 位会员/);
+console.log('PASS custom history reuse payload and Owner add-to-cart');
