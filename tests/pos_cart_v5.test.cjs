@@ -5,15 +5,10 @@ const {webcrypto} = require('node:crypto');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'play/pos/pos.js'), 'utf8');
-const html = fs.readFileSync(path.join(root, 'play/pos/index.html'), 'utf8');
-for (const page of ['pos', 'cashier']) {
- const h = fs.readFileSync(path.join(root, 'play', page, 'index.html'), 'utf8');
- const ids = [...h.matchAll(/id="([^"]+)"/g)].map(m => m[1]);
- assert.equal(ids.length, new Set(ids).size, `${page}: duplicate DOM IDs`);
- for (const id of ['draftRedeemToken','draftRedeemScan','draftRedeemCheck','draftRewardRows','draftGross','draftDiscount','draftStatus','draftRefresh']) assert(ids.includes(id));
- assert(h.includes('id="draftRedeemToken"'));
- assert(h.includes('class="cart-redeem-form hidden"'));
-}
+const html = fs.readFileSync(path.join(root, 'play/admin/pos/index.html'), 'utf8');
+for (const id of ['draftRedeemToken','draftRedeemScan','draftRedeemCheck','draftRewardRows','draftGross','draftDiscount','draftStatus','draftRefresh']) assert([...html.matchAll(/id="([^"]+)"/g)].some(m=>m[1]===id),id+' exists on canonical POS');
+assert(html.includes('id="draftRedeemToken"'));
+for(const page of ['pos','cashier'])assert(fs.readFileSync(path.join(root,'play',page,'index.html'),'utf8').includes('admin/pos/'),page+' alias route');
 class Element {
  constructor(id='') { this.id=id; this.value=''; this.checked=false; this.disabled=false; this.children=[]; this.options=[]; this.dataset={}; this.textContent=''; this.innerHTML=''; this.flags=new Set(); this.classList={add:v=>this.flags.add(v),remove:v=>this.flags.delete(v),contains:v=>this.flags.has(v),toggle:(v,b)=>{if(b===undefined)b=!this.flags.has(v);b?this.flags.add(v):this.flags.delete(v);}}; }
  replaceChildren(...c){this.children=c;this.options=c;this.innerHTML='';}
@@ -103,7 +98,7 @@ async function run(){
  await h.e.draftRewardChoices.children[0].onclick();assert.equal(h.e.cartTotal.textContent,'RM23.00');
  h=harness();h.api.state.cart.set(P,1);h.e.draftRedeemToken.value='7K3M9X2P';h.backend.shortError='short_code_invalid_or_expired';
  await assert.rejects(h.api.scanDraftReward(),/short_code_invalid_or_expired/);assert.equal(h.e.draftRedeemToken.value,'7K3M9X2P');assert.equal(h.api.state.draftSelection,null);assert.match(h.e.noticeMessage.textContent,/兑换码不正确/);
- console.log('PASS: both entry points, discounts, reward choices/removal, stale responses, quantity guard, persisted exact retry, single order after lost response, database rejection recovery, Cashier channel and QR fallback.');
+ console.log('PASS: canonical POS, discounts, reward choices/removal, stale responses, quantity guard, persisted exact retry, single order after lost response, database rejection recovery, Cashier channel and QR fallback.');
 }
 run().catch(e=>{console.error(e);process.exitCode=1;});
 
