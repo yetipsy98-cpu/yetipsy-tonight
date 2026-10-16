@@ -28,5 +28,5 @@ assert.doesNotMatch(pos, /customItems\.some\(item=>!item\.custom_bound\)/);
 assert.match(work, /yt_pos_custom_bind_member/);
 assert.match(work, /data-play-custom-member-scan/);
 assert.match(work, /没有发放积分/);
-assert.match(page, /pos\.js\?v=20261016-backdate-custom-bindings-v2/);
+assert.match(page, /pos\.js\?v=20261016-checkout-drawer-layout-v3/);
 console.log('custom member binding regression checks passed');
