@@ -39,7 +39,7 @@ assert.match(ui, /建议售价/);
 assert.match(ui, /最低售价（最高 Discount 后）/);
 assert.match(ui, /cp-material-grid/);
 assert.match(ui, /data-cp-add/);
-assert(ui.includes('type="number" inputmode="numeric" min="1" step="1" value="'+item.quantity+'" data-cp-qty='));
+assert(ui.includes("type=\"number\" inputmode=\"numeric\" min=\"1\" step=\"1\" value=\"'+item.quantity+'\" data-cp-qty="));
 assert.match(ui, /recipeLines\.onchange/);
 assert.doesNotMatch(ui, /max=\"50\"|Math\.min\(50/);
 assert.match(unlimitedQuantity, /q<>trunc\(q\)/);
