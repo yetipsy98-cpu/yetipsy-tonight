@@ -26,5 +26,5 @@ assert.match(pos, /data-play-custom-member-scan/);
 assert.match(work, /yt_pos_custom_bind_member/);
 assert.match(work, /data-play-custom-member-scan/);
 assert.match(work, /没有发放积分/);
-assert.match(page, /pos\.js\?v=20261016-custom-member-binding-v1/);
+assert.match(page, /pos\.js\?v=20261016-shared-history-drawer-v1/);
 console.log('custom member binding regression checks passed');
