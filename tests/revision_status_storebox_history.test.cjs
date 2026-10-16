@@ -20,7 +20,7 @@ test('Owner workbench surfaces and refreshes pending review count',()=>{
  assert.match(pos,/refreshOwnerApprovalCount/);
  assert.match(pos,/state\.identity\?\.role==='owner'/);
  assert.match(pos,/can_cashier:identity\.role==='owner'/);
- assert.match(pos,/改单／取消申请等待 Owner 审批/);
+ assert.match(pos,/改单、取消或营业日回填申请等待 Owner 审批/);
  assert.match(ownerPermissions,/wa\.role='owner'[\s\S]*wa\.active and not wa\.must_change_password/);
  assert.match(ownerPermissions,/select private\.yt_work_owner\(\) or exists/);
  assert.match(ownerPermissions,/'can_owner',owner_access/);
