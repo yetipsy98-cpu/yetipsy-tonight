@@ -9,7 +9,7 @@ assert.match(pos,/data-order-item="\$\{escapeAttr\(item\.id\)\}"/,'each KDS line
 assert.match(sql,/where id=p_order_item and order_id=p_order and quantity>0 and not fulfilled/,'a line can be fulfilled by its own id without depending on earlier orders or lines');
 assert.match(pos,/production=productionRows\(\)\.sort\(\(a,b\)=>Date\.parse\(b\.created_at\)-Date\.parse\(a\.created_at\)\)/,'newest KDS orders appear first without making older orders a prerequisite');
 assert.match(pos,/yt_pos_item_fulfill'\s*,\{p_order:orderId,p_order_item:itemId,p_all:action==='fulfilled_all'\}/,'fulfillment targets the selected order directly');
-assert.match(pos,/showTab\('create'\);try\{await refreshOrders\(false\);.*?promptCashierPackagePrep\(orderId\);if\(checkoutMode==='pay_now'\)/,'successful orders return to ordering; eligible orders prompt before pay-now opens checkout');
+assert.match(pos,/showTab\('create'\);try\{await refreshOrders\(false\);.*?promptCashierPackagePrep\(orderId\);if\(data\.backdate_approval_status==='pending'\).*?else if\(checkoutMode==='pay_now'\)/,'successful orders return to ordering; eligible orders prompt before pay-now opens checkout');
 assert.match(pos,/checkoutMode==='pay_now'\?\s*openOrderCart|if\(checkoutMode==='pay_now'\).*openOrderCart/s,'pay-now opens the matching order checkout');
 assert.match(pos,/p_checkout_mode/,'checkout choice is retained with the submitted order');
 assert.match(amb,/getTime\(\)\+6\*86400000/,'Ambassador calendar covers today plus six days');
@@ -25,7 +25,7 @@ assert.doesNotMatch(css,/\.yta-template-ticket[^}]*aspect-ratio:4\/5/,'template 
 assert.match(amb,/height=Math\.max\(1,Math\.round\(width\*bg\.naturalHeight\/bg\.naturalWidth\)\)/,'shared pass image uses the uploaded template ratio');
 assert.match(pos,/history\?\(cancelled\?0:\(row\.items\|\|\[\]\)\.reduce/,'KDS history distinguishes completed cups from cancelled orders');
 assert.match(pos,/cancelled\?'已取消':done\?'✓ 已出品'/,'cancelled order lines are visibly cancelled instead of looking like unserved cups');
-const canonical=fs.readFileSync('play/admin/pos/index.html','utf8');assert.match(canonical,/20261015-(?:order-approvals-v2|admin-pos-unified-v3|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12]|reward-editor-modes-v1)/,'canonical POS busts stale workbench assets');assert.match(canonical,/每个商品都可单独确认，也可整单确认；新订单不需等待前一单。/,'canonical POS uses the corrected KDS guidance');
+const canonical=fs.readFileSync('play/admin/pos/index.html','utf8');assert.match(canonical,/20261015-(?:backdate-custom-bindings-v2|order-approvals-v2|admin-pos-unified-v3|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12]|reward-editor-modes-v1)/,'canonical POS busts stale workbench assets');assert.match(canonical,/每个商品都可单独确认，也可整单确认；新订单不需等待前一单。/,'canonical POS uses the corrected KDS guidance');
 for(const path of ['play/pos/index.html','play/admin/owner/index.html','play/admin/cashier/index.html','play/admin/staff/index.html','play/owner/index.html','play/cashier/index.html','play/staff/index.html'])assert(fs.readFileSync(path,'utf8').includes('admin/pos/'),path+' redirects to canonical POS');
 assert.match(priceFix,/weekday_male_price/,'price migration repairs the erroneous legacy column reference');
 assert.match(priceFix,/replace\(v_def,'weekday_male_price','weekday_male'\)/,'portal reads the real weekday_male field');
