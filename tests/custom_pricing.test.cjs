@@ -13,6 +13,7 @@ const points = read('supabase/migrations/20261016015248_custom_drink_points_excl
 const stale = read('supabase/migrations/20261016020428_custom_drink_order_stale_guard_v1.sql');
 const reset = read('supabase/migrations/20261016021716_custom_drink_reset_integration_v1.sql');
 const globalPricing = read('supabase/migrations/20261016030000_custom_drink_global_pricing_v2.sql');
+const unlimitedMaterials = read('supabase/migrations/20261016031000_custom_drink_unlimited_materials.sql');
 
 assert.match(ui, /yt_pos_custom_material_save_v2/);
 assert.match(ui, /yt_pos_custom_settings_save/);
@@ -24,6 +25,8 @@ assert.match(ui, /yt_pos_custom_reprice/);
 assert.match(ui, /yt_pos_custom_scan/);
 assert.match(ui, /function parseToken/);
 assert.match(pos, /customPricing\?\.scan\(raw\)/);
+assert.doesNotMatch(pos, /^Warning: truncated output/);
+assert.match(pos, /async function boot\(\)/);
 assert.match(adminPos, /订制 QR/);
 assert.doesNotMatch(adminPos, /id="customDrinkOpen"/);
 assert.match(pos, /tabs\.push\(\['custompricing','订制计价'\]\)/);
@@ -44,6 +47,9 @@ assert.match(globalPricing, /yt_pos_custom_pricing_settings/);
 assert.match(globalPricing, /price_revision=price_revision\+1/);
 assert.match(globalPricing, /suggested_min_rm/);
 assert.match(globalPricing, /quote<\(calc->>'suggested_min_rm'\)::numeric/);
+assert.match(unlimitedMaterials, /jsonb_typeof\(p_recipe\)/);
+assert.doesNotMatch(unlimitedMaterials, /jsonb_array_length\(p_recipe\)\s*>\s*40/);
+assert.doesNotMatch(ui.match(/function renderCashier\([\s\S]*?\n \}/)?.[0] || '', /slice\(0,\s*40\)|length\s*>\s*40/);
 assert.match(member, /yt_pos_custom_my_list/);
 assert.match(member, /MY CUSTOM/);
 assert.doesNotMatch(member.match(/async function loadMyCustom\(\)\{[\s\S]*?\n\}/)?.[0] || '', /recipe|quote_rm|price_rm|unit_cost_rm/);
