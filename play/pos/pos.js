@@ -1,4 +1,4 @@
-import {createPlayWork} from './play-upgrade.js?v=20261016-custom-order-member-v2';
+import {createPlayWork} from './play-upgrade.js?v=20261016-member-binding-staff-v3';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
@@ -365,10 +365,11 @@ function renderOrder(row,scope){const pay=row.payment_status==='paid',refunded=r
   ?`<div class="custom-member-actions">${customItems.some(item=>!item.custom_bound)?`<button type="button" data-play-custom-member-scan="${escapeAttr(row.id)}">扫码绑定顾客 · 保存订制</button>`:'<small class="custom-member-linked">✓ 本单已绑定一位会员</small>'}<button type="button" class="quiet" data-custom-binding-details="${escapeAttr(row.id)}">查看绑定详情</button></div>`:'';
  const benefitReady=pay&&row.status==='fulfilled'&&Number(row.balance_rm||0)===0&&!cancelled&&!refunded&&!isAmbassadorOrder(row);
  const processed=summary?.processed??Boolean(binding?.member_binding||['gamepass','lucky_box'].includes(binding?.source));
- const memberActionOpen=pointsBindingOpen&&(isCashier()||isOwner())&&!cancelled&&!refunded&&!isAmbassadorOrder(row);
- const memberActions=memberActionOpen&&binding?.member_binding&&!pay
-  ?`${binding.can_unbind?`<button type="button" class="quiet" data-play-member-unbind="${escapeAttr(row.id)}">取消绑定</button>`:''}<small>已绑定会员；结账后按实付金额发积分</small>`
-  :memberActionOpen&&!pay&&!binding?.member_binding?binding?.source==='customer_order'
+ const memberActionOpen=pointsBindingOpen&&(isCashier()||isOwner()||isStaff())&&!cancelled&&!refunded&&!isAmbassadorOrder(row);
+ const memberBindingWindow=!pay||row.pos_business_day===state.businessDay;
+ const memberActions=memberActionOpen&&binding?.member_binding
+  ?`${!pay&&binding.can_unbind?`<button type="button" class="quiet" data-play-member-unbind="${escapeAttr(row.id)}">取消绑定</button>`:'' }<small>已绑定会员；积分按本单符合条件的实付金额计算</small>`
+  :memberActionOpen&&!binding?.member_binding&&memberBindingWindow?binding?.source==='customer_order'
    ?`<button type="button" data-play-member-scan="${escapeAttr(row.id)}">绑定会员并发积分</button>`
    :`<button type="button" data-play-order-qr="${escapeAttr(row.id)}">生成积分绑定 QR</button><button type="button" data-play-member-scan="${escapeAttr(row.id)}">扫描会员码领积分</button>`:'';
  const benefitAction=benefitReady
