@@ -16,5 +16,5 @@ assert.match(consoleJs,/sub\.toggleAttribute\('hidden',!visible\)/);
 assert.match(consoleJs,/if\(!selectedPane\)[\s\S]*?找不到/);
 assert.match(consoleJs,/owner-tools\.js\?v=20261015-tool-pane-visibility-fix-v1/);
 assert(posJs.includes('console.js?v=20261016-backdate-tools-v2'));
-assert(html.includes('pos.js?v=20261016-backdate-kds-filter-v1'));
+assert(html.includes('pos.js?v=20261016-kds-storebox-refresh-v1'));
 console.log('PASS: Owner tools remain inside the drawer; campaign and prize pool panes are explicitly revealed.');
