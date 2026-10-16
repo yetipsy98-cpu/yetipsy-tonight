@@ -1,0 +1,37 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+const root = require('node:path').join(__dirname, '..');
+const read = (path) => fs.readFileSync(require('node:path').join(root, path), 'utf8');
+const ui = read('play/pos/custom-pricing.js');
+const pos = read('play/pos/pos.js');
+const member = read('play/app.js');
+const adminPos = read('play/admin/pos/index.html');
+const schema = read('supabase/migrations/20261016014913_custom_drink_pricing_redeem_v1.sql');
+const points = read('supabase/migrations/20261016015248_custom_drink_points_exclusion_v1.sql');
+const stale = read('supabase/migrations/20261016020428_custom_drink_order_stale_guard_v1.sql');
+const reset = read('supabase/migrations/20261016021716_custom_drink_reset_integration_v1.sql');
+
+assert.match(ui, /yt_pos_custom_material_save/);
+assert.match(ui, /yt_pos_custom_create/);
+assert.match(ui, /min_discount_percent/);
+assert.match(ui, /max_discount_percent/);
+assert.match(ui, /最终报价不能低于材料成本/);
+assert.match(ui, /yt_pos_custom_reprice/);
+assert.match(ui, /yt_pos_custom_scan/);
+assert.match(ui, /function parseToken/);
+assert.match(pos, /customPricing\?\.scan\(raw\)/);
+assert.match(adminPos, /订制 QR/);
+assert.match(pos, /customPricing\.scan\('CUSTOM:'\+product\.share_token\)/);
+assert.match(schema, /revoke all on public\.yt_pos_custom_materials[\s\S]*?from anon, authenticated/);
+assert.match(schema, /where \(p\.active or private\.yt_has_role\('owner'\)\)[\s\S]*?p\.category<>'CUSTOM'/);
+assert.match(points, /v_eligible_amount:=greatest\(0,o\.amount_rm-v_custom_amount\)/);
+assert.match(stale, /raise exception 'custom_reprice_required'/);
+assert.match(reset, /custom_drink_versions[\s\S]*?custom_drinks/);
+assert.match(reset, /delete from public\.yt_shop_products where category=''CUSTOM''/);
+assert.match(reset, /delete from public\.yt_pos_custom_materials where true/);
+assert.match(member, /yt_pos_custom_my_list/);
+assert.match(member, /MY CUSTOM/);
+assert.doesNotMatch(member.match(/async function loadMyCustom\(\)\{[\s\S]*?\n\}/)?.[0] || '', /recipe|quote_rm|price_rm|unit_cost_rm/);
+
+console.log('PASS custom pricing, Redeem QR, stale quote guard, points exclusion, member privacy, and reset coverage');
