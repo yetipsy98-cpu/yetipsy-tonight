@@ -192,3 +192,16 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .storebox-qr-meta>span{color:#d7c394;font-size:10px;font-weight:750;letter-spacing:.08em}
 .storebox-qr-meta .storebox-qr-table{display:inline-flex;width:max-content;max-width:100%;padding:6px 12px;border:1px solid #d4b77e;border-radius:10px;background:#e4c98f;color:#17241c;font-size:20px;line-height:1.1;overflow-wrap:anywhere}
 .storebox-qr-meta small{color:#c0cbbc;font-size:11px;overflow-wrap:anywhere}
+
+/* Store Box lists use one KDS ticket hierarchy across balance, generation and claim cards. */
+.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket{display:grid;grid-template-columns:minmax(0,1fr);align-items:stretch;justify-content:initial;gap:10px;padding:16px;border-radius:16px;background:linear-gradient(145deg,#24392b,#1b2c22)}
+.storebox-issue-item .kds-ticket-head,.storebox-claim .kds-ticket-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.storebox-issue-item .kds-table-number,.storebox-claim .kds-table-number{font-size:clamp(24px,5vw,34px);line-height:1.12;font-weight:850;letter-spacing:.01em}
+.storebox-issue-item .storebox-issue-highlight,.storebox-claim .storebox-issue-highlight{width:100%;min-height:76px;box-sizing:border-box}
+.storebox-issue-item>.action-row,.storebox-claim>.action-row{display:grid;grid-template-columns:1fr;gap:8px;margin-top:2px}
+.storebox-issue-item>.action-row button,.storebox-claim>.action-row button,.storebox-box>[data-box-progress]{width:100%;min-height:46px}
+.storebox-box.kds-ticket{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.storebox-box .kds-ticket-head{align-items:flex-start}
+.storebox-box .kds-cup-highlight{width:100%;box-sizing:border-box}
+.storebox-box>.action-row{display:grid;grid-template-columns:1fr}
+.storebox-box>.action-row button{width:100%;min-height:46px}
