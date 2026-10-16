@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const root = require('node:path').join(__dirname, '..');
 const read = (path) => fs.readFileSync(require('node:path').join(root, path), 'utf8');
 const ui = read('play/pos/custom-pricing.js');
+const custom = ui;
 const pos = read('play/pos/pos.js');
 const member = read('play/app.js');
 const adminPos = read('play/admin/pos/index.html');
