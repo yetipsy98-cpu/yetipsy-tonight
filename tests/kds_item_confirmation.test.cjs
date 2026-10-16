@@ -25,9 +25,8 @@ assert.doesNotMatch(css,/\.yta-template-ticket[^}]*aspect-ratio:4\/5/,'template 
 assert.match(amb,/height=Math\.max\(1,Math\.round\(width\*bg\.naturalHeight\/bg\.naturalWidth\)\)/,'shared pass image uses the uploaded template ratio');
 assert.match(pos,/history\?\(cancelled\?0:\(row\.items\|\|\[\]\)\.reduce/,'KDS history distinguishes completed cups from cancelled orders');
 assert.match(pos,/cancelled\?'已取消':done\?'✓ 已出品'/,'cancelled order lines are visibly cancelled instead of looking like unserved cups');
-for(const path of ['play/pos/index.html','play/admin/pos/index.html','play/admin/owner/index.html','play/admin/cashier/index.html','play/admin/staff/index.html','play/owner/index.html','play/cashier/index.html','play/staff/index.html']){
- const html=require('node:fs').readFileSync(path,'utf8');assert.match(html,/20261015-(?:order-approvals-v2|admin-pos-unified-v3|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12]|reward-editor-modes-v1)/,`${path} busts stale workbench assets`);assert.match(html,/每个商品都可单独确认，也可整单确认；新订单不需等待前一单。/,`${path} uses the corrected KDS guidance`);
-}
+const canonical=fs.readFileSync('play/admin/pos/index.html','utf8');assert.match(canonical,/20261015-(?:order-approvals-v2|admin-pos-unified-v3|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12]|reward-editor-modes-v1)/,'canonical POS busts stale workbench assets');assert.match(canonical,/每个商品都可单独确认，也可整单确认；新订单不需等待前一单。/,'canonical POS uses the corrected KDS guidance');
+for(const path of ['play/pos/index.html','play/admin/owner/index.html','play/admin/cashier/index.html','play/admin/staff/index.html','play/owner/index.html','play/cashier/index.html','play/staff/index.html'])assert(fs.readFileSync(path,'utf8').includes('admin/pos/'),path+' redirects to canonical POS');
 assert.match(priceFix,/weekday_male_price/,'price migration repairs the erroneous legacy column reference');
 assert.match(priceFix,/replace\(v_def,'weekday_male_price','weekday_male'\)/,'portal reads the real weekday_male field');
 console.log('PASS per-item KDS, whole-order confirmation, manual checkout, seven-day Pass window, invitation QR template');
