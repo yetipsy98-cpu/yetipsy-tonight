@@ -4,7 +4,7 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
-import {createConsole} from './console.js?v=20261016-backdate-tools-v2';
+import {createConsole} from './console.js?v=20261016-custom-usernames-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
 import {createStoreBox} from './store-box.js?v=20261016-kds-storebox-refresh-v1&layout=drink-name-v1';
