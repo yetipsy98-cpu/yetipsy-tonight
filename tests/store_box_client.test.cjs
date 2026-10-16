@@ -82,3 +82,9 @@ test('Store Box migration keeps reopen requests server-only and reuses configure
  assert.match(sql,/private\.yt_business_start\(private\.yt_business_day\(clock_timestamp\(\)\)\+greatest\(1,b\.expiry_days\)\)/);
  assert.match(sql,/b\.customer_id is not null and b\.status='active'/);
 });
+
+test('Store Box reopen request foreign keys are indexed',()=>{
+ const sql=read('sql/20261016102749_store_box_reopen_request_fk_indexes.sql');
+ assert.match(sql,/yt_store_box_reopen_customer_idx/);
+ assert.match(sql,/yt_store_box_reopen_reviewed_by_idx/);
+});
