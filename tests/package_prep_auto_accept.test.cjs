@@ -8,6 +8,6 @@ assert.match(migration,/values\(p_order,actor,'accepted','cashier'/);
 assert.match(migration,/order_status',v_order_status/);
 assert.match(save,/yt_store_box_prep_intent_save/);
 assert.match(save,/await refreshOrders\(false\)/);
-assert.match(save,/订单无需接单，已直接进入 KDS 待出品/);
+assert.match(save,/无需接单，订单已进入 KDS 待出品/);
 assert.match(save,/item\.mode==='challenge'&&count!==1/);
 console.log('Cashier Package / Challenge pre-serve auto-accepts and loads into KDS');
