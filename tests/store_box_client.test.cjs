@@ -115,7 +115,7 @@ test('Staff can bind regular paid POS orders and Cashier Store Box calls auto-ac
  assert.match(migration,/status,accepted_by,accepted_at/);
  assert.match(migration,/'accepted',actor,clock_timestamp\(\)/);
  assert.match(pos,/isCashier\(\)\|\|isOwner\(\)\|\|isStaff\(\)/);
- assert.match(pos,/row\.pos_business_day===state\.businessDay/);
+ assert.match(pos,/const paidAtMs=Date\.parse\(row\.paid_at\|\|''\)[\s\S]*Date\.now\(\)-paidAtMs<86400000/);
  assert.match(box,/storebox-qr-table/);
  assert.match(css,/storebox-issue-item\.kds-ticket,\.storebox-claim\.kds-ticket\{display:grid/);
 });
