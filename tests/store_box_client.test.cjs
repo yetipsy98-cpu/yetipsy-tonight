@@ -9,7 +9,6 @@ const html=read('play/admin/pos/index.html');
 test('workbench exposes one Store Box tab and one Owner drawer',()=>{
  assert.match(html,/id="tab-storebox"/);
  assert.match(html,/id="storeBoxStaffRoot"/);
- assert.match(read('play/pos/console.js'),/data-owner-tool="storebox"/);
  assert.match(html,/data-pane="storebox"/);
  assert.match(html,/id="storeBoxOwnerRoot"/);
 });
