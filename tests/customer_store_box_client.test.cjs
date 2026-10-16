@@ -26,6 +26,12 @@ test('customer Store Box uses only protected RPC operations',()=>{
  assert(moduleSource.includes('p_selections:frozen.selections'));assert(moduleSource.includes('p_request:frozen.request'));assert(!moduleSource.includes("db.from('yt_store_boxes')"));
 });
 
+test('customer Store Box polling preserves the screen and open history when data is unchanged',()=>{
+ assert.match(moduleSource,/JSON\.stringify\(next\)!==JSON\.stringify\(state\.boxes\)/);
+ assert.match(moduleSource,/data-store-box-history/);
+ assert.match(moduleSource,/15000\);/);
+});
+
 test('customer Store Box only shows remaining and served quantities',()=>{
  assert.doesNotMatch(moduleSource,/已喝完/);
  assert.doesNotMatch(moduleSource,/喝完后/);
