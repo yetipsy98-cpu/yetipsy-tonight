@@ -205,3 +205,38 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .storebox-box .kds-cup-highlight{width:100%;box-sizing:border-box}
 .storebox-box>.action-row{display:grid;grid-template-columns:1fr}
 .storebox-box>.action-row button{width:100%;min-height:46px}
+
+
+/* Keep every management Store Box card compact and square like the balance tiles. */
+.storebox-stack:has(> .storebox-box.kds-ticket),
+.storebox-stack:has(> .storebox-issue-item.kds-ticket),
+.storebox-stack:has(> .storebox-claim.kds-ticket){grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:9px}
+.storebox-box.kds-ticket,
+.storebox-issue-item.kds-ticket,
+.storebox-claim.kds-ticket{box-sizing:border-box;aspect-ratio:1/1;min-width:0;align-content:start;gap:7px;padding:10px;border-radius:13px}
+.storebox-box .kds-ticket-head,.storebox-issue-item .kds-ticket-head,.storebox-claim .kds-ticket-head{min-width:0;gap:6px}
+.storebox-box .kds-ticket-main,.storebox-issue-item .kds-ticket-main,.storebox-claim .kds-ticket-main{min-width:0;overflow-wrap:anywhere}
+.storebox-box .kds-ticket-main .kds-table-number,.storebox-issue-item .kds-table-number,.storebox-claim .kds-table-number{font-size:clamp(16px,4vw,20px);line-height:1.08}
+.storebox-box .kds-ticket-main>small,.storebox-issue-item .kds-ticket-main>small,.storebox-claim .kds-ticket-main>small{font-size:9px;line-height:1.3}
+.storebox-box .kds-ticket-main>small.storebox-claim-source{font-size:8px}
+.storebox-box .kds-cup-highlight,.storebox-issue-item .storebox-issue-highlight,.storebox-claim .storebox-issue-highlight{width:max-content;max-width:100%;min-width:0;min-height:0;margin:0;padding:6px 9px;box-sizing:border-box}
+.storebox-box .kds-cup-highlight strong,.storebox-issue-item .storebox-issue-highlight strong,.storebox-claim .storebox-issue-highlight strong{font-size:clamp(20px,5vw,25px)}
+.storebox-box .kds-cup-highlight span,.storebox-issue-item .storebox-issue-highlight span,.storebox-claim .storebox-issue-highlight span{font-size:10px}
+.storebox-issue-item .kds-items{font-size:10px;line-height:1.3;overflow-wrap:anywhere}
+.storebox-issue-item .storebox-remaining-note{font-size:9px;line-height:1.25}
+.storebox-box .storebox-counts{gap:4px}
+.storebox-box .storebox-counts span{padding:4px 3px;font-size:8px;line-height:1.2}
+.storebox-box .storebox-counts b{font-size:13px}
+.storebox-box .storebox-meter{margin:0;height:5px}
+.storebox-issue-item>.action-row,.storebox-claim>.action-row,.storebox-box>.action-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0;align-self:end}
+.storebox-issue-item>.action-row button,.storebox-claim>.action-row button,.storebox-box>.action-row button,.storebox-box>[data-box-progress]{width:100%;min-width:0;min-height:36px;padding:6px 5px;font-size:10px;line-height:1.2;white-space:normal}
+@media(max-width:380px){
+.storebox-stack:has(> .storebox-box.kds-ticket),.storebox-stack:has(> .storebox-issue-item.kds-ticket),.storebox-stack:has(> .storebox-claim.kds-ticket){grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.storebox-box.kds-ticket,.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket{padding:8px;gap:5px}
+.storebox-box .kds-ticket-main .kds-table-number,.storebox-issue-item .kds-table-number,.storebox-claim .kds-table-number{font-size:15px}
+.storebox-issue-item>.action-row button,.storebox-claim>.action-row button,.storebox-box>.action-row button,.storebox-box>[data-box-progress]{min-height:34px;font-size:9px}
+}
+@media(max-width:320px){
+.storebox-stack:has(> .storebox-box.kds-ticket),.storebox-stack:has(> .storebox-issue-item.kds-ticket),.storebox-stack:has(> .storebox-claim.kds-ticket){grid-template-columns:1fr}
+.storebox-box.kds-ticket,.storebox-issue-item.kds-ticket,.storebox-claim.kds-ticket{aspect-ratio:auto;min-height:0}
+}
