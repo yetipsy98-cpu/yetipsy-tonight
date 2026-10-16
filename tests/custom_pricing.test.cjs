@@ -14,6 +14,7 @@ const stale = read('supabase/migrations/20261016020428_custom_drink_order_stale_
 const reset = read('supabase/migrations/20261016021716_custom_drink_reset_integration_v1.sql');
 const globalPricing = read('supabase/migrations/20261016030000_custom_drink_global_pricing_v2.sql');
 const unlimitedMaterials = read('supabase/migrations/20261016031000_custom_drink_unlimited_materials.sql');
+const customPricingGrants = read('supabase/migrations/20261016032900_custom_pricing_rpc_exec_grants.sql');
 
 assert.match(ui, /yt_pos_custom_material_save_v2/);
 assert.match(ui, /yt_pos_custom_settings_save/);
@@ -50,6 +51,11 @@ assert.match(globalPricing, /quote<\(calc->>'suggested_min_rm'\)::numeric/);
 assert.match(unlimitedMaterials, /jsonb_typeof\(p_recipe\)/);
 assert.doesNotMatch(unlimitedMaterials, /jsonb_array_length\(p_recipe\)\s*>\s*40/);
 assert.doesNotMatch(ui.match(/function renderCashier\([\s\S]*?\n \}/)?.[0] || '', /slice\(0,\s*40\)|length\s*>\s*40/);
+assert.match(customPricingGrants, /private\.yt_pos_custom_settings\(\) to authenticated/);
+assert.match(customPricingGrants, /private\.yt_pos_custom_settings_save\(numeric,numeric\) to authenticated/);
+assert.match(customPricingGrants, /private\.yt_pos_custom_material_save_v2\(uuid,text,numeric,boolean\) to authenticated/);
+assert.match(customPricingGrants, /private\.yt_pos_custom_create\(text,jsonb,numeric\) to authenticated/);
+assert.match(customPricingGrants, /private\.yt_pos_custom_reprice\(uuid,numeric\) to authenticated/);
 assert.match(member, /yt_pos_custom_my_list/);
 assert.match(member, /MY CUSTOM/);
 assert.doesNotMatch(member.match(/async function loadMyCustom\(\)\{[\s\S]*?\n\}/)?.[0] || '', /recipe|quote_rm|price_rm|unit_cost_rm/);
