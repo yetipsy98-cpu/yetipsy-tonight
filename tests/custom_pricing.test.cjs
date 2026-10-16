@@ -156,3 +156,5 @@ assert.match(ownerDeleteFix, /where d\.deleted_at is null/);
 assert.match(ownerDeleteFix, /where d\.deleted_at is null and/);
 assert.match(ownerDeleteFix, /deleted_at is null/);
 console.log('PASS visible custom cart line, return to POS, and Owner soft-delete');
+
+assert.match(pos, /openCartDrawer\(\)/);
