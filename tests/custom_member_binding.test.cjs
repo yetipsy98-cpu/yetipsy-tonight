@@ -1,0 +1,28 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const root = path.join(__dirname, '..');
+const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
+const migration = read('supabase/migrations/20261016050536_custom_drink_member_binding.sql');
+const pos = read('play/pos/pos.js');
+const work = read('play/pos/play-upgrade.js');
+const page = read('play/admin/pos/index.html');
+
+assert.match(migration, /create or replace function private\.yt_pos_custom_bind_member\(p_order uuid,p_token uuid\)/);
+assert.match(migration, /private\.yt_play_hash\(p_token\)/);
+assert.match(migration, /t\.expires_at>clock_timestamp\(\)/);
+assert.match(migration, /v_order\.payment_status<>'paid'/);
+assert.match(migration, /private\.yt_pos_received\(p_order\)<v_order\.amount_rm/);
+assert.match(migration, /join public\.yt_pos_custom_drinks d on d\.product_id=i\.product_id/);
+assert.match(migration, /d\.customer_id is not null and d\.customer_id<>v_customer/);
+assert.doesNotMatch(migration, /insert into public\.yt_play_consumption_bindings/);
+assert.doesNotMatch(migration, /yt_play_grant_member_binding_points/);
+assert.match(migration, /'custom_drink',cd\.id is not null/);
+assert.match(migration, /'custom_bound',cd\.customer_id is not null/);
+assert.match(pos, /customItems=\(row\.items\|\|\[\]\)\.filter\(item=>item\.custom_drink\)/);
+assert.match(pos, /data-play-custom-member-scan/);
+assert.match(work, /yt_pos_custom_bind_member/);
+assert.match(work, /data-play-custom-member-scan/);
+assert.match(work, /没有发放积分/);
+assert.match(page, /pos\.js\?v=20261016-custom-member-binding-v1/);
+console.log('custom member binding regression checks passed');
