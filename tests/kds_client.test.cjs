@@ -13,7 +13,7 @@ test('all work entry points expose one KDS and one open-tab window',()=>{
 });
 
 test('KDS and settlement queues are separated by order state',()=>{
- assert.match(js,/row\.status==='confirmed'&&!isAmbassadorOrder\(row\)&&productionItems\(row\)\.some\(item=>!item\.fulfilled\)/);
+ assert.match(js,/row\.status==='confirmed'&&!isAmbassadorOrder\(row\)&&!\['pending','approved'\]\.includes\(row\.backdate_approval_status\)&&productionItems\(row\)\.some\(item=>!item\.fulfilled\)/);
  assert.match(js,/function productionItems\(row\)/);
  assert.match(js,/if\(item\.store_box_item\)\{const prep=row\.package_preps/);
  assert.match(js,/yt_pos_kds_package_preps/);
