@@ -1,4 +1,4 @@
-import {createPlayWork} from './play-upgrade.js?v=20261016-custom-member-binding-v1';
+import {createPlayWork} from './play-upgrade.js?v=20261016-custom-order-member-v2';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
@@ -362,7 +362,7 @@ function renderOrder(row,scope){const pay=row.payment_status==='paid',refunded=r
  const binding=row.member_binding,mode=state.luckyMode?.mode||'game',summary=row.benefit_summary,pointsBindingOpen=mode==='off';
  const customItems=(row.items||[]).filter(item=>item.custom_drink),customActionOpen=pay&&Number(row.balance_rm||0)<=0&&scope==='paid'&&(isCashier()||isOwner())&&!cancelled&&!refunded&&!isAmbassadorOrder(row)&&customItems.length>0;
  const customMemberAction=customActionOpen
-  ?`<div class="custom-member-actions"><button type="button" data-play-custom-member-scan="${escapeAttr(row.id)}">扫码绑定顾客 · 保存订制</button><button type="button" class="quiet" data-custom-binding-details="${escapeAttr(row.id)}">查看绑定详情</button></div>`:'';
+  ?`<div class="custom-member-actions">${customItems.some(item=>!item.custom_bound)?`<button type="button" data-play-custom-member-scan="${escapeAttr(row.id)}">扫码绑定顾客 · 保存订制</button>`:'<small class="custom-member-linked">✓ 本单已绑定一位会员</small>'}<button type="button" class="quiet" data-custom-binding-details="${escapeAttr(row.id)}">查看绑定详情</button></div>`:'';
  const benefitReady=pay&&row.status==='fulfilled'&&Number(row.balance_rm||0)===0&&!cancelled&&!refunded&&!isAmbassadorOrder(row);
  const processed=summary?.processed??Boolean(binding?.member_binding||['gamepass','lucky_box'].includes(binding?.source));
  const memberActionOpen=pointsBindingOpen&&(isCashier()||isOwner())&&!cancelled&&!refunded&&!isAmbassadorOrder(row);
