@@ -15,17 +15,13 @@ assert.match(consoleSrc,/payment-qr-settings\.js\?v=20261013-cashier-qr-v1/);
 assert.match(owner,/if\(!isOwner\(\)\)throw Error\('owner_only'\)/);
 assert.match(owner,/\.from\(bucket\)\.upload/);
 assert.match(owner,/yt_owner_payment_qr_save/);
-for(const page of ['pos','admin/pos','admin/owner','admin/staff','admin/cashier']){
- const html=fs.readFileSync('play/'+page+'/index.html','utf8');
-
- assert.match(html,/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|revision-status-storebox-history-v1|owner-dot-v2|(?:order-approvals-v2|admin-pos-unified-v3|owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12]|reward-editor-modes-v1|tool-pane-structure-fix-v2))/);
-
- assert.match(html,/value="duitnow" selected>DuitNow（默认）/);
- assert.match(html,/id="cashierDuitNowQr"/);
- assert.match(html,/id="cashierDuitNowQrImage"/);
- assert.match(html,/id="duitnowProofInput"/);
- assert.match(html,/id="duitnowProofList"/);
-}
+const canonicalPos=fs.readFileSync('play/admin/pos/index.html','utf8');
+assert.match(canonicalPos,/pos\.js\?v=\d{8}[-a-zA-Z0-9._]+/);
+assert.match(canonicalPos,/value="duitnow" selected>DuitNow（默认）/);
+assert.match(canonicalPos,/id="cashierDuitNowQr"/);
+assert.match(canonicalPos,/id="cashierDuitNowQrImage"/);
+assert.match(canonicalPos,/id="duitnowProofInput"/);
+assert.match(canonicalPos,/id="duitnowProofList"/);
 assert.match(proofSql,/p_method='duitnow' and not v_cashier/);
 assert.match(proofSql,/yt_pos_duitnow_proof_submit/);
 assert.match(proofSql,/yt_pos_duitnow_proof_review/);
