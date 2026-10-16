@@ -6,10 +6,9 @@ assert(tools.includes("db.rpc('yt_loyalty_owner_member_save'"));
 assert(!fs.existsSync('play/shared/work.js'));
 assert(app.includes("h.innerHTML='<strong>'+esc(tr('my_points'))+'</strong><span>POINTS</span>'"));
 assert(app.includes("invite.className='loyalty-referral'"));
-for(const role of ['pos','owner','staff','cashier']){
- const html=fs.readFileSync(`play/${role}/index.html`,'utf8');
- for(const stale of ['OWNER · RANDOM POINTS','ops_loyaltyPointsEnabled','ops_loyaltyTierEditor','ops_addLoyaltyTier'])assert(!html.includes(stale),`${role}: ${stale}`);
- assert(html.includes('id="ownerPointsRoot"'));
- assert(html.includes('20261010-storebox-v16-1'));
-}
+const html=fs.readFileSync('play/admin/pos/index.html','utf8');
+for(const stale of ['OWNER · RANDOM POINTS','ops_loyaltyPointsEnabled','ops_loyaltyTierEditor','ops_addLoyaltyTier'])assert(!html.includes(stale),'admin/pos: '+stale);
+assert(html.includes('id="ownerPointsRoot"'));
+assert(html.includes('20261010-storebox-v16-1'));
+for(const alias of ['pos','owner','staff','cashier'])assert(fs.readFileSync('play/'+alias+'/index.html','utf8').includes('admin/pos/'),alias+' alias must redirect to canonical POS');
 console.log('PASS: retired random-points controls and dead entry file are gone; member campaigns use the focused RPC and points stay in the rewards surface.');
