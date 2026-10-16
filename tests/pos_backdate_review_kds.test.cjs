@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const migration=fs.readFileSync('supabase/migrations/20261016092749_pos_backdate_review_details_kds_filter.sql','utf8');
+const approvals=fs.readFileSync('play/pos/owner-order-approvals.js','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+const admin=fs.readFileSync('play/admin/pos/index.html','utf8');
+for(const field of ['order_created_at','amount_rm','payment_status','created_by_name','items','line_total_rm','notes'])assert(migration.includes("'"+field+"'"),'backdate approval RPC includes '+field);
+assert.match(migration,/private\.yt_work_owner\(\)/,'details remain owner only');
+assert.match(approvals,/申请营业日/);
+assert.match(approvals,/订单金额/);
+assert.match(approvals,/订单备注/);
+assert.match(approvals,/x\.items/);
+assert.match(pos,/!\['pending','approved'\]\.includes\(row\.backdate_approval_status\)/,'backdated orders never enter KDS productionRows');
+assert.match(admin,/pos\.js\?v=20261016-backdate-kds-filter-v1/);
+console.log('Backdate approval details and KDS exclusion checks passed');

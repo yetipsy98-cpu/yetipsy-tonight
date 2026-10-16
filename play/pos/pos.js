@@ -5,7 +5,7 @@ import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-d
 import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
 import {createConsole} from './console.js?v=20261016-backdate-tools-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
-import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-approvals-v1';
+import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
 import {createStoreBox} from './store-box.js?v=20261015-storebox-stability-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
 
@@ -126,7 +126,7 @@ function productionItems(row){return (row?.items||[]).flatMap(item=>{
  if(item.store_box_item){const prep=row.package_preps?.find(entry=>entry.item_id===item.id),selections=prep?.selections||[],quantity=selections.reduce((sum,entry)=>sum+Math.max(0,Number(entry.quantity)||0),0);if(!quantity)return[];const breakdown=selections.filter(entry=>Number(entry.quantity)>0).map(entry=>`${entry.name||((entry.key==='default')?item.name:entry.key)} ×${Number(entry.quantity)}`).join(' · ');return[{...item,quantity,name:breakdown?`${item.name} · ${breakdown}`:item.name}];}
  return Number(item.quantity)>0?[item]:[];
 });}
-function productionRows(){return (state.active||[]).filter(row=>row.status==='confirmed'&&!isAmbassadorOrder(row)&&productionItems(row).some(item=>!item.fulfilled));}
+function productionRows(){return (state.active||[]).filter(row=>row.status==='confirmed'&&!isAmbassadorOrder(row)&&!['pending','approved'].includes(row.backdate_approval_status)&&productionItems(row).some(item=>!item.fulfilled));}
 function unpaidRows(){return (state.active||[]).filter(row=>row.payment_status==='unpaid'&&(row.status==='fulfilled'||row.status==='confirmed'));}
 function updateAlertDots(){const pending=isCashier()&&Number(state.pending?.length)>0,kds=productionRows().length+Number(state.storeBoxQueue?.length),unpaid=unpaidRows().length;const orders=[...($('nav')?.querySelectorAll?.('button')||[])].find(button=>button.dataset.tab==='orders'),pendingTab=$('orderPendingTab'),activeTab=[...($('orderTabs')?.querySelectorAll?.('button')||[])].find(button=>button.dataset.goTab==='orders'),unpaidTab=$('orderUnpaidTab');orders?.classList.toggle('has-alert',pending||kds||unpaid);pendingTab?.classList.toggle('has-alert',pending);activeTab?.classList.toggle('has-alert',kds>0);unpaidTab?.classList.toggle('has-alert',unpaid>0);}
 function renderKdsEmpty(){const count=productionRows().length+Number(state.storeBoxQueue?.length);$('kdsCount').textContent=String(count);$('kdsEmpty').classList.toggle('hidden',count>0);}
