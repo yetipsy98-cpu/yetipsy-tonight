@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),crypto=require('node:crypto').webcrypto;
 const src=fs.readFileSync('play/pos/pos.js','utf8');
-const ownerPage=fs.readFileSync('play/pos/index.html','utf8');
+const ownerPage=fs.readFileSync('play/admin/pos/index.html','utf8');
 assert.match(ownerPage,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/);
 assert.match(ownerPage,/id="revisionApprovalCount"/);
 assert.match(ownerPage,/<section id="tab-approvals"[^>]*>[\s\S]*?id="ownerOrderApprovalsRoot"/);
@@ -17,7 +17,7 @@ const ctx={state,$,crypto,document:{body:{classList:{remove(){}}}},console,confi
 vm.runInContext(src.slice(src.indexOf('let editPreviousFocus='),src.indexOf('// POS V4 -'))+'\nglobalThis.reopen=0;openEditDialog=async()=>{reopen++;state.editPending=null;state.adjustmentPending=null;};',ctx);
 const event={preventDefault(){},submitter:$('editSettlementSubmit')};
 (async()=>{
- for(const role of ['pos','owner','staff','cashier']){const html=fs.readFileSync(`play/${role}/index.html`,'utf8');const option=html.match(/<input id="editRevokeBenefits"[^>]*>/)[0];assert(!option.includes('checked'));assert(html.includes('id="editSettlementConfirmed" type="checkbox" required'));}
+ const workPage=fs.readFileSync('play/admin/pos/index.html','utf8');const option=workPage.match(/<input id="editRevokeBenefits"[^>]*>/)[0];assert(!option.includes('checked'));assert(workPage.includes('id="editSettlementConfirmed" type="checkbox" required'));for(const role of ['pos','owner','staff','cashier'])assert(fs.readFileSync(`play/${role}/index.html`,'utf8').includes('admin/pos/'),role+' alias route');
  $('editReason').value='quantity change';$('editTable').value='T1';fail=true;
  await ctx.submitEditOrder(event);const saved=state.editPending;assert(saved);assert.equal(saved.p_revoke,false);assert.equal(saved.p_expected_updated,'original-date');assert.equal(saved.p_items[0].item_id,'old-item');
  ctx.editDialogChange({dataset:{editQty:'first'},value:'1'});assert.equal(state.editCart.get('first').quantity,2);

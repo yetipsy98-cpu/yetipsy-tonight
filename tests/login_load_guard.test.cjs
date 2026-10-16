@@ -25,7 +25,7 @@ function exercise(file,flag,formIds){
 }
 
 test('work and customer login forms cannot reload before JavaScript is ready',()=>{
- for(const role of ['pos','owner','staff','cashier'])exercise(`play/${role}/index.html`,'YT_WORK_READY',['signinForm']);
+ exercise('play/admin/pos/index.html','YT_WORK_READY',['signinForm']);for(const role of ['pos','owner','staff','cashier'])assert(fs.readFileSync(path.join(root,`play/${role}/index.html`),'utf8').includes('admin/pos/'),role+' alias route');
  exercise('play/index.html','YT_CLIENT_READY',['phoneCheckForm','authForm']);
  const work=fs.readFileSync(path.join(root,'play/pos/pos.js'),'utf8');
  const client=fs.readFileSync(path.join(root,'play/app.js'),'utf8');
