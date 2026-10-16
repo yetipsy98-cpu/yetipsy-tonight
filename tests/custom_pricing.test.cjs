@@ -20,7 +20,10 @@ const unlimitedQuantity = read('supabase/migrations/20261016040355_custom_drink_
 assert.match(ui, /yt_pos_custom_material_save_v2/);
 assert.match(ui, /yt_pos_custom_settings_save/);
 assert.match(ui, /yt_pos_custom_create/);
-assert.doesNotMatch(ui.match(/function renderCashier\([\s\S]*?\n \}/)?.[0] || '', /unit_cost_rm|margin_percent|max_discount_percent|成本底线/);
+const cashierPricing = ui.match(/function renderCashier\([\s\S]*?\n \}/)?.[0] || '';
+assert.match(cashierPricing, /逐项售价拆分/);
+assert.match(cashierPricing, /isOwner\(\)\?`<span class=\"cp-cost-breakdown\">成本/);
+assert.ok(cashierPricing.includes('售价 ${money(Number(m.unit_cost_rm)'));
 assert.match(ui, /建议售价/);
 assert.match(ui, /最低售价（最高 Discount 后）/);
 assert.match(ui, /cp-material-grid/);
