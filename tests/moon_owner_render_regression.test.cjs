@@ -39,7 +39,7 @@ const read=p=>fs.readFileSync(p,'utf8');
  const consoleCode=fs.readFileSync('play/pos/console.js','utf8');
  const posCode=fs.readFileSync('play/pos/pos.js','utf8');
  assert.match(consoleCode,/moon-code-editor\.js\?v=20261013-moon-code-reward-v3/);
- assert(posCode.includes('console.js?v=20261016-custom-pricing-navigation-v1'));
+ assert(posCode.includes('console.js?v=20261016-backdate-tools-v2'));
  assert.doesNotMatch(read('play/admin/pos/index.html'),/mapRM5Preset|设为 RM5 抵扣/);
  assert.doesNotMatch(posCode,/mapRM5Preset|saveRM5Preset/);
  assert.match(read('play/admin/pos/index.html'),/id="rewardModeCreate"/);
