@@ -10,5 +10,5 @@ assert.match(client,/bell_enabled:true/,'owner settings save always keeps the se
 assert.match(migration,/set bell_enabled = true[\s\S]*?check \(bell_enabled is true\)/,'database state and constraint enforce always-on');
 assert.match(migration,/bell_enabled=true/,'owner settings RPC ignores attempts to disable the bell');
 assert.doesNotMatch(migration,/if not s\.bell_enabled/,'customer requests do not fail due to an old disabled flag');
-assert.match(pos,/play-upgrade\.js\?v=20261015-service-bell-cashier-only-v1/,'POS imports the corrected service bell module');
+assert(pos.includes('play-upgrade.js?v=20261016-custom-member-binding-v1'),'POS imports the current service bell module');
 console.log('PASS service bell stays enabled and only Cashier speaks');
