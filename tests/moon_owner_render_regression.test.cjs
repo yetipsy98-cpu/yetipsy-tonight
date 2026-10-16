@@ -39,16 +39,16 @@ const read=p=>fs.readFileSync(p,'utf8');
  const consoleCode=fs.readFileSync('play/pos/console.js','utf8');
  const posCode=fs.readFileSync('play/pos/pos.js','utf8');
  assert.match(consoleCode,/moon-code-editor\.js\?v=20261013-moon-code-reward-v3/);
- assert.match(posCode,/console\.js\?v=20261015-(?:approval-moved-v2|owner-dot-v2|member-bell-reorg-v1|owner-categories-v1|tool-pane-visibility-fix-v1)/);
- assert.doesNotMatch(read('play/pos/index.html'),/mapRM5Preset|设为 RM5 抵扣/);
+ assert.match(posCode,/console\\.js\\?v=20261016-custom-pricing-navigation-v1/);
+ assert.doesNotMatch(read('play/admin/pos/index.html'),/mapRM5Preset|设为 RM5 抵扣/);
  assert.doesNotMatch(posCode,/mapRM5Preset|saveRM5Preset/);
- assert.match(read('play/pos/index.html'),/id="rewardModeCreate"/);
- assert.match(read('play/pos/index.html'),/id="rewardModeEdit"/);
+ assert.match(read('play/admin/pos/index.html'),/id="rewardModeCreate"/);
+ assert.match(read('play/admin/pos/index.html'),/id="rewardModeEdit"/);
  assert.match(posCode,/yt_owner_update_bound_reward_v1/);
  assert.match(posCode,/奖励资料与兑奖规则已一起更新/);
- for(const page of ['pos','owner','staff','cashier'])assert.match(fs.readFileSync('play/'+page+'/index.html','utf8'),/pos\.js\?v=20261015-(?:play-v1(?:-[0-9]+)?|order-approvals-v2|admin-pos-unified-v3|owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12]|reward-editor-modes-v1|tool-pane-structure-fix-v2)/);
+ assert(read('play/admin/pos/index.html').includes('pos.js?v=20261016-shared-history-drawer-v1'));for(const role of ['pos','owner','staff','cashier'])assert(read('play/'+role+'/index.html').includes('admin/pos/'),role+' alias route');
 
- assert.match(fs.readFileSync('play/admin/pos/index.html','utf8'),/pos\.js\?v=20261015-(?:owner-categories-v1|nav-storebox-qr-amb-page-binding-v1|storebox-stability-v1|benefit-summary-(?:paynow|modal)-v1|checkout-direct-default-v2|package-kds-prep-v[12]|reward-editor-modes-v1|tool-pane-structure-fix-v2)/);
+
 
  console.log('PASS Moon Owner loads form, keeps contents on refresh, shows error state, cache keys updated.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
