@@ -756,7 +756,7 @@ async function changeMyPin(){
  }).catch(()=>{});};
 }
 async function loadMyCustom(){
- let root=$('myCustomRoot');if(!root){root=document.createElement('section');root.id='myCustomRoot';root.className='custom-member-list';const page=$('accountPage');page?.append(root);}
+ let root=$('myCustomRoot');if(!document.getElementById('customMemberStyles')){const style=document.createElement('style');style.id='customMemberStyles';style.textContent='.custom-member-list{margin:18px 24px 26px;display:grid;gap:10px}.custom-member-list.hide{display:none}.custom-member-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px;border:1px solid #536456;border-radius:16px;background:linear-gradient(145deg,#203229,#17241d)}.custom-member-card strong{display:block;color:#f1e7d4}.custom-member-card small{display:block;color:#aeb5aa;margin-top:5px}.custom-member-card button{border:1px solid #d8bc83;border-radius:11px;background:#d8bc83;color:#20241f;padding:10px 13px;font-weight:700;white-space:nowrap}@media(max-width:420px){.custom-member-list{margin-left:16px;margin-right:16px}.custom-member-card{align-items:flex-start;flex-direction:column}.custom-member-card button{width:100%}}';document.head.append(style);}if(!root){root=document.createElement('section');root.id='myCustomRoot';root.className='custom-member-list hide';const page=$('accountPage');page?.append(root);}
  root.classList.remove('hide');root.innerHTML='<div class="empty-state">正在读取我的订制…</div>';
  const {data,error}=await db.rpc('yt_pos_custom_my_list');if(error)throw error;
  const rows=Array.isArray(data)?data:[];
