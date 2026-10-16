@@ -5,7 +5,9 @@ const activityGate=fs.readFileSync('supabase/migrations/20261015065700_disable_m
 const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const play=fs.readFileSync('play/pos/play-upgrade.js','utf8');
 const owner=fs.readFileSync('play/pos/owner-points.js','utf8');
+const windowMigration=fs.readFileSync('supabase/migrations/20261016114422_member_binding_24_hour_window.sql','utf8');
 
+assert.match(windowMigration,/o\.paid_at<clock_timestamp\(\)-interval '24 hours'/);
 assert.match(migration,/pos_member_binding_percent numeric\(5,2\) not null default 2\.00/);
 assert.match(migration,/order_benefit_already_selected/);
 assert.match(migration,/before insert on public\.yt_play_consumption_bindings/);
