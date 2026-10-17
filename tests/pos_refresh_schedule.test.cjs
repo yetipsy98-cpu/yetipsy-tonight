@@ -12,5 +12,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
  const pos=fs.readFileSync('play/pos/pos.js','utf8');
  assert.match(pos,/if\(!schedule\|\|!isRefreshWindowOpen\(schedule,new Date\(\)\)\)return/,'all background POS polling is gated by the saved schedule');
  assert.match(pos,/POLL_CLOCK_TICK_MS=5000/,'clock ticks locally without a request every tick');
+ assert.match(pos,/function pollVisibleWorkspace\(\{force=false\}=\{\}\)/,'foreground resume can bypass interval throttle');
+ assert.match(pos,/visibilitychange'.*pollVisibleWorkspace\(\{force:true\}\)/,'visible tab refreshes immediately only after schedule guard');
  console.log('PASS owner refresh window, overnight boundaries and manual-only safety');
 })().catch(error=>{console.error(error);process.exitCode=1;});
