@@ -16,6 +16,6 @@ assert(queueFix.includes('end request_source'),'KDS queue returns request_source
 assert(queue.includes('r.customer_id request_customer_id'),'KDS queue identifies caller, not box owner');
 const liveHtml=fs.readFileSync('play/admin/pos/index.html','utf8');
 
-assert(liveHtml.includes('pos.js?v=20261018-storebox-residual-claim-v1'),'live POS loads the current KDS voice module');
+assert(liveHtml.includes('pos.js?v=20261018-storebox-order-selection-v1'),'live POS loads the current KDS voice module');
 
 console.log('PASS Cashier KDS voice covers every source except this Cashier account\'s own orders');
