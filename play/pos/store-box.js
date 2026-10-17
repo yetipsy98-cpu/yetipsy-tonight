@@ -67,7 +67,7 @@ function boxCard(row,history=false){const number=row.box_number?`<small class="s
  if(!components.length&&fallbackTotal>0)components=[{key:'default',name:row.item_name||row.name||'存酒',remaining:fallbackTotal}];
  if(!components.length)return'';
  const group='direct-'+row.order_item_id+'-'+suffix;
- return '<div class="cashier-followup"><small>Cashier 直接安排出酒 · 顾客领取二维码会自动作废</small><div class="cashier-followup-inputs">'+components.map((item,index)=>'<label>'+esc(item.name)+'<input data-cashier-box-qty="'+esc(group)+'" data-component-key="'+esc(item.key)+'" type="number" min="0" max="'+Math.min(99,item.remaining)+'" step="1" value="'+(row.mode==='challenge'?(index===0?1:0):index===0?1:0)+'" '+(row.mode==='challenge'?'readonly':'')+'></label>').join('')+'</div><button type="button" class="primary" data-box-cashier-direct="'+esc(row.order_item_id)+'" data-box-cashier-group="'+esc(group)+'">安排 KDS 出酒</button></div>';
+ return '<div class="cashier-followup"><small>Cashier 直接安排出酒 · 有剩余可继续扫码领取，全部出完才关闭二维码</small><div class="cashier-followup-inputs">'+components.map((item,index)=>'<label>'+esc(item.name)+'<input data-cashier-box-qty="'+esc(group)+'" data-component-key="'+esc(item.key)+'" type="number" min="0" max="'+Math.min(99,item.remaining)+'" step="1" value="'+(row.mode==='challenge'?(index===0?1:0):index===0?1:0)+'" '+(row.mode==='challenge'?'readonly':'')+'></label>').join('')+'</div><button type="button" class="primary" data-box-cashier-direct="'+esc(row.order_item_id)+'" data-box-cashier-group="'+esc(group)+'">安排 KDS 出酒</button></div>';
 }
 function issueItem(row){
   const box=state.boxes.find(x=>x.id===row.box_id)||row,cashierManaged=!!box?.cashier_managed;
@@ -123,7 +123,7 @@ async function cashierDirectServe(itemId,group,button){
  await busy(button,async()=>{
   await rpc(db,'yt_store_box_cashier_direct_issue',{p_order_item:itemId,p_selections:selections,p_request:crypto.randomUUID()});
   await Promise.all([loadStaff(true),loadOrderQueue(true)]);
-  say(`已安排 ${count} 杯进入 KDS；顾客领取二维码已作废`);
+  say(`已安排 ${count} 杯进入 KDS；剩余存酒仍可领取`);
  });
 }
 async function requestAction(id,action,button){let reason='';if(action==='serve'&&!window.confirm('确认已经出杯？'))return;if(action==='cancel'){reason=window.prompt('取消原因','现场调整');if(reason===null)return;}await busy(button,async()=>{const result=await rpc(db,'yt_store_box_request_action',{p_request:id,p_action:action,p_completed_delta:0,p_reason:reason.trim()});let claimIssued=false,claimError=false,claimQR=null;const box=result?.box;if(action==='serve'&&box?.cashier_managed&&!box.customer_id&&Number(box.served_units)<Number(box.total_units)){try{const issued=await rpc(db,'yt_store_box_issue',{p_order_item:box.source_order_item_id,p_token:crypto.randomUUID(),p_request:crypto.randomUUID(),p_minutes:15});claimQR={...box,...issued,name:box.name||'存酒箱领取'};state.qr=claimQR;claimIssued=true;}catch{claimError=true;}}await Promise.all([loadOrderQueue(true),loadStaff(true)]);if(claimQR)await showQR(claimQR);if(action==='serve'){say(claimIssued?'首批已确认出杯；剩余存酒箱领取 QR 已生成，可让顾客扫码领取。':claimError?'首批已确认出杯；剩余杯数已保留，但领取 QR 未生成，请到存酒箱页面重试。':'已确认出杯');}else say(action==='accept'?'已接单':'请求已取消');});}
