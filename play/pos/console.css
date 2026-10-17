@@ -373,3 +373,5 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .storebox-issue-item .kds-ticket-main>small,.storebox-claim .kds-ticket-main>small,.storebox-box .kds-ticket-main>small,.storebox-history-event .kds-ticket-main>small{font-size:8px}
 .storebox-issue-item>.action-row button,.storebox-claim>.action-row button{min-width:76px;min-height:28px;padding:4px 6px}
 }
+
+.storebox-rule-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:stretch}.storebox-rule-item .storebox-rule-card{width:100%}.storebox-rule-item>.danger{white-space:nowrap;align-self:center}@media(max-width:700px){.storebox-rule-item{grid-template-columns:1fr}.storebox-rule-item>.danger{justify-self:end}}
