@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const box=fs.readFileSync('play/pos/store-box.js','utf8');
-const migration=fs.readFileSync('supabase/migrations/20261017100000_owner_delete_store_boxes.sql','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261017011822_owner_delete_store_boxes.sql','utf8');
 
 test('Owner can remove a Store Box while preserving history and preventing Staff deletion',()=>{
  assert.match(box,/if\(isOwner\?\.\(\)\)actions\.push\(.*data-box-progress="delete"/);
