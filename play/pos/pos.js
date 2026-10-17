@@ -3,7 +3,7 @@ import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-set
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
-import {createBannerManager} from '../owner-banners.js?v=20261010-copy-v15-4';
+import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
 import {createConsole} from './console.js?v=20261016-custom-usernames-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
