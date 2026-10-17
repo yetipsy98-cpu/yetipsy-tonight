@@ -42,7 +42,7 @@ export function createConsole({db,work,isOwner,isOwnerLimited=()=>false,isCashie
     ownerTools||=await import('../shared/owner-tools.js?v=20261016-custom-usernames-v1');if(epoch!==loadEpoch)return;
     const identityResult=await db.rpc('yt_pos_identity');if(identityResult.error)throw identityResult.error;
     if(!identityResult.data?.can_owner)throw Error('owner_only');ownerTools.initOwnerTools(db,identityResult.data);await ownerTools.loadOwnerTool(key);
-    if(key==='team'){await loadRights();await loadStaffOrderReview();}if(key==='loyalty'){const module=await import('./owner-points.js?v=20261012-points-rewards-v18');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();await globalThis.ytPlayWork?.loadInviteSettings?.();}
+    if(key==='team'){await loadRights();await loadStaffOrderReview();}if(key==='loyalty'){const module=await import('./owner-points.js?v=20261017-points-value-hint-v1');if(epoch!==loadEpoch)return;pointsAdmin||=module.createPointsAdmin({db,root:$('ownerPointsRoot'),isOwner,notice});await pointsAdmin.load();await globalThis.ytPlayWork?.loadInviteSettings?.();}
    }
    if(key==='insights'){const module=await import('./owner-reports.js?v=20261014-limited-report-v2');if(epoch!==loadEpoch)return;ownerReports||=module.createOwnerReports({db,root:$('ownerReportsRoot'),isOwner:()=>isOwner()||isOwnerLimited(),allowExport:()=>isOwner(),notice,businessDay:getBusinessDay?.()});await ownerReports.load();}
    if(key==='ambassador'){if(isOwnerLimited())await globalThis.ytAmbassadorTools?.open();else await globalThis.ytAmbassadorTools?.openOwner?.();}
