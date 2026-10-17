@@ -30,5 +30,5 @@ assert.match(consoleUi,/products:[\s\S]*?members:[\s\S]*?campaigns:[\s\S]*?opera
 assert.match(clientHtml,/id="referralGroup"[^>]*class="hide"/,'referral field is initially hidden outside signup');
 assert.match(clientHtml,/id="referralCode"[^>]*maxlength="10"/,'signup contains optional referral code input');
 assert.match(client,/\$\('referralGroup'\)\.classList\.toggle\('hide',!signup\)/,'referral input is visible only for signup');
-assert(html.includes('console.css?v=20261017-banner-create-mode-v1'),'live page refreshes the management styles');
+assert(html.includes('console.css?v=20261017-rule-delete-v1&layout=drink-name-v2'),'live page refreshes the management styles');
 console.log('PASS owner approvals, red-dot service alerts, KDS-style service tickets, management settings, and optional signup referral code');
