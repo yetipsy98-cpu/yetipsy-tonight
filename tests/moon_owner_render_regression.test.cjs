@@ -46,7 +46,7 @@ const read=p=>fs.readFileSync(p,'utf8');
  assert.match(read('play/admin/pos/index.html'),/id="rewardModeEdit"/);
  assert.match(posCode,/yt_owner_update_bound_reward_v1/);
  assert.match(posCode,/奖励资料与兑奖规则已一起更新/);
- assert(read('play/admin/pos/index.html').includes('pos.js?v=20261016-kds-storebox-refresh-v1'));for(const role of ['pos','owner','staff','cashier'])assert(read('play/'+role+'/index.html').includes('admin/pos/'),role+' alias route');
+ assert(read('play/admin/pos/index.html').includes('pos.js?v=20261017-banner-create-mode-v1'));for(const role of ['pos','owner','staff','cashier'])assert(read('play/'+role+'/index.html').includes('admin/pos/'),role+' alias route');
 
 
 
