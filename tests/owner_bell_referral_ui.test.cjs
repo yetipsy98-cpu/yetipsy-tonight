@@ -20,7 +20,7 @@ assert.match(html,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/,'Owner 
 assert.match(html,/id="ownerOrderApprovalsRoot"/,'approval content is mounted in the live admin POS page');
 assert(ownerHtml.includes('../pos/'),'legacy Owner route forwards to canonical POS');
 
-assert(html.includes('pos.js?v=20261016-kds-storebox-refresh-v1'),'live page loads the current POS module');
+assert(html.includes('pos.js?v=20261017-banner-create-mode-v1'),'live page loads the current POS module');
 assert.match(consoleUi,/members:[\s\S]*?\['loyalty','会员与积分'/,'membership settings are grouped under Member & Rewards');
 assert.match(html,/data-pane="service"[^]*?<div id="playBellSettingsRoot"><\/div>/,'service bell settings pane is preserved');
 assert.match(consoleUi,/customer:[\s\S]*?\['service','服务铃'/,'service bell is nested under Customer Experience');
@@ -30,5 +30,5 @@ assert.match(consoleUi,/products:[\s\S]*?members:[\s\S]*?campaigns:[\s\S]*?opera
 assert.match(clientHtml,/id="referralGroup"[^>]*class="hide"/,'referral field is initially hidden outside signup');
 assert.match(clientHtml,/id="referralCode"[^>]*maxlength="10"/,'signup contains optional referral code input');
 assert.match(client,/\$\('referralGroup'\)\.classList\.toggle\('hide',!signup\)/,'referral input is visible only for signup');
-assert(html.includes('console.css?v=20261016-kds-storebox-refresh-v1'),'live page refreshes the management styles');
+assert(html.includes('console.css?v=20261017-banner-create-mode-v1'),'live page refreshes the management styles');
 console.log('PASS owner approvals, red-dot service alerts, KDS-style service tickets, management settings, and optional signup referral code');
