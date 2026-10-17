@@ -29,5 +29,5 @@ assert.match(pos, /customItems\.some\(item=>!item\.custom_bound\)/);
 assert.match(work, /yt_pos_custom_bind_member/);
 assert.match(work, /data-play-custom-member-scan/);
 assert.match(work, /没有发放积分/);
-assert.match(page, /pos\.js\?v=20261017-storebox-cashier-direct-serve-v1/);
+assert.match(page, /pos\.js\?v=20261018-storebox-residual-claim-v1/);
 console.log('custom member binding regression checks passed');
