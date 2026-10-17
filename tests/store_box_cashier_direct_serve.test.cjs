@@ -17,7 +17,7 @@ test('Cashier can directly route unclaimed and issued Store Box orders to KDS',(
  assert.match(sql,/status='cancelled'.*claim_token=null/s);
  assert.match(sql,/cashier_direct_serve/);
  assert.match(sql,/b\.mode='challenge' and total_qty<>1/);
- assert.match(sql,/clock_timestamp\(\),'accepted',actor,clock_timestamp\(\)/);
+ assert.match(sql,/interval '8 hours','accepted',actor,clock_timestamp\(\)/);
  assert.match(sql,/grant execute on function public\.yt_store_box_cashier_direct_issue\(uuid,jsonb,uuid\) to authenticated/);
  assert.match(sql,/revoke all on function public\.yt_store_box_cashier_direct_issue\(uuid,jsonb,uuid\) from public,anon/);
 });
