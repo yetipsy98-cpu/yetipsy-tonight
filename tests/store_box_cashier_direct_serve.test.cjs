@@ -5,12 +5,19 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('Cashier can directly route unclaimed and issued Store Box orders to KDS',()=>{
+test('Cashier selects a specific Store Box order before directly routing output to KDS',()=>{
  const js=read('play/pos/store-box.js');
  const sql=read('supabase/migrations/20261017160500_store_box_cashier_direct_serve.sql');
  const residual=read('supabase/migrations/20261018001220_store_box_preserve_qr_for_remaining.sql');
- assert.match(js,/cashierDirectServeForm\(row,'issue'\)/);
- assert.match(js,/cashierDirectServeForm\(\{\.\.\.source,cashier_components:row\.components\}/);
+ assert.match(js,/function directServeCandidates\(\)/);
+ assert.match(js,/function cashierDirectServePanel\(\)/);
+ assert.match(js,/data-box-direct-order/);
+ assert.match(js,/选择桌号、订单和饮品/);
+ assert.match(js,/cashierDirectServeForm\(selected,'selection'\)/);
+ assert.match(js,/安排这笔订单出品/);
+ assert.match(js,/state\.directServeItemId=event\.target\.value/);
+ assert.doesNotMatch(js,/cashierDirectServeForm\(row,'issue'\)/);
+ assert.doesNotMatch(js,/cashierDirectServeForm\(\{\.\.\.source,cashier_components:row\.components\}/);
  assert.match(js,/data-box-cashier-direct=/);
  assert.match(js,/yt_store_box_cashier_direct_issue/);
  assert.match(js,/row\.mode==='challenge'\?\(index===0\?1:0\)/);
@@ -20,7 +27,7 @@ test('Cashier can directly route unclaimed and issued Store Box orders to KDS',(
  assert.match(sql,/cashier_direct_serve/);
  assert.match(residual,/if b\.status='exhausted' then[\s\S]*?update public\.yt_store_box_claims set status='cancelled'/);
  assert.match(residual,/cashier_fully_served/);
- assert.match(js,/有剩余可继续扫码领取，全部出完才关闭二维码/);
+ assert.match(js,/有剩余可继续扫码领取/);
  assert.match(js,/出杯后如有剩余，领取码仍可用/);
  assert.match(sql,/b\.mode='challenge' and total_qty<>1/);
  assert.match(sql,/interval '8 hours','accepted',actor,clock_timestamp\(\)/);
