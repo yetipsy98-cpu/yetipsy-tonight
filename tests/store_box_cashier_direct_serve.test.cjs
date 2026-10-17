@@ -15,7 +15,8 @@ test('Cashier can directly route unclaimed and issued Store Box orders to KDS',(
  assert.match(js,/yt_store_box_cashier_direct_issue/);
  assert.match(js,/row\.mode==='challenge'\?\(index===0\?1:0\)/);
  assert.match(sql,/private\.yt_pos_work_cashier\(\) or private\.yt_work_owner\(\)/);
- assert.doesNotMatch(sql.slice(sql.indexOf('create or replace function private.yt_store_box_cashier_direct_issue('),sql.indexOf('create or replace function private.yt_store_box_request_action(')),/update public\\.yt_store_box_claims set status='cancelled'/);
+ const residualDirect=residual.slice(residual.indexOf('create or replace function private.yt_store_box_cashier_direct_issue('),residual.indexOf('create or replace function private.yt_store_box_request_action('));
+ assert.doesNotMatch(residualDirect,/update public\.yt_store_box_claims set status='cancelled'/);
  assert.match(sql,/cashier_direct_serve/);
  assert.match(residual,/if b\.status='exhausted' then[\s\S]*?update public\.yt_store_box_claims set status='cancelled'/);
  assert.match(residual,/cashier_fully_served/);
