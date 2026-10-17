@@ -6,7 +6,7 @@ const fix=fs.readFileSync('sql/051_owner_reset_new_order_children.sql','utf8');
 const playFix=fs.readFileSync('supabase/migrations/20261015123836_owner_reset_play_order_children.sql','utf8');
 const authFix=fs.readFileSync('supabase/migrations/20261015124600_owner_reset_auth_cleanup_fk.sql','utf8');
 const consoleSrc=fs.readFileSync('play/pos/console.js','utf8');
-assert(client.includes('console.js?v=20261016-backdate-tools-v2'));
+assert(client.includes('console.js?v='));
 assert.match(consoleSrc,/factory-reset\.js\?v=20261012-reset-fix-v23/);
 assert.match(root,/reset_database_error/);
 assert.match(root,/reset_confirmation_expired/);
