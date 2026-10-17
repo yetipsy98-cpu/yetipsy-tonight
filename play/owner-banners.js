@@ -29,7 +29,7 @@ export function createBannerManager({db,root,notify,onPublished=async()=>{}}){
  saving=true;root.querySelectorAll('input,button').forEach(el=>el.disabled=true);
  if(!imagePath){status.textContent='正在上传图片…';const blob=await prepareBannerImage(file),path='ads/'+crypto.randomUUID()+'.jpg';const res=await db.storage.from(BANNER_BUCKET).upload(path,blob,{contentType:'image/jpeg',cacheControl:'3600',upsert:false});if(res.error)throw Error(res.error.message);imagePath=path;}
  status.textContent='正在保存广告…';const res=await db.rpc('yt_owner_banner_save',{p_id:editing,p_title:title,p_image_path:imagePath,p_sort:sort,p_enabled:enabled});if(res.error)throw Error(res.error.message);
- editing=res.data;await load();await onPublished();status.textContent=enabled?'已保存，客户端首页已更新':'已保存，广告已下架';notify(status.textContent);
+ const wasEditing=editing!==null;editing=res.data;q('button[type="submit"]').textContent='保存广告';await load();await onPublished();if(wasEditing){status.textContent=enabled?'已保存，客户端首页已更新':'已保存，广告已下架';}else{reset();status.textContent=enabled?'广告已新增，客户端首页已更新':'广告已新增并下架';}notify(status.textContent);
  }catch(err){status.textContent=err.message;notify(err.message,true);}finally{saving=false;root.querySelectorAll('input,button').forEach(el=>el.disabled=false);}
  };
  return {load};
