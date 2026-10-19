@@ -124,7 +124,7 @@ test('Store Box history is one expandable entry per number and POS clears table 
  const box=read('play/pos/store-box.js'),history=box.slice(box.indexOf('function renderHistory()'),box.indexOf('async function loadHistory'));
  assert.match(history,/groups=new Map\(\)/);
  assert.match(history,/box\.box_number/);
- assert.match(history,/storebox-history-box/);
+ assert.match(history,/storebox-history-box/);assert.match(history,/查看详情/);assert.match(history,/出酒 \/ 操作记录/);
  assert.doesNotMatch(history,/table_label/);
  const card=box.slice(box.indexOf('function boxCard'),box.indexOf('function boxesMarkup'));
  assert.doesNotMatch(card,/table_label/);

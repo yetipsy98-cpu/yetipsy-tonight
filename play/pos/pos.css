@@ -253,3 +253,5 @@ body.sheet-open{overflow:hidden}
 .storebox-history-event-copy>strong{color:#f2f0e6;font-size:.92rem}
 .storebox-history-quantity{flex:none;border-radius:999px;padding:5px 9px;background:#302919;color:#f0d89e;font-weight:800}
 @media(max-width:600px){.storebox-history-box>summary{align-items:flex-start}.storebox-history-meta{max-width:48%;font-size:.72rem}.storebox-claim-detail-list{grid-template-columns:1fr}.storebox-claim-detail-list>span{min-width:0}.storebox-history-events{padding:0 9px 10px}}
+
+.storebox-history-view{display:inline-block;margin-left:8px;border:1px solid #7a6744;border-radius:999px;padding:3px 8px;color:#f0d89e;font-size:.75rem;white-space:nowrap}.storebox-history-events-heading{margin:12px 0 8px;color:#e8d6aa;font-size:.88rem}
