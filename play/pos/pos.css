@@ -211,3 +211,15 @@ body.sheet-open{overflow:hidden}
 
 /* Cashier Store Box order selection */
 .storebox-direct-serve{display:grid;gap:14px;margin:0 0 18px;padding:16px;border:1px solid #c9ad70;border-radius:16px;background:linear-gradient(145deg,rgba(205,177,112,.12),rgba(24,38,30,.94))}.storebox-direct-serve .block-head{margin:0}.storebox-direct-serve h3{margin:0;color:#f1dfb4}.storebox-direct-serve>label{display:grid;gap:7px;color:#e2d8bf;font-weight:700}.storebox-direct-serve select{width:100%;min-height:48px;padding:10px 12px;border:1px solid #53685a;border-radius:11px;background:#101a14;color:#f6f2e8;font:inherit}.cashier-direct-target{display:grid;gap:5px;padding:11px 12px;border:1px solid #495d50;border-radius:11px;background:#142219}.cashier-direct-target strong{color:#f0d89e;font-size:1.03rem}.cashier-direct-target span{color:#f2f4ee;font-weight:700}@media(max-width:600px){.storebox-direct-serve{padding:12px;border-radius:13px}.storebox-direct-serve .block-head{align-items:flex-start;gap:8px}.storebox-direct-serve .mini-chip{white-space:nowrap}}
+
+
+/* Owner Store Box balance and expiry controls */
+.storebox-owner-manage{display:grid;gap:10px;margin-top:12px;padding:13px;border:1px solid rgba(216,182,117,.48);border-radius:13px;background:rgba(12,22,16,.62)}
+.storebox-owner-manage>strong{color:#f0d89e;font-size:.94rem}
+.storebox-owner-manage>label,.storebox-owner-adjustments label{display:grid;gap:6px;color:#e9e3d5;font-size:.86rem;font-weight:700}
+.storebox-owner-manage input[type=date],.storebox-owner-adjustments input{width:100%;min-height:42px;padding:8px 10px;border:1px solid #53685a;border-radius:10px;background:#101a14;color:#f6f2e8;font:inherit}
+.storebox-owner-manage small,.storebox-owner-adjustments small{color:#b6c2b8;font-size:.78rem;line-height:1.45}
+.storebox-owner-adjustments{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:10px;border:1px solid #3d5044;border-radius:11px;background:#17241b}
+.storebox-owner-adjustments>small{grid-column:1/-1}
+.storebox-owner-manage .quiet{justify-self:start;min-height:40px;padding:8px 14px;border:1px solid #c6a967;border-radius:10px;color:#f0d89e;background:#25352a;font-weight:800}
+@media(max-width:600px){.storebox-owner-adjustments{grid-template-columns:1fr}.storebox-owner-adjustments>small{grid-column:auto}.storebox-owner-manage{padding:11px}}

@@ -16,5 +16,5 @@ assert.match(consoleJs,/sub\.toggleAttribute\('hidden',!visible\)/);
 assert.match(consoleJs,/if\(!selectedPane\)[\s\S]*?找不到/);
 assert.match(consoleJs,/owner-tools\.js\?v=[^'\"]+/);
 assert(/console\.js\?v=[^'\"]+/.test(posJs));
-assert(html.includes('pos.js?v=20261018-storebox-order-selection-v1'));
+assert(html.includes('pos.js?v=20261019-storebox-owner-management-v1'));
 console.log('PASS: Owner tools remain inside the drawer; campaign and prize pool panes are explicitly revealed.');
