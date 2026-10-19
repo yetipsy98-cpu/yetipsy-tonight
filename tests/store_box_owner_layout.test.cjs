@@ -19,16 +19,18 @@ test('Store Box generation and issued QR queues share one collapsed space-saving
  assert.doesNotMatch(pos,/if\(state\.qr\)showQR\(state\.qr\)/,'QR drawer is not reopened by background renders');
 });
 
-test('Store Box issue tickets and QR drawer foreground the table number like KDS',()=>{
- assert.match(pos,/class="kds-table-number">\$\{esc\(row\.table_label\|\|'未填桌号'\)\}/);
- assert.match(pos,/data-box-qr-table/);
+test('Store Box issue and QR views avoid using the day-scoped table number as a box identifier',()=>{
+ assert.match(pos,/class="storebox-box-number">\$\{esc\(boxNumber\(row\.box_number\)\)/);
+ assert.doesNotMatch(pos,/data-box-qr-table/);
+ assert.match(pos,/查看领取详情/);
  assert.match(pos,/table_label:row\.table_label,order_no:row\.order_no/);
  assert.match(pos,/data-storebox-fold="balance"/);
 });
 
 test('claimed Store Box cards show the staff who issued their claim QR',()=>{
  assert.match(pos,/claimed_qr_issued_by_name/);
- assert.match(pos,/二维码由 .* 的 Staff 端发出/);
+ assert.match(pos,/领取二维码来源/);
+ assert.match(pos,/claimed_qr_issued_by_name\} · Staff 端/);
  assert.match(migration,/c\.status='claimed'/);
  assert.match(migration,/wa\.username claimed_qr_issued_by_name/);
 });
