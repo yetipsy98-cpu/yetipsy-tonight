@@ -116,6 +116,20 @@ test('Staff can bind regular paid POS orders and Cashier Store Box calls auto-ac
  assert.match(migration,/'accepted',actor,clock_timestamp\(\)/);
  assert.match(pos,/isCashier\(\)\|\|isOwner\(\)\|\|isStaff\(\)/);
  assert.match(pos,/const paidAtMs=Date\.parse\(row\.paid_at\|\|''\)[\s\S]*Date\.now\(\)-paidAtMs<86400000/);
- assert.match(box,/storebox-qr-table/);
+ assert.doesNotMatch(box,/storebox-qr-table/);assert.match(box,/查看领取详情/);assert.match(box,/storebox-history-box/);
  assert.match(css,/storebox-issue-item\.kds-ticket,\.storebox-claim\.kds-ticket\{display:grid/);
+});
+
+test('Store Box history is one expandable entry per number and POS clears table after submit',()=>{
+ const box=read('play/pos/store-box.js'),history=box.slice(box.indexOf('function renderHistory()'),box.indexOf('async function loadHistory'));
+ assert.match(history,/groups=new Map\(\)/);
+ assert.match(history,/box\.box_number/);
+ assert.match(history,/storebox-history-box/);
+ assert.doesNotMatch(history,/table_label/);
+ const card=box.slice(box.indexOf('function boxCard'),box.indexOf('function boxesMarkup'));
+ assert.doesNotMatch(card,/table_label/);
+ assert.match(card,/storebox-owner-fold/);
+ assert.match(card,/claimed_at/);
+ const pos=read('play/pos/pos.js');
+ assert.match(pos,/state\.pendingSubmit=null;state\.cart\.clear\(\)[\s\S]*\$\('tableInput'\)\.value=''/);
 });
