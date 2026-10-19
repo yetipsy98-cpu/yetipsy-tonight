@@ -91,7 +91,7 @@ test('Store Box reopen request foreign keys are indexed',()=>{
 
 test('Owner and Cashier can arrange service from all eligible Store Box balances in a compact layout',()=>{
  const js=read('play/pos/store-box.js'),css=read('play/pos/console.css');
- assert.match(js,/row\.cashier_serve_allowed&&canCashierServe\(\)/);
+ assert.match(js,/!row\.cashier_serve_allowed\|\|!canCashierServe\(\)/);
  assert.match(js,/if\(!canCashierServe\(\)\)throw Error\('cashier_only'\)/);
  assert.match(css,/storebox-balance-panel \.storebox-fold-body>\.storebox-stack\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(css,/@media\(max-width:700px\)\{\.storebox-balance-panel \.storebox-fold-body>\.storebox-stack\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
