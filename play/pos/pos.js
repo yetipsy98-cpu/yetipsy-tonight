@@ -7,7 +7,7 @@ import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-
 import {createConsole} from './console.js?v=20261016-custom-usernames-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
-import {createStoreBox} from './store-box.js?v=20261019-storebox-owner-management-v1&layout=drink-name-v1';
+import {createStoreBox} from './store-box.js?v=20261020-storebox-history-box-details-v1&layout=drink-name-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
@@ -341,7 +341,7 @@ async function createOrder(){if(state.draftSaving||state.draftMutating)return;st
  }catch(e){if(e.code&&(/^[0-9A-Z]{5}$/.test(e.code)||/^PGRST/.test(e.code))){state.pendingSubmit=null;saveDraft();}showNotice(errorText(e),true);$('draftStatus').textContent=state.pendingSubmit?'提交状态待确认，请重试确认原订单。':'提交未完成：'+errorText(e);}
  finally{state.draftSaving=false;updateDraftControls();}
  if(!data)return;
- const attached=Number(data.reward_cart?.attached||0),checkoutMode=state.pendingSubmit?.p_checkout_mode||'pay_now';state.pendingSubmit=null;state.cart.clear();state.ambassadorDraft=null;state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('orderNote').value='';if($('orderBusinessDay'))$('orderBusinessDay').value=state.businessDay||$('orderBusinessDay').value||'';$('checkoutPayNow').checked=true;$('checkoutPayLater').checked=false;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
+ const attached=Number(data.reward_cart?.attached||0),checkoutMode=state.pendingSubmit?.p_checkout_mode||'pay_now';state.pendingSubmit=null;state.cart.clear();state.ambassadorDraft=null;state.draftId=crypto.randomUUID();state.draftSummary=null;state.draftSelection=null;$('tableInput').value='';$('orderNote').value='';if($('orderBusinessDay'))$('orderBusinessDay').value=state.businessDay||$('orderBusinessDay').value||'';$('checkoutPayNow').checked=true;$('checkoutPayLater').checked=false;$('draftRewardChoices').replaceChildren();saveDraft();renderCart();closeCartDrawer();
  showNotice(ambassador?(checkoutMode==='pay_now'?`${data.order_no||''} Freeflow 已开单，正在打开付款窗口。`:`${data.order_no||''} Freeflow 已加入待收款订单；请照常结账。`):`${data.order_no} 已下单 · ${attached?'奖励已锁码，结账才核销':data.status==='confirmed'?'已进入吧台 KDS':'等待 Cashier 接受'}`);
  showTab('create');try{await refreshOrders(false);const orderId=data.id||data.order_id||[...state.active,...state.pending,...state.paid].find(row=>row.order_no===data.order_no)?.id;if(orderId&&(isCashier()||isOwner()))await promptCashierPackagePrep(orderId);if(data.backdate_approval_status==='pending'){showNotice(`${data.order_no||'订单'} 已提交营业日回填申请，等待 Owner 批准；批准前不能收款。`);}else if(checkoutMode==='pay_now'){if(orderId)await openOrderCart(orderId);else showNotice(`${data.order_no||'订单'} 已成功下单，但暂时找不到订单付款窗口，请刷新订单列表。`,true);}}catch(e){showNotice(`${data.order_no||'订单'} 已成功下单，订单列表暂未刷新，请点刷新。`,true);}
 }
