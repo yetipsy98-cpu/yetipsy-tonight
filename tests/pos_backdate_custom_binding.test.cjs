@@ -24,5 +24,5 @@ assert.match(approvals,/yt_pos_owner_backdate_request_review/);
 assert.match(consoleJs,/data-pane=\"ambassador\"/);
 for(const key of ['home','moon','lucky','custompricing'])assert.match(consoleJs,new RegExp('data-pane=\\"'+key+'\\"'));
 assert.match(admin,/id=\"orderBusinessDay\"/);
-assert.match(admin,/checkout-drawer-layout-v3/);
+assert.match(admin,/class="card checkout-card" id="checkoutDrawer"/);
 console.log('POS backdate, custom-member sharing, and owner-tool pane checks passed');
