@@ -29,8 +29,8 @@ test('Store Box issue and QR views avoid using the day-scoped table number as a 
 
 test('claimed Store Box cards show the staff who issued their claim QR',()=>{
  assert.match(pos,/claimed_qr_issued_by_name/);
- assert.match(pos,/领取二维码来源/);
- assert.match(pos,/claimed_qr_issued_by_name\)\} · Staff 端/);
+ assert.match(pos,/领取码发出账号/);
+ assert.match(pos,/claimed_qr_issued_by_name/);
  assert.match(migration,/c\.status='claimed'/);
  assert.match(migration,/wa\.username claimed_qr_issued_by_name/);
 });
