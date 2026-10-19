@@ -15,5 +15,5 @@ assert(refresh.indexOf('const backdatePending=')<refresh.indexOf("$('orderCartSt
 assert.match(pos,/const hideBackdate=.*order-meta-single/);
 assert.match(css,/\.order-meta-grid\.order-meta-single\{grid-template-columns:minmax\(0,1fr\)\}/);
 assert.match(css,/\.draft-redeem-toggle/);
-assert.match(html,/pos\.js\?v=20261019-storebox-owner-management-v1/);
+assert.match(html,/pos\.js\?v=20261020-storebox-history-box-details-v1/);
 console.log('PASS POS order header layout, note position, Redeem drawer and backdate initialization');

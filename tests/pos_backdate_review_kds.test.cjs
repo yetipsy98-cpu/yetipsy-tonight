@@ -10,5 +10,5 @@ assert.match(approvals,/订单金额/);
 assert.match(approvals,/订单备注/);
 assert.match(approvals,/x\.items/);
 assert.match(pos,/!\['pending','approved'\]\.includes\(row\.backdate_approval_status\)/,'backdated orders never enter KDS productionRows');
-assert.match(admin,/pos\.js\?v=20261019-storebox-owner-management-v1/);
+assert.match(admin,/pos\.js\?v=20261020-storebox-history-box-details-v1/);
 console.log('Backdate approval details and KDS exclusion checks passed');

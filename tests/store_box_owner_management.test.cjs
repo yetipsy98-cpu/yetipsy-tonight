@@ -39,7 +39,7 @@ test('Store Box owner changes do not remove reset behavior or change canonical P
  const page=read('play/admin/pos/index.html');
  const reset=read('supabase/migrations/20261016125818_owner_reset_storebox_reopen_requests_fk.sql');
  const migration=read('supabase/migrations/20261019000000_store_box_owner_management_staff_reopen.sql');
- assert.match(page,/pos\.js\?v=20261019-storebox-owner-management-v1/);
+ assert.match(page,/pos\.js\?v=20261020-storebox-history-box-details-v1/);
  assert.match(reset,/yt_store_box_reopen_requests/);
  assert.match(reset,/yt_store_boxes restart identity/);
  assert.match(migration,/yt_store_box_reopen_requests/);
