@@ -94,7 +94,7 @@ export function normalizeReceiptLayout(source,settings={}){
 }
 export function applyReceiptLayout(paper,raw,mode='paid',settings={},options={}){
  if(!paper)return;
- const config=normalizeReceiptLayout(raw,settings),elements=config.variants[mode==='unpaid'?'unpaid':'paid'].elements;
+ const config=normalizeReceiptLayout(raw,settings),elements=config.variants.paid.elements;
  const fieldNodes=new Map([...paper.children].filter(node=>node.dataset?.receiptField).map(node=>[node.dataset.receiptField,node]));
  const compactFlow=config.compact_flow===true&&options.compact===true;
  const usedFields=new Set(),placed=[];
