@@ -1,73 +1,43 @@
-
-import {receiptBlocks,normalizeReceiptLayout,applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
+import {receiptBlocks,receiptFields,normalizeReceiptLayout,applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-freeform-v1';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const names={brand:'Logo、店名和地址',document:'付款状态 / 单据类型',meta:'订单号、桌号、时间与员工',items:'商品及数量明细',discounts:'小计与折扣明细',total:'应付总额与余额',payments:'付款历史',footer:'感谢词与法律说明'};
+const fieldName=id=>receiptFields.find(x=>x.id===id)?.name||id;
+const demo=()=>'<div class="receipt-field-node" data-receipt-field="business_name"><div class="receipt-logo">YE·TIPSY</div></div><div class="receipt-field-node" data-receipt-field="subtitle"><div class="receipt-subhead">KLUANG · POINT OF SALE</div></div><div class="receipt-field-node" data-receipt-field="address_line"><div class="receipt-business-line">12 Jalan Demo, Kluang</div></div><div class="receipt-field-node" data-receipt-field="contact_line"><div class="receipt-business-line">012-345 6789</div></div><div class="receipt-field-node" data-receipt-field="document"><div class="receipt-document">✓ 已收款 · PAYMENT RECEIPT</div></div><div class="receipt-field-node" data-receipt-field="order_no"><div class="receipt-facts"><p><strong>#YT-1024</strong></p></div></div><div class="receipt-field-node" data-receipt-field="table"><div class="receipt-facts"><p>桌号 · Table 08</p></div></div><div class="receipt-field-node" data-receipt-field="created_at"><div class="receipt-facts"><p>开单 · Created · Today 20:12</p></div></div><div class="receipt-field-node" data-receipt-field="staff"><div class="receipt-facts"><p>员工 · By Alex</p></div></div><div class="receipt-field-node" data-receipt-field="paid_at"><div class="receipt-facts"><p>付款 · Paid · Today 20:14</p></div></div><div class="receipt-field-node" data-receipt-field="payment_method"><div class="receipt-facts"><p>方式 · Payment · DuitNow</p></div></div><div class="receipt-field-node" data-receipt-field="notes"><div class="receipt-facts"><p>备注 · Note · Birthday</p></div></div><div class="receipt-field-node" data-receipt-field="items"><div class="receipt-items-head"><span>商品 / ITEM</span><span>金额 / AMOUNT</span></div><div class="receipt-row"><div><strong>Sparkling Apple</strong><small>2 × RM20.90</small></div><b>RM41.80</b></div></div><div class="receipt-field-node" data-receipt-field="subtotal"><div class="receipt-subtotal"><span>商品原价 · SUBTOTAL</span><b>RM41.80</b></div></div><div class="receipt-field-node" data-receipt-field="discount_lines"><div class="receipt-discount"><div><span>会员优惠</span></div><b>−RM5.00</b></div></div><div class="receipt-field-node" data-receipt-field="discount_total"><div class="receipt-subtotal"><span>优惠合计 · DISCOUNT</span><b>−RM5.00</b></div></div><div class="receipt-field-node" data-receipt-field="total"><div class="receipt-sum"><span>已收款 · TOTAL PAID</span><strong>RM36.80</strong></div></div><div class="receipt-field-node" data-receipt-field="balance"><div class="receipt-subtotal">实收净额 · NET RECEIVED　 RM36.80</div></div><div class="receipt-field-node" data-receipt-field="payment_history"><div class="receipt-row"><span>DuitNow · PAYMENT</span><b>RM36.80</b></div></div><div class="receipt-field-node" data-receipt-field="reserved_note"><p class="receipt-hold-note">优惠已预留</p></div><div class="receipt-field-node" data-receipt-field="pending_warning"><p class="receipt-hold-note">待审核说明</p></div><div class="receipt-field-node" data-receipt-field="footer"><p class="receipt-bottom">Thank you for visiting Yetipsy.<br>Store bill · Not a tax invoice</p></div>';
 export function createReceiptLayoutEditor({db,root,notice,isOwner,settings}){
- let layout=normalizeReceiptLayout(settings?.layout),mode='paid',saving=false;
- const modeBlocks=()=>layout.variants[mode].blocks;
+ let layout=normalizeReceiptLayout(settings?.layout,settings||{}),mode='paid',saving=false;
+ const current=()=>layout.variants[mode].elements;
  function draw(){
-  root.innerHTML='<article class="card receipt-editor"><p class="kicker">OWNER · RECEIPT DESIGN</p><h2>自由排版与打印</h2><p class="muted">未付款账单与已付款收据可分别排序。必需的商品、金额和凭证类型不可隐藏。</p>'+
-  '<label>编辑模板<select id="layoutMode"><option value="paid">已付款收据</option><option value="unpaid">未付款账单</option></select></label>'+
-  '<div class="pair"><label>字体大小<select id="layoutFont">'+[9,10,11,12,13,14].map(n=>'<option value="'+n+'">'+n+' px</option>').join('')+'</select></label>'+
-  '<label>模块间距<select id="layoutGap">'+[0,2,4,6,8,10,12,16].map(n=>'<option value="'+n+'">'+n+' px</option>').join('')+'</select></label></div>'+
-  '<div id="layoutReceiptBlocks"></div><button id="layoutReceiptSave" type="button" class="main-button">保存排版并应用所有设备</button><p id="layoutReceiptStatus" role="status"></p></article>'+
-  '<article class="card receipt-preview-card"><p class="kicker">实际打印结构预览</p><div id="layoutReceiptPreview" class="receipt-preview-area"></div></article>';
-  root.querySelector('#layoutMode').value=mode;
+  root.innerHTML='<article class="card receipt-editor receipt-freeform"><p class="kicker">OWNER · RECEIPT DESIGN</p><h2>收据自由排版</h2><p class="muted">拖动排序，选择字段、付款方式、文字与分隔线。可用整行或双栏，并分别设置已付款和未付款模板。</p>'+
+  '<div class="receipt-editor-toolbar"><label>模板<select id="layoutMode"><option value="paid">已付款收据</option><option value="unpaid">未付款账单</option></select></label><label>整体字号<select id="layoutFont">'+[7,8,9,10,11,12,13,14,15,16,18,20,22,24].map(n=>'<option value="'+n+'">'+n+' px</option>').join('')+'</select></label><label>间距<select id="layoutGap">'+[0,2,4,6,8,10,12,16].map(n=>'<option value="'+n+'">'+n+' px</option>').join('')+'</select></label></div>'+
+  '<div class="receipt-add-row"><label>添加字段<select id="layoutAddField"><option value="">选择字段…</option>'+receiptFields.map(f=>'<option value="'+f.id+'">'+esc(f.name)+'</option>').join('')+'</select></label><button type="button" id="layoutAddText">＋自定义文字</button><button type="button" id="layoutAddDivider">＋分隔线</button></div>'+
+  '<div class="receipt-freeform-columns"><section><h3>收据元素 <small>按住 ☰ 拖动排序</small></h3><div id="layoutReceiptBlocks"></div><button id="layoutReceiptSave" type="button" class="main-button">保存收据模板</button><p id="layoutReceiptStatus" role="status"></p></section><section class="receipt-preview-card"><h3>实时预览</h3><div id="layoutReceiptPreview" class="receipt-preview-area"></div></section></div></article>';
+  root.querySelector('#layoutMode').value=mode;root.querySelector('#layoutFont').value=layout.font_size;root.querySelector('#layoutGap').value=String(layout.gap);
   root.querySelector('#layoutMode').onchange=e=>{mode=e.target.value;blocks();preview();};
-  root.querySelector('#layoutFont').value=layout.font_size;
-  root.querySelector('#layoutGap').value=String(layout.gap);
   root.querySelector('#layoutFont').onchange=e=>{layout.font_size=e.target.value;preview();};
   root.querySelector('#layoutGap').onchange=e=>{layout.gap=Number(e.target.value);preview();};
-  root.querySelector('#layoutReceiptSave').onclick=save;
-  blocks();preview();
+  root.querySelector('#layoutAddField').onchange=e=>{const id=e.target.value;if(!id)return;const key='field-'+id+'-'+Date.now().toString(36);current().push({key,type:'field',field:id,width:'full',align:'left',font_size:'0',bold:false,visible:true});e.target.value='';blocks();preview();};
+  root.querySelector('#layoutAddText').onclick=()=>{const text=window.prompt('输入要打印在收据上的文字（最多 240 字）：');if(text===null)return;current().push({key:'text-'+Date.now().toString(36),type:'text',text:text.slice(0,240),width:'full',align:'left',font_size:'0',bold:false,visible:true});blocks();preview();};
+  root.querySelector('#layoutAddDivider').onclick=()=>{current().push({key:'divider-'+Date.now().toString(36),type:'divider',divider:'dashed',width:'full',align:'left',font_size:'0',bold:false,visible:true});blocks();preview();};
+  root.querySelector('#layoutReceiptSave').onclick=save;blocks();preview();
  }
  function blocks(){
-  const parent=root.querySelector('#layoutReceiptBlocks');
-  parent.innerHTML=modeBlocks().map((b,i)=>{
-   const required=['items','document','total'].includes(b.id);
-   return '<div class="receipt-design-row" data-key="'+b.id+'"><label class="checkline">'+
-     '<input type="checkbox" data-visible="'+b.id+'" '+(b.visible?'checked':'')+(required?' disabled':'')+'><span>'+names[b.id]+'</span></label>'+
-     '<div><button type="button" data-shift="'+b.id+'" data-dir="-1" '+(i===0?'disabled':'')+'>↑</button>'+
-     '<button type="button" data-shift="'+b.id+'" data-dir="1" '+(i===7?'disabled':'')+'>↓</button></div></div>';
-  }).join('');
-  parent.onchange=e=>{const id=e.target.dataset.visible;if(id){modeBlocks().find(b=>b.id===id).visible=e.target.checked;preview();}};
-  parent.onclick=e=>{const btn=e.target.closest('[data-shift]');if(!btn)return;
-   const i=modeBlocks().findIndex(b=>b.id===btn.dataset.shift),j=i+Number(btn.dataset.dir);
-   if(j<0||j>=modeBlocks().length)return;
-   [modeBlocks()[i],modeBlocks()[j]]=[modeBlocks()[j],modeBlocks()[i]];
-   blocks();preview();
-  };
+  const parent=root.querySelector('#layoutReceiptBlocks'),items=current();
+  parent.innerHTML=items.map((el,i)=>'<article class="receipt-element-card" data-key="'+esc(el.key)+'"><div class="receipt-element-head"><button class="receipt-drag-handle" type="button" aria-label="拖动排序" title="拖动排序">☰</button><strong>'+esc(el.type==='field'?fieldName(el.field):el.type==='text'?'自定义文字':el.type==='divider'?'分隔线':'元素')+'</strong><label class="receipt-element-visible"><input type="checkbox" data-prop="visible" '+(el.visible?'checked':'')+(el.type==='field'&&['items','document','total'].includes(el.field)?' disabled':'')+'>显示</label><button type="button" data-delete="'+esc(el.key)+'" aria-label="删除元素" '+(el.type==='field'&&['items','document','total'].includes(el.field)?'disabled':'')+'>删除</button></div>'+
+  (el.type==='text'?'<label>打印文字<textarea data-prop="text" maxlength="240" rows="2">'+esc(el.text)+'</textarea></label>':'')+
+  '<div class="receipt-element-options"><label>宽度<select data-prop="width"><option value="full" '+(el.width==='full'?'selected':'')+'>整行</option><option value="half" '+(el.width==='half'?'selected':'')+'>半行</option></select></label><label>对齐<select data-prop="align">'+['left','center','right'].map(x=>'<option value="'+x+'" '+(el.align===x?'selected':'')+'>'+({left:'靠左',center:'居中',right:'靠右'}[x])+'</option>').join('')+'</select></label><label>字号<select data-prop="font_size">'+['0',7,8,9,10,11,12,13,14,15,16,18,20,22,24].map(x=>'<option value="'+x+'" '+(String(el.font_size)===String(x)?'selected':'')+'>'+(String(x)==='0'?'跟随整体':x+' px')+'</option>').join('')+'</select></label><label class="checkline"><input type="checkbox" data-prop="bold" '+(el.bold?'checked':'')+'>加粗</label></div></article>').join('');
+  parent.querySelectorAll('[data-prop]').forEach(control=>control.addEventListener('input',()=>{const card=control.closest('[data-key]'),item=items.find(x=>x.key===card.dataset.key);item[control.dataset.prop]=control.type==='checkbox'?control.checked:control.value;preview();}));
+  parent.querySelectorAll('[data-delete]').forEach(btn=>btn.onclick=()=>{layout.variants[mode].elements=items.filter(x=>x.key!==btn.dataset.delete);blocks();preview();});
+  let dragged=null;parent.querySelectorAll('.receipt-drag-handle').forEach(handle=>{handle.onpointerdown=e=>{e.preventDefault();dragged=handle.closest('[data-key]');dragged.classList.add('is-dragging');handle.setPointerCapture(e.pointerId);};handle.onpointermove=e=>{if(!dragged)return;const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('.receipt-element-card');if(target&&target!==dragged){const r=target.getBoundingClientRect();parent.insertBefore(dragged,e.clientY<r.top+r.height/2?target:target.nextSibling);}};handle.onpointerup=()=>{if(!dragged)return;dragged.classList.remove('is-dragging');const order=[...parent.querySelectorAll('[data-key]')].map(x=>x.dataset.key);layout.variants[mode].elements.sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));dragged=null;preview();};});
  }
  function preview(){
-  const el=root.querySelector('#layoutReceiptPreview');if(!el)return;
-  const s=settings||{},paid=mode==='paid';
-  const title=esc(s.business_name||'YE·TIPSY'),subtitle=esc(s.subtitle||'KLUANG · POINT OF SALE');
-  const footer=esc(s.footer_text||'Thank you for visiting Yetipsy.');
-  el.innerHTML='<div class="receipt-paper" style="--receipt-width:'+([58,80].includes(Number(s.paper_width_mm))?Number(s.paper_width_mm):80)+'mm">'+
-    '<div class="receipt-logo">'+title+'</div><div class="receipt-subhead">'+subtitle+'</div>'+
-    '<div class="receipt-document">'+(paid?'✓ 已收款 · PAYMENT RECEIPT':'尚未结账 · UNPAID BILL')+'</div>'+
-    '<div class="receipt-facts"><p><strong>#YT-1024</strong></p><p>桌号 · Table 08</p><p>Created · Today</p></div>'+
-    '<div class="receipt-items-head"><span>商品 / ITEM</span><span>AMOUNT</span></div>'+
-    '<div class="receipt-row"><div><strong>Cocktail</strong><small>2 × RM20.00</small></div><b>RM40.00</b></div>'+
-    '<div class="receipt-subtotal"><span>SUBTOTAL</span><b>RM40.00</b></div>'+
-    '<div class="receipt-discount"><span>Voucher Discount</span><b>−RM5.00</b></div>'+
-    '<div class="receipt-sum"><span>'+(paid?'TOTAL PAID':'AMOUNT DUE')+'</span><strong>RM35.00</strong></div>'+
-    '<div class="receipt-payments"><small>'+(paid?'PAID · CASH':'AWAITING PAYMENT')+'</small></div>'+
-    '<p class="receipt-bottom">'+footer+'</p></div>';
-  applyReceiptLayout(el.querySelector('.receipt-paper'),layout,mode);
+  const el=root.querySelector('#layoutReceiptPreview');if(!el)return;const s=settings||{};
+  el.innerHTML='<div class="receipt-paper" style="--receipt-width:'+([58,80].includes(Number(s.paper_width_mm))?Number(s.paper_width_mm):80)+'mm">'+demo()+'</div>';
+  applyReceiptLayout(el.querySelector('.receipt-paper'),layout,mode,s);
  }
  async function save(){
-  if(saving||!isOwner())return;saving=true;const button=root.querySelector('#layoutReceiptSave');
-  const status=root.querySelector('#layoutReceiptStatus');
-  button.disabled=true;status.textContent='保存中…';
-  try{
-   layout.blocks=layout.variants.paid.blocks.map(b=>({...b}));
-   const result=await db.rpc('yt_receipt_layout_save',{p_layout:layout});
-   if(result.error)throw result.error;
-   layout=normalizeReceiptLayout(result.data);status.textContent='排版已保存。之后打开的账单自动采用新格式。';notice(status.textContent);
-  }catch(e){status.textContent='保存失败：'+(e.message||e);notice(status.textContent,true);}
-  finally{saving=false;button.disabled=false;}
+  if(saving||!isOwner())return;saving=true;const button=root.querySelector('#layoutReceiptSave'),status=root.querySelector('#layoutReceiptStatus');button.disabled=true;status.textContent='保存中…';
+  try{layout.blocks=receiptBlocks.map(id=>({id,visible:true}));const result=await db.rpc('yt_receipt_layout_save',{p_layout:layout});if(result.error)throw result.error;layout=normalizeReceiptLayout(result.data,settings||{});status.textContent='模板已保存，所有设备新打开的收据会采用此排版。';notice(status.textContent);}
+  catch(e){status.textContent='保存失败：'+(e.message||e);notice(status.textContent,true);}
+  finally{saving=false;if(button.isConnected)button.disabled=false;}
  }
- draw();
- return{preview};
+ draw();return{preview,setSettings(next){settings={...(settings||{}),...(next||{})};preview();},cancel(){}};
 }

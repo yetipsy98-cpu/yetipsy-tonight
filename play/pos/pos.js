@@ -4,8 +4,8 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
-import {createConsole} from './console.js?v=20261016-custom-usernames-v1';
-import {applyReceiptLayout} from './receipt-layout.js?v=20261012-v22';
+import {createConsole} from './console.js?v=20261020-receipt-freeform-v1';
+import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-freeform-v1';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
@@ -626,32 +626,41 @@ const friendlyDate=d=>d?stamp(d):'—';
 const portalClientUrl=()=>new URL('../',import.meta.url);
 function receiptInner(r){
  const paid=r.payment_status==='paid',refunded=r.payment_status==='refunded',balance=Number(r.balance_rm||0),s=r.receipt_settings||{};
- const lang=['zh','en','bilingual'].includes(s.receipt_language)?s.receipt_language:'bilingual',label=(zh,en)=>lang==='zh'?zh:lang==='en'?en:`${zh} ${en}`;
- const showTable=s.show_table!==false,showStaff=s.show_staff!==false,showNotes=s.show_notes!==false,showDiscounts=s.show_discounts!==false,width=[58,80].includes(Number(s.paper_width_mm))?Number(s.paper_width_mm):80;
+ const lang=['zh','en','bilingual'].includes(s.receipt_language)?s.receipt_language:'bilingual',label=(zh,en)=>lang==='zh'?zh:lang==='en'?en:zh+' '+en;
+ const width=[58,80].includes(Number(s.paper_width_mm))?Number(s.paper_width_mm):80;
+ const field=(id,html)=>'<section class="receipt-field-node receipt-field-'+id+'" data-receipt-field="'+id+'">'+html+'</section>';
  const business=esc(s.business_name||'YE·TIPSY'),subtitle=esc(s.subtitle??'KLUANG · POINT OF SALE'),address=esc(s.address_line||''),contact=esc(s.contact_line||''),footer=esc(s.footer_text||'Thank you for visiting Yetipsy.').replace(/\n/g,'<br>');
- const items=(r.items||[]).map(i=>`<div class="receipt-row"><div><strong>${esc(i.item_name||'Drink')}</strong><small>${Number(i.quantity)} × ${money(i.unit_price_rm)}${showDiscounts&&Number(i.discount_rm)>0?' · '+label('优惠','DISCOUNT')+' −'+money(i.discount_rm):''}</small></div><b>${money(i.line_total_rm)}</b></div>`).join('');
+ const items=(r.items||[]).map(i=>'<div class="receipt-row"><div><strong>'+esc(i.item_name||'Drink')+'</strong><small>'+Number(i.quantity)+' × '+money(i.unit_price_rm)+(Number(i.discount_rm)>0?' · '+label('优惠','DISCOUNT')+' −'+money(i.discount_rm):'')+'</small></div><b>'+money(i.line_total_rm)+'</b></div>').join('');
  const discount=Number(r.discount_total_rm||0);
- return `<div class="receipt-paper" id="receiptPaper" style="--receipt-width:${width}mm"><div class="receipt-logo">${business}</div>${subtitle?`<div class="receipt-subhead">${subtitle}</div>`:''}${address?`<div class="receipt-business-line">${address}</div>`:''}${contact?`<div class="receipt-business-line">${contact}</div>`:''}
- <div class="receipt-document">${refunded?label('已退款取消 ·','REFUND RECORD'):['cancelled','rejected'].includes(r.status)?label('已取消 · 非付款凭证','CANCELLED · NOT A RECEIPT'):paid?'✓ '+label('已收款 ·','PAYMENT RECEIPT'):label('尚未结账 ·','UNPAID BILL')}</div>
- <div class="receipt-facts"><p><strong>#${esc(r.order_no||'—')}</strong></p>${showTable?`<p>${label('桌号','Table')} · ${esc(r.table_label||'Walk-in')}</p>`:''}<p>${label('开单','Created')} · ${esc(friendlyDate(r.created_at))}</p>${showStaff?`<p>${label('员工','By')} · ${esc(r.created_by||'—')}</p>`:''}
- ${paid?`<p>${label('付款','Paid')} · ${esc(friendlyDate(r.paid_at))}</p><p>${label('方式','Payment')} · ${esc((r.payment_method||'foodcourt').toUpperCase())}</p>`:''}
- ${showNotes&&r.notes?`<p>${label('备注','Note')} · ${esc(r.notes)}</p>`:''}</div>
- <div class="receipt-items-head"><span>${label('商品 /','ITEM')}</span><span>${label('金额 /','AMOUNT')}</span></div>${items}
- <div class="receipt-subtotal"><span>${label('商品原价','SUBTOTAL')}</span><b>${money(r.gross_total_rm)}</b></div>
- ${showDiscounts?(r.discounts||[]).map(d=>`<div class="receipt-discount"><div><span>${esc(d.reward_name||label('奖励优惠','REWARD'))}</span>${d.item_name?`<small>${esc(d.item_name)}</small>`:''}</div><b>−${money(d.discount_rm)}</b></div>`).join(''):''}
- ${showDiscounts&&discount>0?`<div class="receipt-subtotal"><span>${label('优惠合计','DISCOUNT')}</span><b>−${money(discount)}</b></div>`:''}
- <div class="receipt-sum"><span>${refunded?label('修订后金额','REVISED TOTAL'):paid&&balance!==0?label('修订后应付','TOTAL DUE'):paid?label('已收款','TOTAL PAID'):label('应付','AMOUNT DUE')}</span><strong>${money(r.amount_rm)}</strong></div>
- ${(paid||refunded)&&balance!==0?`<div class="receipt-subtotal"><span>${label('实收净额','NET RECEIVED')}</span><b>${money(r.received_rm)}</b></div><div class="receipt-hold-note">${balance>0?label('尚需补收','BALANCE DUE'):label('尚需退款','REFUND DUE')} ${money(Math.abs(balance))}</div>`:''}
- ${r.payment_entries?.length>1?`<details class="receipt-payments" open><summary>${label('收款与退款记录','PAYMENT HISTORY')}</summary>${r.payment_entries.map(e=>`<div class="receipt-row"><span>${esc(({cash:label('现金','CASH'),foodcourt:label('食阁','FOODCOURT'),duitnow:'DuitNow',card:label('刷卡','CARD'),bank_transfer:label('转账','TRANSFER'),other:label('其他','OTHER')})[e.method]||e.method)} · ${Number(e.amount_rm)<0?label('退款','REFUND'):e.kind==='adjustment'?label('补收','ADJUSTMENT'):label('收款','PAYMENT')}</span><b>${Number(e.amount_rm)<0?'−':''}${money(Math.abs(e.amount_rm))}</b></div>`).join('')}</details>`:''}
- ${r.discount_pending?`<p class="receipt-hold-note">${label('上述优惠已预留，完成结账后正式核销。','Discounts are reserved until checkout.')}</p>`:''}
- ${!paid&&!refunded&&(r.unresolved_count>0||r.minimum_met===false)?`<p class="receipt-hold-note">${label('优惠需要店员重新核对，当前账单尚不能结账。','Discounts need review before checkout.')}</p>`:''}
- <p class="receipt-bottom">${footer}${footer?'<br>':''}${label('店内账单记录 · 非税务发票','Store bill · Not a tax invoice')}</p>
- </div>`;
+ const status=refunded?label('已退款取消 ·','REFUND RECORD'):['cancelled','rejected'].includes(r.status)?label('已取消 · 非付款凭证','CANCELLED · NOT A RECEIPT'):paid?'✓ '+label('已收款 ·','PAYMENT RECEIPT'):label('尚未结账 ·','UNPAID BILL');
+ const paymentName=(r.payment_method||'foodcourt').toUpperCase();
+ const history=(r.payment_entries||[]).length>1?'<details class="receipt-payments" open><summary>'+label('收款与退款记录','PAYMENT HISTORY')+'</summary>'+(r.payment_entries||[]).map(e=>'<div class="receipt-row"><span>'+esc(({cash:label('现金','CASH'),foodcourt:label('食阁','FOODCOURT'),duitnow:'DuitNow',card:label('刷卡','CARD'),bank_transfer:label('转账','TRANSFER'),other:label('其他','OTHER')})[e.method]||e.method)+' · '+(Number(e.amount_rm)<0?label('退款','REFUND'):e.kind==='adjustment'?label('补收','ADJUSTMENT'):label('收款','PAYMENT'))+'</span><b>'+(Number(e.amount_rm)<0?'−':'')+money(Math.abs(e.amount_rm))+'</b></div>').join('')+'</details>':'';
+ return '<div class="receipt-paper" id="receiptPaper" style="--receipt-width:'+width+'mm">'+
+ (business?field('business_name','<div class="receipt-logo">'+business+'</div>'):'')+(subtitle?field('subtitle','<div class="receipt-subhead">'+subtitle+'</div>'):'')+
+ (address?field('address_line','<div class="receipt-business-line">'+address+'</div>'):'')+(contact?field('contact_line','<div class="receipt-business-line">'+contact+'</div>'):'')+
+ field('document','<div class="receipt-document">'+status+'</div>')+
+ field('order_no','<div class="receipt-facts"><p><strong>#'+esc(r.order_no||'—')+'</strong></p></div>')+
+ field('table','<div class="receipt-facts"><p>'+label('桌号','Table')+' · '+esc(r.table_label||'Walk-in')+'</p></div>')+
+ field('created_at','<div class="receipt-facts"><p>'+label('开单','Created')+' · '+esc(friendlyDate(r.created_at))+'</p></div>')+
+ field('staff','<div class="receipt-facts"><p>'+label('员工','By')+' · '+esc(r.created_by||'—')+'</p></div>')+
+ (paid?field('paid_at','<div class="receipt-facts"><p>'+label('付款','Paid')+' · '+esc(friendlyDate(r.paid_at))+'</p></div>'):'')+
+ (paid?field('payment_method','<div class="receipt-facts"><p>'+label('方式','Payment')+' · '+esc(paymentName)+'</p></div>'):'')+
+ (r.notes?field('notes','<div class="receipt-facts"><p>'+label('备注','Note')+' · '+esc(r.notes)+'</p></div>'):'')+
+ field('items','<div class="receipt-items-head"><span>'+label('商品 /','ITEM')+'</span><span>'+label('金额 /','AMOUNT')+'</span></div>'+items)+
+ field('subtotal','<div class="receipt-subtotal"><span>'+label('商品原价','SUBTOTAL')+'</span><b>'+money(r.gross_total_rm)+'</b></div>')+
+ ((r.discounts||[]).length?field('discount_lines',(r.discounts||[]).map(d=>'<div class="receipt-discount"><div><span>'+esc(d.reward_name||label('奖励优惠','REWARD'))+'</span>'+(d.item_name?'<small>'+esc(d.item_name)+'</small>':'')+'</div><b>−'+money(d.discount_rm)+'</b></div>').join('')):'')+
+ (discount>0?field('discount_total','<div class="receipt-subtotal"><span>'+label('优惠合计','DISCOUNT')+'</span><b>−'+money(discount)+'</b></div>'):'')+
+ field('total','<div class="receipt-sum"><span>'+(refunded?label('修订后金额','REVISED TOTAL'):paid&&balance!==0?label('修订后应付','TOTAL DUE'):paid?label('已收款','TOTAL PAID'):label('应付','AMOUNT DUE'))+'</span><strong>'+money(r.amount_rm)+'</strong></div>')+
+ ((paid||refunded)&&balance!==0?field('balance','<div class="receipt-subtotal"><span>'+label('实收净额','NET RECEIVED')+'</span><b>'+money(r.received_rm)+'</b></div><div class="receipt-hold-note">'+(balance>0?label('尚需补收','BALANCE DUE'):label('尚需退款','REFUND DUE'))+' '+money(Math.abs(balance))+'</div>'):'')+
+ (history?field('payment_history',history):'')+
+ (r.discount_pending?field('reserved_note','<p class="receipt-hold-note">'+label('上述优惠已预留，完成结账后正式核销。','Discounts are reserved until checkout.')+'</p>'):'')+
+ (!paid&&!refunded&&(r.unresolved_count>0||r.minimum_met===false)?field('pending_warning','<p class="receipt-hold-note">'+label('优惠需要店员重新核对，当前账单尚不能结账。','Discounts need review before checkout.')+'</p>'):'')+
+ field('footer','<p class="receipt-bottom">'+footer+(footer?'<br>':'')+label('店内账单记录 · 非税务发票','Store bill · Not a tax invoice')+'</p></div>');
 }
 async function viewReceipt(orderId){
  const data=unpack(await db.rpc('yt_pos_bill_v8',{p_order:orderId}));
  $('receiptContent').innerHTML=receiptInner(data);
- applyReceiptLayout($('receiptContent').querySelector('.receipt-paper'),data.receipt_settings?.layout,data.payment_status==='paid'?'paid':'unpaid');
+ applyReceiptLayout($('receiptContent').querySelector('.receipt-paper'),data.receipt_settings?.layout,data.payment_status==='paid'?'paid':'unpaid',data.receipt_settings||{});
  $('receiptTitle').textContent='#'+(data.order_no||'ORDER')+' · '+(data.payment_status==='refunded'?'退款记录':data.payment_status==='paid'?'Receipt':'未付款账单');
  $('receiptOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');

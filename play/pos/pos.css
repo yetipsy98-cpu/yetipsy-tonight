@@ -261,3 +261,17 @@ body.sheet-open{overflow:hidden}
 @media(max-width:600px){.storebox-history-box>summary{align-items:flex-start}.storebox-history-meta{max-width:48%;font-size:.72rem}.storebox-claim-detail-list{grid-template-columns:1fr}.storebox-claim-detail-list>span{min-width:0}.storebox-history-events{padding:0 9px 10px}}
 
 .storebox-history-view{display:inline-block;margin-left:8px;border:1px solid #7a6744;border-radius:999px;padding:3px 8px;color:#f0d89e;font-size:.75rem;white-space:nowrap}.storebox-history-events-heading{margin:12px 0 8px;color:#e8d6aa;font-size:.88rem}
+
+
+/* Freeform receipt template canvas */
+.receipt-layout-canvas{width:100%;min-width:0}
+.receipt-layout-element{min-width:0;overflow-wrap:anywhere}
+.receipt-layout-element.receipt-align-left{text-align:left}
+.receipt-layout-element.receipt-align-center{text-align:center}
+.receipt-layout-element.receipt-align-right{text-align:right}
+.receipt-layout-element.receipt-bold{font-weight:800}
+.receipt-custom-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.receipt-custom-divider{border:0;border-top:1px dashed #64736a;margin:4px 0;width:100%}
+.receipt-custom-divider[data-divider=solid]{border-top-style:solid}
+.receipt-field-node{min-width:0}
+@media print{.receipt-layout-element{break-inside:avoid}.receipt-layout-canvas{gap:var(--receipt-print-gap,4px)}}
