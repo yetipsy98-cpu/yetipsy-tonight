@@ -5,5 +5,5 @@ assert.match(layout,/payment_method/);assert.match(layout,/position='absolute'/)
 assert.match(editor,/自定义文字/);assert.match(editor,/分隔线/);assert.match(editor,/data-prop="w"/);assert.match(editor,/data-prop="align"/);assert.match(editor,/contentEditable='true'/);assert.match(editor,/data-resize-handle/);assert.match(editor,/function movePointer/);
 assert.match(pos,/data-receipt-field=/);assert.match(pos,/field\('payment_method'/);assert.match(pos,/data\.receipt_settings\|\|\{\}/);
 assert.match(sql,/length\(p_layout::text\)>30000/);assert.match(sql,/jsonb_array_length\(elements\)>32/);assert.match(sql,/length\(el->>'text'\)>240/);assert.match(sql,/canvas_height/);assert.match(sql,/coalesce\(el->>'x'/);assert.match(sql,/coalesce\(el->>'w'/);assert.match(sql,/private\.yt_work_owner\(\)/);assert.match(sql,/revoke all on function public\.yt_receipt_layout_save/);
-assert.match(html,/receipt-freeform-v2/);
+assert.match(html,/receipt-freeform-v2/);assert.match(html,/receipt-preview-width-v3/);
 console.log('PASS: direct-manipulation receipt canvas contracts and bounded owner-only layout saving.');

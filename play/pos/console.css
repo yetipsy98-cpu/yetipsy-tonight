@@ -425,3 +425,10 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .receipt-preview-area>#layoutReceiptPreview{margin:0 auto}
 .receipt-element-options input[type=number]{width:100%;min-width:0}
 @media(max-width:520px){.receipt-preview-area{padding:8px 0;max-height:68vh}.receipt-editor-paper{padding:10px}.receipt-element-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Keep the receipt preview at its physical paper width inside the flex canvas. */
+.receipt-preview-area>#layoutReceiptPreview{display:block;width:max-content;max-width:100%;flex:0 0 auto;}
+.receipt-preview-area .receipt-editor-paper{display:block;width:min(var(--receipt-width,80mm),calc(100vw - 48px));max-width:330px;min-width:0;box-sizing:border-box;flex:none;}
+.receipt-editor-paper>.receipt-layout-canvas{width:100%;min-width:0;}
+@media(max-width:520px){.receipt-preview-area>#layoutReceiptPreview{max-width:100%;}.receipt-preview-area .receipt-editor-paper{width:min(var(--receipt-width,80mm),calc(100vw - 32px));}}
