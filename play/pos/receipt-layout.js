@@ -81,6 +81,7 @@ export function normalizeReceiptLayout(source,settings={}){
  const defaults=defaultReceiptLayout(settings);
  if(!source||typeof source!=='object')return defaults;
  const out={...defaults,...source};
+ out.compact_flow=source.compact_flow===true;
  out.font_size=fontSizes.includes(String(out.font_size))?String(out.font_size):'11';
  out.gap=[0,2,4,6,8,10,12,16].includes(Number(out.gap))?Number(out.gap):4;
  out.canvas_height=int(out.canvas_height,400,2400,800);
@@ -91,35 +92,67 @@ export function normalizeReceiptLayout(source,settings={}){
  }
  return out;
 }
-export function applyReceiptLayout(paper,raw,mode='paid',settings={}){
+export function applyReceiptLayout(paper,raw,mode='paid',settings={},options={}){
  if(!paper)return;
  const config=normalizeReceiptLayout(raw,settings),elements=config.variants[mode==='unpaid'?'unpaid':'paid'].elements;
  const fieldNodes=new Map([...paper.children].filter(node=>node.dataset?.receiptField).map(node=>[node.dataset.receiptField,node]));
- const canvas=document.createElement('div');canvas.className='receipt-layout-canvas';
- canvas.style.position='relative';canvas.style.width='100%';canvas.style.minHeight='360px';canvas.style.columnGap=config.gap+'px';
- const usedFields=new Set();let maxBottom=0;
- elements.forEach((item,index)=>{
-  if(!item.visible)return;
+ const compactFlow=config.compact_flow===true&&options.compact===true;
+ const usedFields=new Set(),placed=[];
+ const makeNode=(item,index)=>{
   let content=null;
   if(item.type==='field'){
-   const source=fieldNodes.get(item.field);if(!source)return;
+   const source=fieldNodes.get(item.field);if(!source)return null;
    content=usedFields.has(item.field)?source.cloneNode(true):source;usedFields.add(item.field);
   }else if(item.type==='text'){
-   content=document.createElement('div');content.className='receipt-custom-text';content.textContent=item.text;content.style.whiteSpace='pre-wrap';
+   content=document.createElement('div');content.className='receipt-custom-text';content.textContent=item.text;content.style.whiteSpace='pre-wrap';content.style.overflowWrap='anywhere';
   }else if(item.type==='divider'){
    content=document.createElement('hr');content.className='receipt-custom-divider';content.dataset.divider=item.divider;
   }
-  if(!content)return;
+  if(!content)return null;
   const wrapper=document.createElement('div');
   wrapper.className='receipt-layout-element receipt-align-'+item.align+(item.bold?' receipt-bold':'');
   wrapper.dataset.elementKey=item.key;wrapper.dataset.elementType=item.type;
-  wrapper.style.position='absolute';wrapper.style.left=item.x+'%';wrapper.style.top=item.y+'px';
-  wrapper.style.width=item.w+'%';wrapper.style.minHeight=item.h+'px';wrapper.style.boxSizing='border-box';
-  wrapper.style.zIndex=String(index+1);
+  if(item.type==='field')wrapper.dataset.receiptField=item.field;
+  wrapper.style.boxSizing='border-box';wrapper.style.minWidth='0';
+  if(compactFlow){
+   wrapper.style.position='relative';wrapper.style.left='auto';wrapper.style.top='auto';
+   wrapper.style.width='auto';wrapper.style.minHeight='0';
+  }else{
+   wrapper.style.position='absolute';wrapper.style.left=item.x+'%';wrapper.style.top=item.y+'px';
+   wrapper.style.width=item.w+'%';wrapper.style.minHeight=item.h+'px';wrapper.style.zIndex=String(index+1);
+  }
   if(item.font_size!=='0')wrapper.style.fontSize=item.font_size+'px';
   if(item.type==='text')content.dataset.inlineText=item.key;
-  wrapper.append(content);canvas.append(wrapper);maxBottom=Math.max(maxBottom,item.y+item.h);
+  wrapper.append(content);
+  return wrapper;
+ };
+ elements.forEach((item,index)=>{
+  if(!item.visible)return;
+  const wrapper=makeNode(item,index);
+  if(wrapper)placed.push({item,index,wrapper});
  });
+ const canvas=document.createElement('div');canvas.className='receipt-layout-canvas';
+ canvas.style.position='relative';canvas.style.width='100%';canvas.style.minWidth='0';
+ if(compactFlow){
+  canvas.style.display='grid';canvas.style.gridAutoRows='min-content';canvas.style.rowGap=config.gap+'px';canvas.style.height='auto';canvas.style.minHeight='0';
+  const rows=new Map();
+  for(const entry of placed){const y=Number(entry.item.y)||0;if(!rows.has(y))rows.set(y,[]);rows.get(y).push(entry);}
+  for(const [y,rowItems] of [...rows.entries()].sort((a,b)=>a[0]-b[0])){
+   const row=document.createElement('div');row.className='receipt-layout-row';
+   row.style.display='grid';row.style.gridTemplateColumns='repeat(100,minmax(0,1fr))';
+   row.style.columnGap='0';row.style.alignItems='start';row.style.width='100%';row.style.minWidth='0';
+   for(const {item,wrapper} of rowItems){
+    const start=rowItems.length===1?0:Math.max(0,Math.min(99,Number(item.x)||0));
+    const span=rowItems.length===1?100:Math.max(1,Math.min(Number(item.w)||100,100-start));
+    wrapper.style.gridColumn=(start+1)+' / span '+span;row.append(wrapper);
+   }
+   canvas.append(row);
+  }
+  paper.replaceChildren(canvas);paper.style.fontSize=config.font_size+'px';paper.style.lineHeight='1.45';return paper;
+ }
+ let maxBottom=0;
+ for(const {item,wrapper} of placed){canvas.append(wrapper);maxBottom=Math.max(maxBottom,item.y+item.h);}
+ canvas.style.minHeight='360px';canvas.style.columnGap=config.gap+'px';
  canvas.style.height=Math.max(config.canvas_height,maxBottom+12)+'px';
  paper.replaceChildren(canvas);paper.style.fontSize=config.font_size+'px';paper.style.lineHeight='1.45';return paper;
 }
