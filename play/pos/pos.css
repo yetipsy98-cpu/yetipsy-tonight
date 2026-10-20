@@ -275,3 +275,18 @@ body.sheet-open{overflow:hidden}
 .receipt-custom-divider[data-divider=solid]{border-top-style:solid}
 .receipt-field-node{min-width:0}
 @media print{.receipt-layout-element{break-inside:avoid}.receipt-layout-canvas{gap:var(--receipt-print-gap,4px)}}
+
+
+/* Receipt template cleanup: compact aligned canvas. */
+.receipt-layout-element .receipt-logo{line-height:1.1;margin:0}
+.receipt-layout-element .receipt-subhead{margin:0}
+.receipt-layout-element .receipt-business-line{margin:0;line-height:1.35}
+.receipt-layout-element .receipt-document{padding:5px 8px;line-height:1.35}
+.receipt-layout-element .receipt-facts{border:0;padding:0}
+.receipt-layout-element .receipt-facts p{margin:0;line-height:1.35}
+.receipt-layout-element .receipt-items-head{padding:4px 0}
+.receipt-layout-element .receipt-row{padding:5px 0}
+.receipt-layout-element .receipt-row small{margin-top:2px}
+.receipt-layout-element .receipt-discount{padding:3px 0}
+.receipt-layout-element .receipt-sum{margin-top:4px;padding-top:6px}
+.receipt-layout-element .receipt-bottom{margin:5px 0 0}
