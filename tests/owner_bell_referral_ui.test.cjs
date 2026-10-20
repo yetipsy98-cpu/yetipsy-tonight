@@ -20,7 +20,7 @@ assert.match(html,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/,'Owner 
 assert.match(html,/id="ownerOrderApprovalsRoot"/,'approval content is mounted in the live admin POS page');
 assert(ownerHtml.includes('../pos/'),'legacy Owner route forwards to canonical POS');
 
-assert(html.includes('pos.js?v=20261020-receipt-english-easy-v4'),'live page loads the current POS module');
+assert(html.includes('pos.js?v=20261020-receipt-layout-guard-v5'),'live page loads the current POS module');
 assert.match(consoleUi,/members:[\s\S]*?\['loyalty','会员与积分'/,'membership settings are grouped under Member & Rewards');
 assert.match(html,/data-pane="service"[^]*?<div id="playBellSettingsRoot"><\/div>/,'service bell settings pane is preserved');
 assert.match(consoleUi,/customer:[\s\S]*?\['service','服务铃'/,'service bell is nested under Customer Experience');

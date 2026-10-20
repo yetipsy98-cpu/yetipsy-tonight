@@ -1,4 +1,4 @@
-import {receiptBlocks,receiptFields,normalizeReceiptLayout,applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-freeform-v2';
+import {receiptBlocks,receiptFields,normalizeReceiptLayout,applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-layout-guard-v5';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fieldName=id=>receiptFields.find(x=>x.id===id)?.name||id;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,Math.round(Number(v)||0)));

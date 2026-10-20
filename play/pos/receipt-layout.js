@@ -10,7 +10,7 @@ export const receiptFields=[
 const fieldIds=new Set(receiptFields.map(x=>x.id));
 const fontSizes=['0','7','8','9','10','11','12','13','14','15','16','18','20','22','24'];
 const positionMap={
- business_name:[0,8,100,22],subtitle:[0,31,100,20],address_line:[0,53,100,16],contact_line:[0,71,100,16],
+ business_name:[0,8,100,22],subtitle:[0,31,100,20],address_line:[0,53,100,18],contact_line:[0,71,100,18],
  document:[0,91,100,36],order_no:[0,131,100,20],table:[0,152,100,20],created_at:[0,173,100,20],
  staff:[0,194,100,20],paid_at:[0,215,100,20],payment_method:[0,236,100,20],notes:[0,257,100,24],
  items:[0,283,100,110],subtotal:[0,397,100,22],discount_lines:[0,421,100,42],discount_total:[0,465,100,22],
