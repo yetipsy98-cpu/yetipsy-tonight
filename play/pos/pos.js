@@ -4,7 +4,7 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
-import {createConsole} from './console.js?v=20261020-receipt-freeform-v2';
+import {createConsole} from './console.js?v=20261020-receipt-english-easy-v4';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-freeform-v2';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
@@ -626,7 +626,7 @@ const friendlyDate=d=>d?stamp(d):'—';
 const portalClientUrl=()=>new URL('../',import.meta.url);
 function receiptInner(r){
  const paid=r.payment_status==='paid',refunded=r.payment_status==='refunded',balance=Number(r.balance_rm||0),s=r.receipt_settings||{};
- const lang=['zh','en','bilingual'].includes(s.receipt_language)?s.receipt_language:'bilingual',label=(zh,en)=>lang==='zh'?zh:lang==='en'?en:zh+' '+en;
+ const label=(zh,en)=>en;
  const width=[58,80].includes(Number(s.paper_width_mm))?Number(s.paper_width_mm):80;
  const field=(id,html)=>'<section class="receipt-field-node receipt-field-'+id+'" data-receipt-field="'+id+'">'+html+'</section>';
  const business=esc(s.business_name||'YE·TIPSY'),subtitle=esc(s.subtitle??'KLUANG · POINT OF SALE'),address=esc(s.address_line||''),contact=esc(s.contact_line||''),footer=esc(s.footer_text||'Thank you for visiting Yetipsy.').replace(/\n/g,'<br>');
