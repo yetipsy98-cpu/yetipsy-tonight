@@ -134,13 +134,13 @@ export function applyReceiptLayout(paper,raw,mode='paid',settings={},options={})
  const canvas=document.createElement('div');canvas.className='receipt-layout-canvas';
  canvas.style.position='relative';canvas.style.width='100%';canvas.style.minWidth='0';
  if(compactFlow){
-  canvas.style.display='grid';canvas.style.gridAutoRows='min-content';canvas.style.rowGap=config.gap+'px';canvas.style.height='auto';canvas.style.minHeight='0';
+  canvas.dataset.compact='true';canvas.style.display='flex';canvas.style.flexDirection='column';canvas.style.alignItems='stretch';canvas.style.alignContent='start';canvas.style.gap=config.gap+'px';canvas.style.height='auto';canvas.style.minHeight='0';
   const rows=new Map();
   for(const entry of placed){const y=Number(entry.item.y)||0;if(!rows.has(y))rows.set(y,[]);rows.get(y).push(entry);}
   for(const [y,rowItems] of [...rows.entries()].sort((a,b)=>a[0]-b[0])){
    const row=document.createElement('div');row.className='receipt-layout-row';
    row.style.display='grid';row.style.gridTemplateColumns='repeat(100,minmax(0,1fr))';
-   row.style.columnGap='0';row.style.alignItems='start';row.style.width='100%';row.style.minWidth='0';
+   row.style.columnGap='0';row.style.alignItems='start';row.style.alignContent='start';row.style.gridAutoRows='min-content';row.style.height='auto';row.style.minHeight='0';row.style.flex='0 0 auto';row.style.width='100%';row.style.minWidth='0';
    for(const {item,wrapper} of rowItems){
     const start=rowItems.length===1?0:Math.max(0,Math.min(99,Number(item.x)||0));
     const span=rowItems.length===1?100:Math.max(1,Math.min(Number(item.w)||100,100-start));
