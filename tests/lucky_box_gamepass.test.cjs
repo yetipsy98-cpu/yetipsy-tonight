@@ -20,6 +20,6 @@ assert.match(read('play/pos/lucky-box-owner.js'),/yt_lucky_owner_reset/);
 assert.match(read('play/pos/pos.js'),/console\.js\?v=[^'\"]+/);
 assert(read('play/index.html').includes('lucky-box.css?v=20261013-lucky-v2'));
 
- assert(read('play/admin/pos/index.html').includes('pos.js?v=20261020-storebox-expiry-void-kds-fold-v1'));for(const role of ['pos','owner','staff','cashier'])assert(read('play/'+role+'/index.html').includes('admin/pos/'),role+' alias route');
+ assert(read('play/admin/pos/index.html').includes('pos.js?v=20261020-receipt-freeform-v1'));for(const role of ['pos','owner','staff','cashier'])assert(read('play/'+role+'/index.html').includes('admin/pos/'),role+' alias route');
 
 console.log('PASS Lucky Box mode, anonymous reveal, wallet credit, Owner config, protected reset, GamePass QR reuse');
