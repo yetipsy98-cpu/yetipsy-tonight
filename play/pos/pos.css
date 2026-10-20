@@ -290,3 +290,21 @@ body.sheet-open{overflow:hidden}
 .receipt-layout-element .receipt-discount{padding:3px 0}
 .receipt-layout-element .receipt-sum{margin-top:4px;padding-top:6px}
 .receipt-layout-element .receipt-bottom{margin:5px 0 0}
+
+
+/* Compact receipt output: keep actual print height tied to rendered content. */
+.receipt-layout-canvas[data-compact="true"]{display:flex!important;flex-direction:column!important;align-items:stretch!important;align-content:flex-start!important;gap:2px!important;height:auto!important;min-height:0!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-layout-row{height:auto!important;min-height:0!important;margin:0!important;padding:0!important;align-content:start!important;grid-auto-rows:min-content!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-layout-element{height:auto!important;min-height:0!important;margin:0!important;padding:0!important;align-self:start!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-field-node{height:auto!important;min-height:0!important;margin:0!important;padding:0!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-subhead{margin:2px 0 4px!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-business-line{margin:0!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-document{padding:5px!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-facts{padding:2px 0!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-facts p{margin:1px 0!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-items-head{padding:4px 0 2px!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-row{padding:4px 0!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-row small{margin-top:2px!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-subtotal{padding:2px 0!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-sum{margin-top:4px!important;padding-top:5px!important}
+.receipt-layout-canvas[data-compact="true"] .receipt-bottom{margin:7px 0 0!important}
