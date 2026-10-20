@@ -402,3 +402,26 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .receipt-preview-area .receipt-paper{flex:none;max-width:100%}
 @media(max-width:900px){.receipt-freeform-columns{grid-template-columns:1fr}.receipt-preview-card{position:static}.receipt-element-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.receipt-element-card{padding:9px}.receipt-element-head{gap:6px}.receipt-element-head strong{font-size:14px}.receipt-element-options{grid-template-columns:repeat(2,minmax(0,1fr))}.receipt-add-row{align-items:stretch}.receipt-add-row button{flex:1 1 auto}}
+
+
+/* Direct manipulation on the receipt canvas */
+.receipt-editor-paper{overflow:visible;max-width:100%;padding:14px}
+.receipt-editor-paper .receipt-layout-canvas{min-height:400px;overflow:visible}
+.receipt-editor-paper .receipt-layout-element{border:1px dashed #8b9a8c55;border-radius:3px;padding:2px;cursor:move;user-select:none;touch-action:none}
+.receipt-editor-paper .receipt-layout-element:hover{border-color:#b9985c}
+.receipt-editor-paper .receipt-layout-element.is-selected{border:2px solid #d5b26f;background:#d5b26f20;z-index:10000!important}
+.receipt-editor-paper .receipt-layout-element.is-dragging{opacity:.72;cursor:grabbing}
+.receipt-editor-paper .receipt-layout-element [data-inline-text]{white-space:pre-wrap;user-select:text;cursor:text;outline:none;min-height:1em}
+.receipt-resize-handle{position:absolute;right:-8px;bottom:-8px;width:23px;height:23px;padding:0;border:2px solid #1b241e;border-radius:50%;background:#e7c98e;touch-action:none;cursor:nwse-resize;z-index:10001}
+.receipt-layout-element:not(.is-selected)>.receipt-resize-handle{visibility:hidden}
+.receipt-element-inspector{border:1px solid #667866;border-radius:13px;background:#17261e;padding:13px;margin:12px 0}
+.receipt-inspector-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.receipt-inspector-head button{background:#2b3e30;color:#e8cf9e;border:1px solid #67755b;border-radius:8px;padding:8px 12px}
+.receipt-selected-name{font-weight:700;color:#ecd39f}
+.receipt-selected-name small{font-size:11px;color:#aebdb2;font-weight:500}
+.receipt-freeform-columns{grid-template-columns:minmax(0,1fr)}
+.receipt-canvas-column{min-width:0}
+.receipt-preview-area{justify-content:flex-start;max-height:75vh;overflow:auto;align-items:flex-start}
+.receipt-preview-area>#layoutReceiptPreview{margin:0 auto}
+.receipt-element-options input[type=number]{width:100%;min-width:0}
+@media(max-width:520px){.receipt-preview-area{padding:8px 0;max-height:68vh}.receipt-editor-paper{padding:10px}.receipt-element-options{grid-template-columns:repeat(2,minmax(0,1fr))}}

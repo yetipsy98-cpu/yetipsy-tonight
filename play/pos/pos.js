@@ -4,8 +4,8 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
-import {createConsole} from './console.js?v=20261020-receipt-freeform-v1';
-import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-freeform-v1';
+import {createConsole} from './console.js?v=20261020-receipt-freeform-v2';
+import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-freeform-v2';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';

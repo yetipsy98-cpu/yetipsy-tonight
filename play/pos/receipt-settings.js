@@ -1,4 +1,4 @@
-import {createReceiptLayoutEditor} from './receipt-layout-editor.js?v=20261020-receipt-freeform-v1';
+import {createReceiptLayoutEditor} from './receipt-layout-editor.js?v=20261020-receipt-freeform-v2';
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const defaults={business_name:'YE·TIPSY',subtitle:'KLUANG · POINT OF SALE',address_line:'',contact_line:'',footer_text:'Thank you for visiting Yetipsy.',paper_width_mm:80,receipt_language:'bilingual',show_table:true,show_staff:true,show_notes:true,show_discounts:true};
 const unpack=result=>{if(result?.error)throw Error(result.error.message||result.error.code||'server_unavailable');return result.data};
