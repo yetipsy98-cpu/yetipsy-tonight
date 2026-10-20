@@ -4,8 +4,8 @@ import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
-import {createConsole} from './console.js?v=20261020-receipt-layout-guard-v5';
-import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-layout-guard-v5';
+import {createConsole} from './console.js?v=20261020-receipt-compact-v1';
+import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v1';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
@@ -660,7 +660,7 @@ function receiptInner(r){
 async function viewReceipt(orderId){
  const data=unpack(await db.rpc('yt_pos_bill_v8',{p_order:orderId}));
  $('receiptContent').innerHTML=receiptInner(data);
- applyReceiptLayout($('receiptContent').querySelector('.receipt-paper'),data.receipt_settings?.layout,data.payment_status==='paid'?'paid':'unpaid',data.receipt_settings||{});
+ applyReceiptLayout($('receiptContent').querySelector('.receipt-paper'),data.receipt_settings?.layout,data.payment_status==='paid'?'paid':'unpaid',data.receipt_settings||{},{compact:true});
  $('receiptTitle').textContent='#'+(data.order_no||'ORDER')+' · '+(data.payment_status==='refunded'?'退款记录':data.payment_status==='paid'?'Receipt':'未付款账单');
  $('receiptOverlay').classList.remove('hidden');
  document.body.classList.add('sheet-open');
