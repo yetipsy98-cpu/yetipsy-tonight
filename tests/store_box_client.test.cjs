@@ -51,17 +51,17 @@ test('Cashier can arrange KDS service for claimed Store Box balances and Owner c
  assert.match(js,/data-box-search/);
  assert.match(js,/yt_store_box_reopen_list/);
  assert.match(js,/yt_store_box_reopen_review/);
+ assert.match(js,/storebox-cashier-kds-fold/);
  assert.match(js,/data-box-reopen-action/);
  assert.match(js,/存酒编号/);
 });
 
-test('customer sees each box number, reopen status, and timestamped serving staff history',()=>{
+test('customer sees each box number and timestamped serving history but cannot request reopening',()=>{
  const js=read('play/customer-store-box.js');
  assert.match(js,/row\.box_number/);
- assert.match(js,/yt_store_box_reopen_request/);
  assert.match(js,/served_history/);
  assert.match(js,/served_by_name/);
- assert.match(js,/data-store-box-reopen/);
+ assert.doesNotMatch(js,/yt_store_box_reopen_request|data-store-box-reopen|requestReopen/);
  assert.match(js,/year:'numeric'/);
 });
 
