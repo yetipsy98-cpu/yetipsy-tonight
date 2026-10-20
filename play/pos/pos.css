@@ -144,6 +144,12 @@ body.sheet-open{overflow:hidden}
 .filters .category-button-strip{flex:2 1 260px;min-width:0;max-width:100%}
 
 .cashier-followup{display:grid;gap:10px;border-top:1px solid #4d604b;padding-top:12px;margin-top:12px}
+.storebox-cashier-kds-fold{margin-top:10px;border:1px solid #53685a;border-radius:10px;background:#142018;overflow:hidden}
+.storebox-cashier-kds-fold>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:10px 12px;color:#e8d6aa;font-size:.9rem;font-weight:750;cursor:pointer;list-style:none}
+.storebox-cashier-kds-fold>summary::-webkit-details-marker{display:none}
+.storebox-cashier-kds-fold>summary::after{content:'＋';font-size:1rem}
+.storebox-cashier-kds-fold[open]>summary::after{content:'−'}
+.storebox-cashier-kds-fold[open]>.cashier-followup{margin:0;padding:0 12px 12px;border-top:1px solid #405447}
 .cashier-followup-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:10px}
 .cashier-followup-inputs label{display:flex;flex-direction:column;gap:4px}
 .cashier-followup-inputs input{max-width:100%;padding:9px}

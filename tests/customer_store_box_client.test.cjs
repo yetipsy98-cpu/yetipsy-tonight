@@ -24,6 +24,7 @@ test('lost request response reuses the exact original request',()=>{
 test('customer Store Box uses only protected RPC operations',()=>{
  for(const name of ['yt_store_box_claim_preview','yt_store_box_claim','yt_my_store_boxes','yt_store_box_request_v3','yt_store_box_request_cancel'])assert(moduleSource.includes(`'${name}'`),name);
  assert(moduleSource.includes('p_selections:frozen.selections'));assert(moduleSource.includes('p_request:frozen.request'));assert(!moduleSource.includes("db.from('yt_store_boxes')"));
+ assert.doesNotMatch(moduleSource,/data-store-box-reopen|yt_store_box_reopen_request|requestReopen/);
 });
 
 test('customer Store Box polling preserves the screen and open history when data is unchanged',()=>{

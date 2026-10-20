@@ -4,7 +4,7 @@ import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=202
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from './owner-banners.js?v=20261017-banner-create-mode-v1';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
-import {createCustomerStoreBox} from './customer-store-box.js?v=20261017-storebox-product-number-v1';
+import {createCustomerStoreBox} from './customer-store-box.js?v=20261020-no-customer-reopen-request-v1';
 import {createAmbassadorClient} from './ambassador-client.js?v=20261015-long-ambassador-button-v1';
 import {createClientI18n} from './client-i18n.js?v=20261015-play-v1';
 
