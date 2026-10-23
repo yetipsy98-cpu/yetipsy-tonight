@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const migration=fs.readFileSync('supabase/migrations/20261023120000_pos_single_code_and_cashier_adjustments.sql','utf8');
+const checkoutGuard=fs.readFileSync('supabase/migrations/20261023123000_pos_single_code_checkout_guard.sql','utf8');
+const customFoc=fs.readFileSync('supabase/migrations/20261023130000_allow_owner_approved_custom_foc.sql','utf8');
+const cashierRole=fs.readFileSync('supabase/migrations/20261023131500_adjustment_requests_cashier_role_only.sql','utf8');
+const html=fs.readFileSync('play/admin/pos/index.html','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8');
+const approvals=fs.readFileSync('play/pos/owner-order-approvals.js','utf8');
+
+for(const name of ['yt_pos_one_code_per_draft_guard','yt_pos_one_code_per_draft_guard','only_one_code_per_order'])assert(migration.includes(name),'database blocks multiple reward/MOON codes');
+assert.match(checkoutGuard,/yt_pos_create_order_with_rewards_v4/);
+for(const rpc of ['yt_pos_cashier_adjustment_submit','yt_pos_cashier_adjustment_requests_list','yt_pos_cashier_adjustment_requests_mine','yt_pos_cashier_adjustment_review'])assert(migration.includes(rpc),rpc+' RPC exists');
+assert.match(migration,/alter table public\.yt_pos_cashier_adjustment_requests enable row level security/i);
+assert.match(migration,/private\.yt_pos_work_cashier\(\).*private\.yt_work_owner\(\)/s,'only Cashier accounts may submit requests');
+assert.match(migration,/if not private\.yt_work_owner\(\) then raise exception 'owner_only'/,'Owner approval is enforced in database');
+assert.match(migration,/private\.yt_pos_create_order_with_rewards_v4\(r\.id/,'approval creates the order only after Owner action');
+assert.match(html,/id="focRequestBtn"/);assert.match(html,/id="discountRequestBtn"/);assert.match(html,/id="manualAdjustmentOverlay"/);
+assert.match(pos,/state\.identity\?\.role==='cashier'/,'request buttons only render for Cashier');
+assert.match(pos,/manual_adjustment_cannot_combine_code/);assert.match(pos,/percent/);assert.match(pos,/foc_product_ids/);
+assert.match(approvals,/yt_pos_cashier_adjustment_requests_list/);assert.match(approvals,/yt_pos_cashier_adjustment_review/);
+assert.match(customFoc,/current_setting\('yt\.pos\.owner_adjustment',true\)='on'/,'only owner-approved custom FOC bypasses the quote-price check');
+assert.match(cashierRole,/a\.role=''cashier''/,'only actual Cashier accounts can submit or check request status');
+console.log('PASS one redemption code per order and Cashier Owner-approved FOC/Discount flow');
