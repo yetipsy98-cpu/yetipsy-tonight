@@ -8,7 +8,7 @@ import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-payment-method-v1';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
-import {createAmbassadorTools} from './ambassador.js?v=20261023-owner-pass-cart-v3';
+import {createAmbassadorTools} from './ambassador.js?v=20261023-owner-pass-cart-v4';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -253,7 +253,7 @@ function isAmbassadorToken(raw){const text=String(raw||'').trim();if(/^YTAMB\s*:
 async function scanAmbassadorPass(raw){
  if(state.cart.size||state.ambassadorDraft)throw Error('ambassador_clear_cart_first');
  const p=unpack(await db.rpc('yt_ambassador_pos_pass_lookup',{p_token:raw}));
- const root=$('draftRewardChoices');state.draftSelection=null;root.innerHTML=`<article class="redeem-banner"><strong>Freeflow · ${esc(p.ambassador_name||'Ambassador')}</strong><p>${esc(p.reservation_day)} · 已核销 ${Number(p.checked_pax||0)} 位 / 预登记 ${Number(p.planned_pax||0)} 位</p>${Number(p.checked_pax||0)>Number(p.planned_pax||0)?'<p>已超过预登记人数；仍可继续核销，请确认实际人数。</p>':''}${p.guest_name?`<small>${esc(p.guest_name)}${p.guest_phone?' · '+esc(p.guest_phone):''}</small>`:''}<div class="cart-redeem-choices"><label>男士 ${money(p.male_price)}<input id="ambassadorMaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 男士人数"></label><label>女士 ${money(p.female_price)}<input id="ambassadorFemaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 女士人数"></label></div><p id="ambassadorPassQuote">合计 RM0.00</p><p id="ambassadorPassWarning" role="status"></p><button class="primary" id="ambassadorPassCreate" type="button">加入购物车</button></article>`;
+ const root=$('ambassadorCheckinPanel');state.draftSelection=null;root.classList.remove('hidden');root.innerHTML=`<article class="redeem-banner"><strong>Freeflow · ${esc(p.ambassador_name||'Ambassador')}</strong><p>${esc(p.reservation_day)} · 已核销 ${Number(p.checked_pax||0)} 位 / 预登记 ${Number(p.planned_pax||0)} 位</p>${Number(p.checked_pax||0)>Number(p.planned_pax||0)?'<p>已超过预登记人数；仍可继续核销，请确认实际人数。</p>':''}${p.guest_name?`<small>${esc(p.guest_name)}${p.guest_phone?' · '+esc(p.guest_phone):''}</small>`:''}<div class="cart-redeem-choices"><label>男士 ${money(p.male_price)}<input id="ambassadorMaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 男士人数"></label><label>女士 ${money(p.female_price)}<input id="ambassadorFemaleCount" type="number" min="0" max="500" step="1" value="0" aria-label="Freeflow 女士人数"></label></div><p id="ambassadorPassQuote">合计 RM0.00</p><p id="ambassadorPassWarning" role="status"></p><button class="primary" id="ambassadorPassCreate" type="button">加入购物车</button></article>`;
  const total=()=>Number($('ambassadorMaleCount').value||0)*Number(p.male_price||0)+Number($('ambassadorFemaleCount').value||0)*Number(p.female_price||0);
  const update=()=>{$('ambassadorPassQuote').textContent='合计 '+money(total());};
  const planned=Number(p.planned_pax||0),checked=Number(p.checked_pax||0),warn=()=>{
@@ -264,9 +264,8 @@ async function scanAmbassadorPass(raw){
  $('ambassadorPassCreate').onclick=()=>busy($('ambassadorPassCreate'),async()=>{
   const m=Number($('ambassadorMaleCount').value||0),f=Number($('ambassadorFemaleCount').value||0);if(!Number.isInteger(m)||!Number.isInteger(f)||m<0||f<0||m+f<1||m+f>500)throw Error('invalid_guest_count');
   state.ambassadorDraft={token:raw,pass_id:p.pass_id,pass_code:p.pass_code,reservation_day:p.reservation_day,ambassador_name:p.ambassador_name,commission_rate:Number(p.commission_rate||0),male:m,female:f,male_price:Number(p.male_price),female_price:Number(p.female_price),planned_pax:planned,checked_pax:checked,guest_name:p.guest_name,guest_phone:p.guest_phone};
-  state.draftSelection=null;$('draftRedeemToken').value='';root.replaceChildren();saveDraft();renderCart();openCartDrawer();showNotice('Freeflow 已加入购物车；请使用下方正常结账按钮。');
+  state.draftSelection=null;$('draftRedeemToken').value='';root.replaceChildren();root.classList.add('hidden');saveDraft();renderCart();openCartDrawer();showNotice('Freeflow 已加入购物车；购物车已打开，可继续结账。');
  }).catch(()=>{});
- openCartDrawer();
 }
 function setDraftRedeemOpen(open){const panel=$('draftRedeemPanel'),button=$('draftRedeemToggle');if(!panel||!button)return;panel.classList.toggle('hidden',!open);panel.setAttribute('aria-hidden',String(!open));button.setAttribute('aria-expanded',String(open));if(open)$('draftRedeemToken')?.focus();}
 async function scanDraftReward(){return draftOperation(async()=>{
