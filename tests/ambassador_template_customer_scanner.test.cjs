@@ -18,7 +18,7 @@ assert.match(posAmbassador, /yt_ambassador_qr_template_save/);
 assert.match(posAmbassador, /YTAMB:'\+x\.pass_code/);
 assert.match(posAmbassador, /const token=String\(redeem\.dataset\.passRedeem/);
 assert.match(posAmbassador, /requestAnimationFrame\(\(\)=>Promise\.resolve\(onRedeemPass/);
-assert.match(posAmbassador, /data-pass-redeem="\+'\+esc\(x\.pass_code\)/);
+assert.match(posAmbassador, /data-pass-redeem="'\+esc\(x\.pass_code\)\+'"/);
 assert.match(app, /function openRewardClaim\(\)\{openScanner\('claim'\)/);
 assert.match(app, /if\(info\.kind==='bind'\).*showOrderBinding/s);
 assert.match(app, /async function openScanner/);
