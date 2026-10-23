@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const binding=read('play/reward-binding.js');
+const pos=read('play/pos/pos.js');
+const posHtml=read('play/admin/pos/index.html');
+const migration=read('supabase/migrations/20261023023846_reward_minimum_drinks_zero.sql');
+
+assert.match(binding,/data-bind="minimum" type="number" min="0"/);
+assert.match(binding,/minimum<0\|\|minimum>20/);
+assert.match(binding,/无需付费饮品/);
+assert.match(posHtml,/id="mapMinDrinks" type="number" min="0"/);
+assert.match(pos,/Number\.isInteger\(minimum\)\|\|minimum<0\|\|minimum>20/);
+const scan=pos.slice(pos.indexOf('async function scanDraftReward'),pos.indexOf('function renderDraftChoices'));
+assert.doesNotMatch(scan,/cart_requires_paid_drink/,'the configured server rule decides whether a drink is required');
+assert.match(pos,/zeroPurchaseFree=!state\.cart\.size&&q\?\.can_submit/,'zero-cart checkout is only enabled after a valid free reward is selected');
+assert.match(migration,/yt_pos_reward_rules_min_paid_drinks_check CHECK \(min_paid_drinks >= 0/);
+assert.match(migration,/yt_pos_reward_holds_min_paid_drinks_check CHECK \(min_paid_drinks >= 0/);
+assert.match(migration,/p_min_drinks NOT BETWEEN 0 AND 20/);
+assert.match(migration,/yt\.pos\.allow_empty_order/);
+assert.match(migration,/paid=0 AND gross=0/);
+console.log('PASS zero-minimum reward setting, POS scan/checkout gating, and database constraints');
