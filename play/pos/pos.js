@@ -6,7 +6,7 @@ import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-d
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
 import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
-import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261016-backdate-review-details-v2';
+import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-payment-method-v1';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261015-nav-storebox-qr-amb-page-binding-v1';
 
@@ -897,7 +897,7 @@ function renderAdjustment(row){const balance=Number(row.balance_rm||0);state.adj
 async function openEditDialog(id){let row;if(isOwner()||isCashier()){row=unpack(await db.rpc('yt_pos_owner_order_context',{p_order:id}));}else{row=state.active.find(x=>x.id===id);if(!row)throw Error('请先刷新现场订单');if(!state.identity.can_edit_orders)throw Error('order_edit_permission_required');}
  editPreviousFocus=document.activeElement;state.editOrder=row;state.editPending=null;state.adjustmentPending=null;state.editDirty=false;state.editBusy=false;state.editPreview=null;
  state.editCart=new Map((row.items||[]).map((i,n)=>['line-'+n,{item_id:i.id,product_id:i.product_id,quantity:i.quantity,unit_price_rm:Number(i.price_rm)}]));
- $('editTable').value=row.table_label||'';$('editNote').value=row.notes||'';$('editReason').value='';$('editRevokeBenefits').checked=false;$('editCancelOrder').checked=false;$('editOwnerOptions').classList.toggle('hidden',!isOwner());$('editCancelOptions')?.classList.toggle('hidden',!isCashier()&&!isOwner());$('editAmountSummary').classList.toggle('hidden',!isOwner()&&!isCashier());$('editRevisions').innerHTML=isOwner()?revisionHistory(row.revisions||[]):'';
+ $('editTable').value=row.table_label||'';$('editNote').value=row.notes||'';$('editReason').value='';$('editRevokeBenefits').checked=false;$('editCancelOrder').checked=false;const currentMethod=String(row.payment_method||'').toLowerCase();const editableMethod=(isOwner()||isCashier())&&['foodcourt','cash','duitnow','bank_transfer','card','other'].includes(currentMethod);$('editPaymentMethodLabel').classList.toggle('hidden',!editableMethod);$('editPaymentMethod').value=editableMethod?currentMethod:'duitnow';state.editOriginalPaymentMethod=editableMethod?currentMethod:null;$('editOwnerOptions').classList.toggle('hidden',!isOwner());$('editCancelOptions')?.classList.toggle('hidden',!isCashier()&&!isOwner());$('editAmountSummary').classList.toggle('hidden',!isOwner()&&!isCashier());$('editRevisions').innerHTML=isOwner()?revisionHistory(row.revisions||[]):'';
  $('editHint').textContent=isOwner()?'左起：商品、数量、单价。数量设0可移除；款项需另外确认实际补收／退款。':isCashier()?'可申请修改或取消任意未退款订单；Owner 批准后才会生效，Cashier 不会直接改动账单。':'仅修改未付款、未出品订单；修改已接受订单后会按权限回到待审核。';
  $('editTitle').textContent=`改单 · ${row.order_no}`;renderEditRows();renderAdjustment(row);$('editOverlay').classList.remove('hidden');document.body.classList.add('sheet-open');$('editTable').focus();editControls();
 }
@@ -907,16 +907,17 @@ async function submitEditOrder(e){e.preventDefault();const btn=$('editForm').que
   if(isOwner()){
    if(!state.editPending){await previewOwnerEdit();if(!state.editPreview)throw Error('请先核对修改金额');const balance=Number(state.editPreview.balance_rm);const paid=state.editOrder.payment_status==='paid';
     const description=paid?(balance>0?'需另行补收 '+money(balance):balance<0?'需另行退款 '+money(-balance):'款项已对齐'):'尚未收款';
-    if(!confirm('确认保存改单？\n'+description+'\n'+($('editRevokeBenefits').checked?'撤销本单发出的权益':'保留本单发出的权益')))return;
-    state.editPending={p_order:state.editOrder.id,p_items:editItems(),p_reason:$('editReason').value.trim(),p_table:$('editTable').value.trim()||null,p_note:$('editNote').value.trim()||null,p_expected_updated:state.editOrder.updated_at,p_request:crypto.randomUUID(),p_revoke:$('editRevokeBenefits').checked,p_cancel:$('editCancelOrder').checked};
+    const nextMethod=$('editCancelOrder').checked||$('editPaymentMethodLabel').classList.contains('hidden')?null:$('editPaymentMethod').value;const methodChanged=nextMethod&&nextMethod!==state.editOriginalPaymentMethod;
+    if(!confirm('确认保存改单？\n'+description+(methodChanged?'\n收款方式：'+state.editOriginalPaymentMethod+' → '+nextMethod+'（只更正收款分类，不改变金额）':'')+'\n'+($('editRevokeBenefits').checked?'撤销本单发出的权益':'保留本单发出的权益')))return;
+    state.editPending={p_order:state.editOrder.id,p_items:editItems(),p_reason:$('editReason').value.trim(),p_table:$('editTable').value.trim()||null,p_note:$('editNote').value.trim()||null,p_expected_updated:state.editOrder.updated_at,p_request:crypto.randomUUID(),p_revoke:$('editRevokeBenefits').checked,p_cancel:$('editCancelOrder').checked,p_payment_method:methodChanged?nextMethod:null};
    }
    state.editBusy
-=true;editControls();let result;try{result=unpack(await db.rpc('yt_pos_owner_revision_apply',state.editPending));}catch(e){if(e.code)state.editPending=null;throw e;}finally{state.editBusy=false;editControls();}
+=true;editControls();let result;try{result=unpack(await db.rpc('yt_pos_owner_revision_apply_v2',state.editPending));}catch(e){if(e.code)state.editPending=null;throw e;}finally{state.editBusy=false;editControls();}
    const id=state.editOrder.id;state.editPending=null;await refreshOrders(false);if(result.payment_status==='paid'&&Number(result.balance_rm)!==0){await openEditDialog(id);showNotice('改单已保存，请确认实际补收／退款');}else{closeEditDialog();showNotice('改单已保存，前后内容及权益选择已记录');}
   }else{
    if(isCashier()){
-    if(!state.editPending){if(!state.editPreview)await previewOwnerEdit();if(!state.editPreview)throw Error('请先核对修改内容');if(!confirm($('editCancelOrder').checked?'确认提交整单取消申请给 Owner 审批？':'确认提交改单给 Owner 审批？'))return;state.editPending={p_order:state.editOrder.id,p_items:editItems(),p_reason:$('editReason').value.trim(),p_table:$('editTable').value.trim()||null,p_note:$('editNote').value.trim()||null,p_expected_updated:state.editOrder.updated_at,p_cancel:$('editCancelOrder').checked,p_request:crypto.randomUUID()};}
-    state.editBusy=true;editControls();try{unpack(await db.rpc('yt_pos_owner_revision_request_submit',state.editPending));}finally{state.editBusy=false;editControls();}
+    if(!state.editPending){if(!state.editPreview)await previewOwnerEdit();if(!state.editPreview)throw Error('请先核对修改内容');const nextMethod=$('editCancelOrder').checked||$('editPaymentMethodLabel').classList.contains('hidden')?null:$('editPaymentMethod').value;const methodChanged=nextMethod&&nextMethod!==state.editOriginalPaymentMethod;if(!confirm(($('editCancelOrder').checked?'确认提交整单取消申请给 Owner 审批？':'确认提交改单给 Owner 审批？')+(methodChanged?'\n收款方式：'+state.editOriginalPaymentMethod+' → '+nextMethod+'（只更正收款分类，不改变金额）':'')))return;state.editPending={p_order:state.editOrder.id,p_items:editItems(),p_reason:$('editReason').value.trim(),p_table:$('editTable').value.trim()||null,p_note:$('editNote').value.trim()||null,p_expected_updated:state.editOrder.updated_at,p_cancel:$('editCancelOrder').checked,p_request:crypto.randomUUID(),p_payment_method:methodChanged?nextMethod:null};}
+    state.editBusy=true;editControls();try{unpack(await db.rpc('yt_pos_owner_revision_request_submit_v2',state.editPending));}finally{state.editBusy=false;editControls();}
     state.editPending=null;closeEditDialog();await refreshOrders(false);showNotice('改单申请已送交 Owner，批准前订单内容不会改变');return;
    }
    const counts=new Map();for(const v of state.editCart.values()){if(v.quantity)counts.set(v.product_id,(counts.get(v.product_id)||0)+v.quantity);}const items=[...counts].map(([product_id,quantity])=>({product_id,quantity}));if(!items.length)throw Error('请保留至少一个商品');if(!confirm('确认更改这张未付款订单？'))return;
