@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const source=fs.readFileSync('play/pos/pos.js','utf8');
 const db=fs.readFileSync('sql/060_unified_moon_preorder_submit.sql','utf8');
 const storeBox=fs.readFileSync('play/pos/store-box.js','utf8');
-const page='admin/pos',html=fs.readFileSync('play/admin/pos/index.html','utf8');for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);assert(html.includes('pos.js?v=20261023-one-code-adjustment-v2'),'active JS entry freshness '+page);for(const alias of ['admin/owner','admin/staff','admin/cashier'])assert(fs.readFileSync('play/'+alias+'/index.html','utf8').includes('../pos/'),alias+' redirects to canonical POS');
+const page='admin/pos',html=fs.readFileSync('play/admin/pos/index.html','utf8');for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);assert(html.includes('pos.js?v=20261023-owner-direct-adjustment-v3'),'active JS entry freshness '+page);for(const alias of ['admin/owner','admin/staff','admin/cashier'])assert(fs.readFileSync('play/'+alias+'/index.html','utf8').includes('../pos/'),alias+' redirects to canonical POS');
 assert(fs.readFileSync('play/admin/pos/index.html','utf8').includes('console.css?v=20261017-rule-delete-v1&layout=drink-name-v2'),'canonical management styles cache freshness');
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
 assert(source.includes("$('categoryProductButtons').onclick"),'category buttons should handle clicks');

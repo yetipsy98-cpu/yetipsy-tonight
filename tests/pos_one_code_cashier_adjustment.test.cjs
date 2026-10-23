@@ -3,6 +3,7 @@ const migration=fs.readFileSync('supabase/migrations/20261023120000_pos_single_c
 const checkoutGuard=fs.readFileSync('supabase/migrations/20261023123000_pos_single_code_checkout_guard.sql','utf8');
 const customFoc=fs.readFileSync('supabase/migrations/20261023130000_allow_owner_approved_custom_foc.sql','utf8');
 const cashierRole=fs.readFileSync('supabase/migrations/20261023131500_adjustment_requests_cashier_role_only.sql','utf8');
+const ownerDirect=fs.readFileSync('supabase/migrations/20261023041344_pos_owner_direct_foc_discount.sql','utf8');
 const html=fs.readFileSync('play/admin/pos/index.html','utf8');
 const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const approvals=fs.readFileSync('play/pos/owner-order-approvals.js','utf8');
@@ -14,8 +15,11 @@ assert.match(migration,/alter table public\.yt_pos_cashier_adjustment_requests e
 assert.match(migration,/private\.yt_pos_work_cashier\(\).*private\.yt_work_owner\(\)/s,'only Cashier accounts may submit requests');
 assert.match(migration,/if not private\.yt_work_owner\(\) then raise exception 'owner_only'/,'Owner approval is enforced in database');
 assert.match(migration,/private\.yt_pos_create_order_with_rewards_v4\(r\.id/,'approval creates the order only after Owner action');
+assert.match(ownerDirect,/if not private\.yt_work_owner\(\) then raise exception 'owner_only'/,'Owner direct execution is enforced in database');
+assert.match(ownerDirect,/private\.yt_pos_cashier_adjustment_review\(p_request,true,'Owner direct action'\)/,'Owner action directly executes and records its order');
 assert.match(html,/id="focRequestBtn"/);assert.match(html,/id="discountRequestBtn"/);assert.match(html,/id="manualAdjustmentOverlay"/);
-assert.match(pos,/state\.identity\?\.role==='cashier'/,'request buttons only render for Cashier');
+assert.match(pos,/\(isCashier\(\)\|\|isOwner\(\)\)&&state\.cart\.size/,'Cashier and Owner can see adjustment controls with a valid cart');
+assert.match(pos,/ownerDirect\?'yt_pos_owner_adjustment_execute':'yt_pos_cashier_adjustment_submit'/,'Owner executes directly while Cashier submits for approval');
 assert.match(pos,/manual_adjustment_cannot_combine_code/);assert.match(pos,/percent/);assert.match(pos,/foc_product_ids/);
 assert.match(approvals,/yt_pos_cashier_adjustment_requests_list/);assert.match(approvals,/yt_pos_cashier_adjustment_review/);
 assert.match(customFoc,/current_setting\('yt\.pos\.owner_adjustment',true\)='on'/,'only owner-approved custom FOC bypasses the quote-price check');
