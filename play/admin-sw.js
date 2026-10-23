@@ -1,4 +1,4 @@
-const CACHE='yetipsy-pos-app-v7-workbench-boot-fix';
+const CACHE='yetipsy-pos-app-v8-workbench-boot-fix';
 const SHELL=['./admin/pos/','./admin/pos/index.html','./admin/admin.webmanifest','./admin-icon.svg','./admin-icon-192.png','./admin-icon-512.png','./pos/pos.js','./pos/pos.css','./pos/console.css','./pos/console.js','./pos/owner-order-approvals.js','./vendor/supabase-2.117.2.min.js','./config.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('yetipsy-pos-app-')&&key!==CACHE).map(key=>caches.delete(key))))])));
