@@ -1,7 +1,6 @@
 import {createPlayWork} from './play-upgrade.js?v=20261016-refresh-settings-v1';
 import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-settings-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
-import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
 import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
@@ -17,10 +16,11 @@ const POLL_CLOCK_TICK_MS=5000;
 let lastOwnerApprovalCountPollAt=0;
 const conf=window.YETIPSY_PLAY_CONFIG||{};
 const portal='work';
+const createClient=window.supabase?.createClient;
 // Keep an existing Cashier login when all entry points adopt the shared workspace.
 try{if(!localStorage.getItem('yt-work-session-v1')&&localStorage.getItem('yt-cashier-session-v2'))localStorage.setItem('yt-work-session-v1',localStorage.getItem('yt-cashier-session-v2'));localStorage.removeItem('yt-cashier-session-v2');}catch{}
 const usable=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(conf.url||'')&&/^sb_publishable_/.test(conf.publishableKey||'');
-const db=usable?createClient(conf.url,conf.publishableKey,{auth:{storageKey:'yt-work-session-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
+const db=usable&&createClient?createClient(conf.url,conf.publishableKey,{auth:{storageKey:'yt-work-session-v1',persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
 const workURL=(conf.url||'')+'/functions/v1/yt-work-auth';
 const state={identity:null,catalog:[],cart:new Map(),currentTab:'benefits',
   active:[],paid:[],pending:[],revisionRequests:[],seenPending:new Set(),seenInitialized:false,seenKds:new Set(),seenKdsInitialized:false,storeBoxQueue:[],seenStoreBox:new Set(),seenStoreBoxInitialized:false,ambassadorAccess:false,ambassadorDraft:null,
@@ -716,7 +716,7 @@ eipt();}});
 
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')stopRedeemCamera();});
 }
-async function boot(){bind();playUpgrade.bindOrderClicks();window.YT_WORK_READY=true;if(!usable){resetLogin();showNotice('请检查 /play/config.js，POS 尚未连上 Supabase',true,true);return;}
+async function boot(){bind();playUpgrade.bindOrderClicks();window.YT_WORK_READY=true;if(!usable||!db){resetLogin();showNotice(!usable?'请检查 /play/config.js，POS 尚未连上 Supabase':'Supabase 客户端未加载，请刷新页面',true,true);return;}
  const {data,error}=await db.auth.getSession();if(!error&&data?.session){try{await launch();return;}catch(e){showNotice('请重新登录工作账号：'+errorText(e),true);}}
  resetLogin();}
 boot().catch(e=>{window.YT_WORK_READY='failed';resetLogin();showNotice(errorText(e),true,true);});
