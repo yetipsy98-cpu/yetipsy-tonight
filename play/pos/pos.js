@@ -8,7 +8,7 @@ import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-payment-method-v1';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
-import {createAmbassadorTools} from './ambassador.js?v=20261023-owner-pass-cart-v1';
+import {createAmbassadorTools} from './ambassador.js?v=20261023-owner-pass-cart-v2';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
