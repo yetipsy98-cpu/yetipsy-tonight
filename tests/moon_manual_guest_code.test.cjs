@@ -40,4 +40,7 @@ assert.ok(scanFix.includes('GRANT EXECUTE ON FUNCTION public.yt_pos_preorder_sca
 const pos=read('play/pos/pos.js');
 assert.ok(pos.includes("$('draftRewardChoices').replaceChildren();setDraftRedeemOpen(false);showNotice(h.kind"));
 assert.ok(pos.includes("await refreshDraftSummary();setDraftRedeemOpen(false);showNotice('Moon 奖励已按绑定商品预留"));
+const ambiguityFix=read('sql/098_moon_preorder_product_id_ambiguity_fix.sql');
+assert.ok(ambiguityFix.includes('SELECT ph.id,ph.product_id,ph.drink_name'));
+assert.ok(ambiguityFix.includes('AS ph'));
 console.log('PASS Moon short-code auto-detection, secure table access, auto-close, shared reward binding, KDS and payment settlement contracts');
