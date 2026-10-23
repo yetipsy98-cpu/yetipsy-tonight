@@ -8,7 +8,7 @@ import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-payment-method-v1';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
-import {createAmbassadorTools} from './ambassador.js?v=20261023-owner-pass-cart-v2';
+import {createAmbassadorTools} from './ambassador.js?v=20261023-owner-pass-cart-v3';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -266,6 +266,7 @@ async function scanAmbassadorPass(raw){
   state.ambassadorDraft={token:raw,pass_id:p.pass_id,pass_code:p.pass_code,reservation_day:p.reservation_day,ambassador_name:p.ambassador_name,commission_rate:Number(p.commission_rate||0),male:m,female:f,male_price:Number(p.male_price),female_price:Number(p.female_price),planned_pax:planned,checked_pax:checked,guest_name:p.guest_name,guest_phone:p.guest_phone};
   state.draftSelection=null;$('draftRedeemToken').value='';root.replaceChildren();saveDraft();renderCart();openCartDrawer();showNotice('Freeflow 已加入购物车；请使用下方正常结账按钮。');
  }).catch(()=>{});
+ openCartDrawer();
 }
 function setDraftRedeemOpen(open){const panel=$('draftRedeemPanel'),button=$('draftRedeemToggle');if(!panel||!button)return;panel.classList.toggle('hidden',!open);panel.setAttribute('aria-hidden',String(!open));button.setAttribute('aria-expanded',String(open));if(open)$('draftRedeemToken')?.focus();}
 async function scanDraftReward(){return draftOperation(async()=>{
