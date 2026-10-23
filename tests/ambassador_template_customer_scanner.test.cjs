@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const client = fs.readFileSync('play/ambassador-client.js', 'utf8');
 const posAmbassador = fs.readFileSync('play/pos/ambassador.js', 'utf8');
+const pos = fs.readFileSync('play/pos/pos.js', 'utf8');
 const app = fs.readFileSync('play/app.js', 'utf8');
 const migration = fs.readFileSync('supabase/migrations/20261015053904_ambassador_template_ref_and_customer_scan.sql', 'utf8');
 const syncMigration = fs.readFileSync('supabase/migrations/20261015054242_ambassador_reference_code_sync.sql', 'utf8');
