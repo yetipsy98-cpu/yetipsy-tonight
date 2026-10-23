@@ -48,10 +48,9 @@ DO $migration$
 DECLARE d text;
 BEGIN
  SELECT pg_get_functiondef('private.yt_pos_preorder_attach(uuid,uuid)'::regprocedure) INTO d;
- IF strpos(d,'AND paid<1')=0 THEN RAISE EXCEPTION 'Expected POS attach minimum guard not found'; END IF;
- d:=replace(d,'AND paid<1','AND paid < -1');
+ IF strpos(d,'AND paid<1')=0 OR strpos(d,'state=''chosen'')=0 THEN RAISE EXCEPTION 'Expected POS attach minimum guard not found'; END IF;
  d:=replace(d,'IF EXISTS(SELECT 1 FROM public.yt_pos_preorder_holds
- WHERE draft_id=p_draft AND operator_id=auth.uid() AND state=''chosen'') AND paid < -1
+ WHERE draft_id=p_draft AND operator_id=auth.uid() AND state=''chosen'') AND paid<1
  THEN RAISE EXCEPTION ''minimum_one_paid_drink'';END IF;','');
  EXECUTE d;
 END
