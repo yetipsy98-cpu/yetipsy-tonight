@@ -219,7 +219,7 @@ function openManualAdjustment(kind){
  manualAdjustmentKind=kind;
  const gross=[...state.cart].reduce((sum,[id,qty])=>sum+Number(state.catalog.find(p=>p.id===id)?.price_rm||0)*qty,0);
  $('manualAdjustmentTitle').textContent=kind==='foc'?'申请 FOC':'申请 Discount';
- $('manualAdjustmentSummary').textContent=`购物车原价 RM${gross.toFixed(2)} · Owner 批准后才会建立订单并进入 KDS。`;
+ $('manualAdjustmentSummary').textContent=`购物车原价 RM${gross.toFixed(2)} · Owner 批准后才会建立订单；当前营业日订单进入 KDS。`;
  $('manualAdjustmentFields').innerHTML=kind==='foc'?'<fieldset class="manual-adjustment-items"><legend>选择要免单的饮品（按整项数量）</legend>'+[...state.cart].map(([id,qty])=>{const p=state.catalog.find(x=>x.id===id);return `<label class="checkline"><input type="checkbox" value="${esc(id)}" data-foc-product> <span>${esc(p?.name||'饮品')} × ${qty} · RM${(Number(p?.price_rm||0)*qty).toFixed(2)}</span></label>`;}).join('')+'</fieldset>':'<div class="manual-discount-fields"><label>折扣类型<select id="manualDiscountType"><option value="rm">RM 金额</option><option value="percent">百分比</option></select></label><label>折扣值<input id="manualDiscountValue" type="number" min="0.01" step="0.01" required placeholder="输入金额或百分比"></label></div><p class="field-note">系统按订单金额计算折扣；最终应收至少保留 RM0.01。</p>';
  $('manualAdjustmentReason').value='';$('manualAdjustmentOverlay').classList.remove('hidden');$('manualAdjustmentReason').focus();
 }
