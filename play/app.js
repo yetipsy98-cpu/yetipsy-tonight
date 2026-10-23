@@ -1,6 +1,6 @@
 import {createLuckyBox} from './lucky-box.js?v=20261013-lucky-v2';
 import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
-import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261010-copy-v15-4';
+import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261023-reward-min-zero-v1';
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import {createBannerManager} from './owner-banners.js?v=20261017-banner-create-mode-v1';
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
