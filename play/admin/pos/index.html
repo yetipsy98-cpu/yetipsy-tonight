@@ -109,5 +109,5 @@
 
 <script src="../../config.js"></script><script src="../../vendor/supabase-2.117.2.min.js?v=20261023-local-supabase-v1"></script><script>window.YT_WORK_READY=false;(()=>{const form=document.getElementById('signinForm'),notice=document.getElementById('notice'),show=message=>{const target=document.getElementById('noticeMessage')||notice;target.textContent=message;notice.classList.remove('hidden');notice.classList.add('error')};form.addEventListener('submit',event=>{if(window.YT_WORK_READY===true)return;event.preventDefault();show(window.YT_WORK_READY==='failed'?'工作台载入失败，请刷新页面':'工作台正在载入，请稍候…')});const failed=event=>{if(window.YT_WORK_READY!==true){window.YT_WORK_READY='failed';const detail=[event?.message||event?.reason?.message||'',event?.filename||event?.target?.src||event?.target?.href||'',event?.lineno?':'+event.lineno:''].filter(Boolean).join(' ')console.error('workbench startup failed:',detail||event);show('工作台载入失败'+(detail?'：'+String(detail).slice(0,180):'，请刷新页面'))}};window.addEventListener('error',failed);window.addEventListener('unhandledrejection',failed)})();</script><script type="module" src="../../pos/pos.js?v=20261023-workbench-boot-fix-v4"></script>
 
-<script src="../admin-pwa.js?v=20261013-admin-pwa-v1"></script>
+<script src="../admin-pwa.js?v=20261023-workbench-boot-fix-v1"></script>
 </body></html>
