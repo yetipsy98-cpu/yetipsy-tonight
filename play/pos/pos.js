@@ -282,7 +282,7 @@ async function scanDraftReward(){return draftOperation(async()=>{
  }
  if(h?.error_code)throw Error(h.error_code);
  if(h?.source==='moon'&&h?.requires_product){state.draftSelection=h;renderDraftChoices(h);return;}
- if(h?.source==='moon'){ $('draftRedeemToken').value='';state.draftSelection=null;saveDraft();await refreshDraftSummary();$('draftRewardChoices').replaceChildren();showNotice(h.kind==='R0'?'Moon 抵扣已预留，结账才核销':'Moon 奖励已预留，结账才核销');return; }
+ if(h?.source==='moon'){ $('draftRedeemToken').value='';state.draftSelection=null;saveDraft();await refreshDraftSummary();$('draftRewardChoices').replaceChildren();setDraftRedeemOpen(false);showNotice(h.kind==='R0'?'Moon 抵扣已预留，结账才核销':'Moon 奖励已预留，结账才核销');return; }
  $('draftRedeemToken').value='';state.draftSelection=h;saveDraft();await refreshDraftSummary();renderDraftChoices(h);
 });}
 function renderDraftChoices(h){const root=$('draftRewardChoices');root.replaceChildren();
@@ -294,7 +294,7 @@ function renderDraftChoices(h){const root=$('draftRewardChoices');root.replaceCh
    b.onclick=()=>draftOperation(async()=>{
     const info=unpack(await db.rpc('yt_pos_preorder_scan_auto',{p_draft:state.draftId,p_code:h.code,p_request:crypto.randomUUID(),p_cart:draftItems(),p_product:product.product_id}));
     if(info?.error_code)throw Error(info.error_code);
-    $('draftRedeemToken').value='';state.draftSelection=null;root.replaceChildren();saveDraft();await refreshDraftSummary();showNotice('Moon 奖励已按绑定商品预留，结账才核销');
+    $('draftRedeemToken').value='';state.draftSelection=null;root.replaceChildren();saveDraft();await refreshDraftSummary();setDraftRedeemOpen(false);showNotice('Moon 奖励已按绑定商品预留，结账才核销');
    }).catch(()=>{});
    root.append(b);
   }
