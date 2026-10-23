@@ -8,7 +8,7 @@ import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-payment-method-v1';
 import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
-import {createAmbassadorTools} from './ambassador.js?v=20261023-owner-pass-cart-v6';
+import {createAmbassadorTools} from './ambassador.js?v=20261023-ambassador-short-ref-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
@@ -249,7 +249,7 @@ function extractMoonCode(raw){
  const compact=text.replace(/[\s-]/g,'');if(/^[A-Z0-9]{8}$/.test(compact))return compact;
  return null;
 }
-function isAmbassadorToken(raw){const text=String(raw||'').trim();if(/^YTAMB\s*:/i.test(text)||/^ambassador:/i.test(text))return true;try{return new URL(text).searchParams.has('amb');}catch{return false;}}
+function isAmbassadorToken(raw){const text=String(raw||'').trim();if(/^YTAMB\s*:/i.test(text)||/^ambassador:/i.test(text)||/^[0-9a-f]{10}$/i.test(text))return true;try{return new URL(text).searchParams.has('amb');}catch{return false;}}
 async function scanAmbassadorPass(raw){
  if(state.cart.size||state.ambassadorDraft)throw Error('ambassador_clear_cart_first');
  const p=unpack(await db.rpc('yt_ambassador_pos_pass_lookup',{p_token:raw}));
@@ -263,7 +263,7 @@ async function scanAmbassadorPass(raw){
  $('ambassadorMaleCount').oninput=()=>{update();warn();};$('ambassadorFemaleCount').oninput=()=>{update();warn();};
  $('ambassadorPassCreate').onclick=()=>busy($('ambassadorPassCreate'),async()=>{
   const m=Number($('ambassadorMaleCount').value||0),f=Number($('ambassadorFemaleCount').value||0);if(!Number.isInteger(m)||!Number.isInteger(f)||m<0||f<0||m+f<1||m+f>500)throw Error('invalid_guest_count');
-  state.ambassadorDraft={token:raw,pass_id:p.pass_id,pass_code:p.pass_code,reservation_day:p.reservation_day,ambassador_name:p.ambassador_name,commission_rate:Number(p.commission_rate||0),male:m,female:f,male_price:Number(p.male_price),female_price:Number(p.female_price),planned_pax:planned,checked_pax:checked,guest_name:p.guest_name,guest_phone:p.guest_phone};
+  state.ambassadorDraft={token:p.pass_code,pass_id:p.pass_id,pass_code:p.pass_code,reservation_day:p.reservation_day,ambassador_name:p.ambassador_name,commission_rate:Number(p.commission_rate||0),male:m,female:f,male_price:Number(p.male_price),female_price:Number(p.female_price),planned_pax:planned,checked_pax:checked,guest_name:p.guest_name,guest_phone:p.guest_phone};
   state.draftSelection=null;$('draftRedeemToken').value='';root.replaceChildren();root.classList.add('hidden');saveDraft();renderCart();openCartDrawer();showNotice('Freeflow 已加入购物车；购物车已打开，可继续结账。');
  }).catch(()=>{});
 }
