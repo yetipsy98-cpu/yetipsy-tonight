@@ -11,7 +11,7 @@ declare encoded jsonb; result jsonb;
 begin
  if not private.yt_work_owner() then raise exception 'owner_only'; end if;
  if jsonb_typeof(coalesce(p_components,'null'::jsonb))<>'array' or jsonb_array_length(p_components) not between 1 and 20 then raise exception 'invalid_store_box_components'; end if;
- if exists(select 1 from jsonb_array_elements(p_components) c where jsonb_typeof(c)<>'object' or length(btrim(coalesce(c->>'name',''))) not between 1 and 60 or coalesce(c->>'quantity','')<>'1' or jsonb_typeof(c->'options')<>'array' or jsonb_array_length(c->'options') not between 1 and 20) then raise exception 'invalid_store_box_components'; end if;
+ if exists(select 1 from jsonb_array_elements(p_components) c where jsonb_typeof(c)<>'object' or length(btrim(coalesce(c->>'name',''))) not between 1 and 60 or position('::' in coalesce(c->>'name',''))>0 or position('~~' in coalesce(c->>'name',''))>0 or coalesce(c->>'quantity','')<>'1' or jsonb_typeof(c->'options')<>'array' or jsonb_array_length(c->'options') not between 1 and 20) then raise exception 'invalid_store_box_components'; end if;
  if exists(select 1 from jsonb_array_elements(p_components) c, jsonb_array_elements(c->'options') o where jsonb_typeof(o)<>'string' or length(btrim(o#>>'{}')) not between 1 and 60 or position('~~' in (o#>>'{}'))>0) then raise exception 'invalid_store_box_components'; end if;
  select jsonb_agg(jsonb_build_object('name','@YTLEVEL@'||btrim(c->>'name')||'::'||(select string_agg(btrim(o#>>'{}'),'~~' order by n) from jsonb_array_elements(c->'options') with ordinality x(o,n)),'quantity',1) order by n) into encoded from jsonb_array_elements(p_components) with ordinality x(c,n);
  result:=private.yt_store_box_rule_save_v2(p_product,p_mode,1,1,p_expiry_days,p_unit_label,'customer',encoded,p_active);
@@ -21,6 +21,7 @@ end $function$;
 create or replace function public.yt_store_box_rule_save_levels(p_product uuid,p_mode text,p_expiry_days integer default 30,p_unit_label text default '杯',p_components jsonb default '[]'::jsonb,p_active boolean default true)
 returns jsonb language sql set search_path to '' as $function$ select private.yt_store_box_rule_save_levels(p_product,p_mode,p_expiry_days,p_unit_label,p_components,p_active) $function$;
 revoke all on function private.yt_store_box_rule_save_levels(uuid,text,integer,text,jsonb,boolean) from public, anon, authenticated;
+revoke all on function public.yt_store_box_rule_save_levels(uuid,text,integer,text,jsonb,boolean) from public, anon;
 grant execute on function public.yt_store_box_rule_save_levels(uuid,text,integer,text,jsonb,boolean) to authenticated;
 
 create or replace function private.yt_store_box_expand_levels() returns trigger language plpgsql set search_path to '' as $function$
@@ -71,5 +72,7 @@ begin
  insert into public.yt_store_box_events(box_id,request_id,event_type,quantity,customer_id,metadata) values(b.id,r.id,'drink_requested',1,actor,jsonb_build_object('selections',normalized));
  return to_jsonb(r);
 end $function$;
+revoke all on function private.yt_store_box_request_v3(uuid,integer,jsonb,uuid,text) from public, anon, authenticated;
+grant execute on function private.yt_store_box_request_v3(uuid,integer,jsonb,uuid,text) to authenticated;
 create or replace function public.yt_store_box_request_v3(p_box uuid,p_quantity integer,p_selections jsonb,p_request uuid,p_table_label text)
 returns jsonb language sql set search_path to '' as $function$ select private.yt_store_box_request_v3(p_box,p_quantity,p_selections,p_request,p_table_label) $function$;
