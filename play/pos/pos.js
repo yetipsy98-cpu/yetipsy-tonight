@@ -1115,7 +1115,7 @@ async function loadCashierPackagePrep(id,q){
  const panel=$('cashierPackagePrep'),root=$('cashierPackagePrepItems');
  if(!(isCashier()||isOwner())||q.payment_status!=='unpaid'){cashierPackageQuote=null;cashierPackageOrder=null;panel.classList.add('hidden');return;}
  const quote=unpack(await db.rpc('yt_store_box_checkout_prep_quote',{p_order:id}));
- quote.items=(quote.items||[]).filter(item=>item.selection_mode!=='levels');quote.can_prepare=quote.can_prepare&&quote.items.length>0;
+ 
  if(state.selectedOrderCart!==id)return;
  cashierPackageQuote=quote;cashierPackageOrder=id;
  const items=quote.can_prepare?quote.items||[]:[];
