@@ -6,7 +6,7 @@ import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-
 import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-one-code-adjustment-v1';
-import {createStoreBox} from './store-box.js?v=20261030-sequential-levels-v1';
+import {createStoreBox} from './store-box.js?v=20261030-sequential-levels-fix1';
 import {createAmbassadorTools} from './ambassador.js?v=20261023-ambassador-short-ref-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
