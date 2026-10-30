@@ -1063,21 +1063,52 @@ async function releaseCartHold(id){
  await refreshOrderCart();await refreshOrders(false);showNotice('已释放预留，顾客奖品仍可使用');
 }
 let cashierPackageQuote=null,cashierPackageOrder=null;
+function cashierPrepItemMarkup(item){
+ const id=esc(item.item_id);
+ if(item.selection_mode==='levels'){
+  const first=(item.available||[]).find(part=>part.key==='c1-u1')||(item.available||[])[0];
+  const options=Array.isArray(first?.options)?first.options:[];
+  const states='<div class="cashier-prep-grid"><label>开始挑战 · 现在出第一杯<input type="radio" name="prep-level-mode-'+id+'" data-prep-level-mode="'+id+'" value="start" '+(!options.length?'disabled':'')+'></label><label>Hold · 稍后开始<input type="radio" name="prep-level-mode-'+id+'" data-prep-level-mode="'+id+'" value="hold" checked></label></div>';
+  const choices=options.length?'<div class="cashier-prep-grid">'+options.map((option,index)=>'<label>'+esc(option)+'<input type="radio" name="prep-level-option-'+id+'" data-prep-level-option="'+id+'" value="'+esc(option)+'" '+(index===0?'checked':'')+'></label>').join('')+'</div>':'<small class="field-note">LV1 尚未设置可选酒款。</small>';
+  return '<article class="cashier-prep-item"><strong>'+esc(item.name)+' · 逐级挑战 · '+esc(first?.name||'LV1')+'</strong>'+states+choices+'<small>开始会把 LV1 选中的一杯直接排进 KDS；Hold 会先保留挑战。</small></article>';
+ }
+ const choices=(item.available||[]).map((part,index)=>{const max=Number(part.quantity||0),value=item.mode==='challenge'&&index===0?1:0;return '<label>'+esc(part.name)+' <small>最多 '+max+' 杯</small><input type="number" data-prep-item="'+id+'" data-prep-key="'+esc(part.key)+'" min="0" max="'+Math.min(99,max)+'" step="1" value="'+value+'" '+(item.mode==='challenge'?'readonly':'')+'></label>';}).join('');
+ return '<article class="cashier-prep-item"><strong>'+esc(item.name)+' · '+(item.mode==='challenge'?'Challenge（固定 1 杯）':'Package')+'</strong><div class="cashier-prep-grid">'+choices+'</div><small>总量 '+Number(item.capacity)+' 杯 · 未预出部分进入存酒箱</small></article>';
+}
+function cashierPackagePrepPlan(items,root){
+ const all=[...root.querySelectorAll('input[data-prep-item]')];
+ return items.map(item=>{
+  if(item.selection_mode==='levels'){
+   const id=String(item.item_id),mode=[...root.querySelectorAll('input[data-prep-level-mode]')].find(input=>input.dataset.prepLevelMode===id&&input.checked)?.value||'hold';
+   if(mode==='hold')return{item_id:item.item_id,selections:[]};
+   const first=(item.available||[]).find(part=>part.key==='c1-u1')||(item.available||[])[0];
+   const option=[...root.querySelectorAll('input[data-prep-level-option]')].find(input=>input.dataset.prepLevelOption===id&&input.checked)?.value;
+   if(!first||!option)throw Error('请先选择 LV1 酒款，或选择 Hold');
+   return{item_id:item.item_id,selections:[{key:first.key,quantity:1,option,name:first.name+' · '+option}]};
+  }
+  const selected=all.filter(input=>input.dataset.prepItem===item.item_id);
+  if(selected.some(input=>!Number.isInteger(Number(input.value))||Number(input.value)<0||Number(input.value)>Number(input.max)))throw Error('Package 出杯数量不正确');
+  const selections=selected.map(input=>({key:input.dataset.prepKey,quantity:Number(input.value)})).filter(entry=>entry.quantity>0);
+  const count=selections.reduce((sum,entry)=>sum+entry.quantity,0);
+  if(item.mode==='challenge'&&count!==1)throw Error('challenge_one_cup_only');
+  if(count>Number(item.capacity)||count>99)throw Error('store_box_quantity_unavailable');
+  return{item_id:item.item_id,selections};
+ });
+}
 async function promptCashierPackagePrep(orderId){
  if(!(isCashier()||isOwner())||!orderId)return;
  const quote=unpack(await db.rpc('yt_store_box_checkout_prep_quote',{p_order:orderId}));
- quote.items=(quote.items||[]).filter(item=>item.selection_mode!=='levels');quote.can_prepare=quote.can_prepare&&quote.items.length>0;
+ 
  if(!quote?.can_prepare||!quote?.items?.length)return;
  const saved=unpack(await db.rpc('yt_store_box_prep_intent_get',{p_order:orderId}));
  if(saved?.preps)return;
  const layer=document.createElement('section');layer.className='edit-overlay package-prep-prompt';layer.setAttribute('role','dialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-labelledby','packagePrepPromptTitle');
  layer.innerHTML='<article class="card edit-dialog"><div class="block-head"><div><p class="kicker">PACKAGE / CHALLENGE · KDS PREP</p><h2 id="packagePrepPromptTitle">这单要先出几杯？</h2></div></div><p class="field-note">选择要立即排进 KDS 的杯数；剩余数量会保留在存酒箱。Challenge 固定先出 1 杯。</p><div id="packagePrepPromptItems"></div><button id="packagePrepPromptSave" class="main-button" type="button">确认预出数量</button></article>';
  const root=layer.querySelector('#packagePrepPromptItems');
- root.innerHTML=quote.items.map(item=>{const choices=(item.available||[]).map((part,index)=>{const max=Number(part.quantity||0),value=item.mode==='challenge'&&index===0?1:0;return '<label>'+esc(part.name)+' <small>最多 '+max+' 杯</small><input type="number" data-prep-item="'+esc(item.item_id)+'" data-prep-key="'+esc(part.key)+'" min="0" max="'+Math.min(99,max)+'" step="1" value="'+value+'" '+(item.mode==='challenge'?'readonly':'')+'></label>';}).join('');return '<article class="cashier-prep-item"><strong>'+esc(item.name)+' · '+(item.mode==='challenge'?'Challenge（固定 1 杯）':'Package')+'</strong><div class="cashier-prep-grid">'+choices+'</div><small>总量 '+Number(item.capacity)+' 杯 · 未预出部分进入存酒箱</small></article>';}).join('');
+ root.innerHTML=quote.items.map(cashierPrepItemMarkup).join('');
  document.body.append(layer);layer.querySelector('#packagePrepPromptSave').focus();
  await new Promise(resolve=>{layer.querySelector('#packagePrepPromptSave').onclick=async event=>{const button=event.currentTarget;if(button.disabled)return;button.disabled=true;button.textContent='正在保存…';try{
-  const preps=quote.items.map(item=>{const selected=[...root.querySelectorAll('input[data-prep-item]')].filter(input=>input.dataset.prepItem===item.item_id);if(selected.some(input=>!Number.isInteger(Number(input.value))||Number(input.value)<0||Number(input.value)>Number(input.max)))throw Error('Package 出杯数量不正确');const selections=selected.map(input=>({key:input.dataset.prepKey,quantity:Number(input.value)})).filter(entry=>entry.quantity>0);const count=selections.reduce((sum,entry)=>sum+entry.quantity,0);if(item.mode==='challenge'&&count!==1)throw Error('challenge_one_cup_only');if(count>Number(item.capacity)||count>99)throw Error('store_box_quantity_unavailable');return {item_id:item.item_id,selections};});
-  unpack(await db.rpc('yt_store_box_prep_intent_save',{p_order:orderId,p_preps:preps}));cashierPackageQuote=quote;cashierPackageOrder=orderId;let kdsLoaded=true;try{await refreshOrders(false);}catch(error){kdsLoaded=false;console.warn('Package / Challenge 已自动接单，但 KDS 刷新失败',error?.message||error);}showNotice(kdsLoaded?'预出杯数量已保存；无需接单，订单已进入 KDS 待出品，剩余数量会留在存酒箱。':'预出杯数量已保存，订单已自动接单；KDS 列表暂未刷新，请刷新订单页查看。',!kdsLoaded);layer.remove();resolve();
+  const preps=cashierPackagePrepPlan(quote.items,root);unpack(await db.rpc('yt_store_box_prep_intent_save',{p_order:orderId,p_preps:preps}));cashierPackageQuote=quote;cashierPackageOrder=orderId;let kdsLoaded=true;try{await refreshOrders(false);}catch(error){kdsLoaded=false;console.warn('Package / Challenge 已自动接单，但 KDS 刷新失败',error?.message||error);}showNotice(kdsLoaded?'预出杯数量已保存；无需接单，订单已进入 KDS 待出品，剩余数量会留在存酒箱。':'预出杯数量已保存，订单已自动接单；KDS 列表暂未刷新，请刷新订单页查看。',!kdsLoaded);layer.remove();resolve();
  }catch(error){showNotice(errorText(error),true);button.disabled=false;button.textContent='确认预出数量';}};});
 }
 async function loadCashierPackagePrep(id,q){
@@ -1089,29 +1120,15 @@ async function loadCashierPackagePrep(id,q){
  cashierPackageQuote=quote;cashierPackageOrder=id;
  const items=quote.can_prepare?quote.items||[]:[];
  panel.classList.toggle('hidden',items.length===0);
- root.innerHTML=items.map(item=>{
-  const choices=(item.available||[]).map((part,index)=>{
-   const value=item.mode==='challenge'&&index===0?1:0,max=Number(part.quantity||0);
-   return '<label>'+esc(part.name)+' <small>最多 '+max+' 杯</small><input type="number" data-prep-item="'+esc(item.item_id)+'" data-prep-key="'+esc(part.key)+'" min="'+value+'" max="'+Math.min(99,max)+'" step="1" value="'+value+'" '+(item.mode==='challenge'?'readonly':'')+'></label>';
-  }).join('');
-  return '<article class="cashier-prep-item"><strong>'+esc(item.name)+' · '+(item.mode==='challenge'?'挑战 · 仅先出 1 杯':'Package')+'</strong><div class="cashier-prep-grid">'+choices+'</div><small>此套餐共 '+Number(item.capacity)+' 杯 · 其余保留存酒箱</small></article>';
- }).join('');
+ root.innerHTML=items.map(cashierPrepItemMarkup).join('');
  const saved=unpack(await db.rpc('yt_store_box_prep_intent_get',{p_order:id}));
  if(state.selectedOrderCart!==id)return;
  for(const input of root.querySelectorAll('input[data-prep-item]')){const prep=saved?.preps?.find(entry=>entry.item_id===input.dataset.prepItem);const selection=prep?.selections?.find(entry=>entry.key===input.dataset.prepKey);if(selection)input.value=String(selection.quantity);}
+ for(const item of items.filter(row=>row.selection_mode==='levels')){const prep=saved?.preps?.find(entry=>entry.item_id===item.item_id),selection=prep?.selections?.[0];if(!selection)continue;for(const input of root.querySelectorAll('input[data-prep-level-mode]'))if(input.dataset.prepLevelMode===item.item_id&&input.value==='start')input.checked=true;for(const input of root.querySelectorAll('input[data-prep-level-option]'))if(input.dataset.prepLevelOption===item.item_id&&input.value===selection.option)input.checked=true;}
 }
 function cashierPackageSelections(){
  if(!cashierPackageQuote?.items?.length)return[];
- const all=[...$('cashierPackagePrepItems').querySelectorAll('input[data-prep-item]')];
- return cashierPackageQuote.items.map(item=>{
-  const selected=all.filter(el=>el.dataset.prepItem===item.item_id);
-  if(selected.some(el=>!Number.isInteger(Number(el.value))||Number(el.value)<0||Number(el.value)>Number(el.max)))throw Error('Package 出杯数量不正确');
-  const selections=selected.map(el=>({key:el.dataset.prepKey,quantity:Number(el.value)})).filter(s=>s.quantity>0);
-  const count=selections.reduce((sum,s)=>sum+s.quantity,0);
-  if(item.mode==='challenge'&&count!==1)throw Error('challenge_one_cup_only');
-  if(count>Number(item.capacity)||count>99)throw Error('store_box_quantity_unavailable');
-  return {item_id:item.item_id,selections};
- });
+ return cashierPackagePrepPlan(cashierPackageQuote.items,$('cashierPackagePrepItems'));
 }
 async function checkoutOrderCart(){const btn=$('cartCheckoutBtn');await busy(btn,async()=>{
  if(!(isCashier()||isOwner()||isStaff()))throw Error('staff_only');
