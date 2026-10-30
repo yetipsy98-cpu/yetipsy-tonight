@@ -48,7 +48,7 @@ export function createStoreBox({db,ownerRoot,staffRoot,orderRoot,isOwner,isCashi
   const combo=form.querySelector('[data-box-kind]').value==='combo',selection=form.querySelector('[data-box-selection]').value;
   let components=combo?[...form.querySelectorAll('.storebox-component-row')].map(row=>({name:row.querySelector('[data-box-component-name]').value.trim(),quantity:Number(row.querySelector('[data-box-component-qty]').value)})):[];
   if(selection==='levels'){
-   components=[...form.querySelectorAll('.storebox-component-row')].map(row=>({name:row.querySelector('[data-box-component-name]').value.trim(),quantity:1,options:row.querySelector('[data-box-component-options]')?.value.split(String.fromCharCode(10)).map(value=>value.trim()).filter(Boolean)||[]}));
+   components=[...form.querySelectorAll('.storebox-component-row')].map(row=>({name:row.querySelector('[data-box-component-name]').value.trim(),quantity:1,options:(row.closest('.storebox-level-row')||row).querySelector('[data-box-component-options]')?.value.split(String.fromCharCode(10)).map(value=>value.trim()).filter(Boolean)||[]}));
    if(!components.length||components.some(x=>!x.name||x.name.includes('::')||x.name.includes('~')||!x.options.length||x.options.some(name=>name.includes('~~'))))throw Error('请为每个 LV 填写关卡名称和至少一款可选酒');
    if(new Set(components.map(x=>x.name.toLocaleLowerCase())).size!==components.length)throw Error('LV 名称不能重复');
    if(components.some(x=>new Set(x.options.map(name=>name.toLocaleLowerCase())).size!==x.options.length))throw Error('同一 LV 的选项不能重复');
