@@ -6,7 +6,7 @@ import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-
 import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-one-code-adjustment-v1';
-import {createStoreBox} from './store-box.js?v=20261020-storebox-expiry-void-kds-fold-v1&layout=drink-name-v1';
+import {createStoreBox} from './store-box.js?v=20261030-sequential-levels-v1';
 import {createAmbassadorTools} from './ambassador.js?v=20261023-ambassador-short-ref-v1';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
@@ -1066,6 +1066,7 @@ let cashierPackageQuote=null,cashierPackageOrder=null;
 async function promptCashierPackagePrep(orderId){
  if(!(isCashier()||isOwner())||!orderId)return;
  const quote=unpack(await db.rpc('yt_store_box_checkout_prep_quote',{p_order:orderId}));
+ quote.items=(quote.items||[]).filter(item=>item.selection_mode!=='levels');quote.can_prepare=quote.can_prepare&&quote.items.length>0;
  if(!quote?.can_prepare||!quote?.items?.length)return;
  const saved=unpack(await db.rpc('yt_store_box_prep_intent_get',{p_order:orderId}));
  if(saved?.preps)return;
@@ -1083,6 +1084,7 @@ async function loadCashierPackagePrep(id,q){
  const panel=$('cashierPackagePrep'),root=$('cashierPackagePrepItems');
  if(!(isCashier()||isOwner())||q.payment_status!=='unpaid'){cashierPackageQuote=null;cashierPackageOrder=null;panel.classList.add('hidden');return;}
  const quote=unpack(await db.rpc('yt_store_box_checkout_prep_quote',{p_order:id}));
+ quote.items=(quote.items||[]).filter(item=>item.selection_mode!=='levels');quote.can_prepare=quote.can_prepare&&quote.items.length>0;
  if(state.selectedOrderCart!==id)return;
  cashierPackageQuote=quote;cashierPackageOrder=id;
  const items=quote.can_prepare?quote.items||[]:[];
