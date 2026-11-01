@@ -486,3 +486,29 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 .report-tools [data-report=pdf] svg{width:18px;height:18px;flex:0 0 18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .report-tools [data-report=export]{margin:0;font-size:12px;background:transparent;border-color:#65775f;color:#dce2cb}
 @media(max-width:600px){.report-tools{flex-direction:column;gap:12px;padding:12px;border-radius:15px}.report-tools .report-presets{flex:0 0 auto;width:100%;gap:6px}.report-month-controls,.report-export-actions{flex:0 0 auto;width:100%}.report-export-actions button{height:46px;min-height:46px}.report-tabs{gap:7px}.report-tabs>button{font-size:14px}.report-tools [data-report=export]{font-size:12px}}
+
+/* Report controls v2: segmented tabs and clearer action hierarchy. */
+.report-head .kicker{margin:0 0 6px;color:#cdbc91;font-size:10px;letter-spacing:1.7px}
+.report-head h2{font-size:22px;line-height:1.25}
+.report-tabs{gap:4px;padding:5px;margin:12px 0 16px;background:#11231b;border:1px solid #46624e88;border-radius:16px}
+.report-tabs>button{height:42px;min-height:42px;border:0;border-radius:11px;background:transparent;color:#bacab6;font-size:14px;font-weight:600;transition:background .15s,color .15s,box-shadow .15s}
+.report-tabs>button.active{background:linear-gradient(135deg,#efd8a7,#dfc28b);color:#1c2d20;box-shadow:0 2px 8px #0002}
+.report-tabs>button:not(.active):hover{background:#294333;color:#edf0dc}
+.report-filter{padding:13px;border:1px solid #506a5666;border-radius:16px;background:#1b3025;gap:10px}
+.report-filter label{font-size:11px;color:#bdcdb8;line-height:1.4}
+.report-filter input{box-sizing:border-box;min-width:0;min-height:46px;height:46px;margin-top:6px;padding:9px 11px;background:#13271b;border:1px solid #526d58;border-radius:11px;font-size:14px;color:#eef0df;font-weight:600}
+.report-filter button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;height:46px;margin:0;padding:10px 15px;border:1px solid #ddc58f;border-radius:11px;background:#ead09a;color:#1c2e22;font-size:14px;font-weight:700;line-height:1.2}
+.report-filter button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.report-tools{padding:0;border:0;border-radius:0;background:transparent;gap:12px}
+.report-tools .report-presets{padding:5px;gap:4px;background:#11271d;border:1px solid #48634f88;border-radius:13px}
+.report-tools .report-presets button{height:34px;min-height:34px;border:0;border-radius:8px;padding:6px 3px;background:transparent;color:#b9cab4;font-weight:500}
+.report-tools .report-presets button.active{background:#394630;color:#f1d99c;box-shadow:inset 0 0 0 1px #bda46c88;font-weight:700}
+.report-tools .report-presets button:hover:not(:disabled){background:#2b4230;color:#e7dfba}
+.report-month-controls{padding:12px;background:#1b3025;border:1px solid #506a5666;border-radius:15px;gap:10px}
+.report-month-controls label{font-size:11px;color:#bdcdb8;gap:8px}
+.report-month-controls [data-report=viewMonth]{height:46px;min-height:46px;background:#314733;border-color:#6c805f;color:#f0ebcd;font-size:12px;border-radius:11px}
+.report-export-actions{gap:10px}
+.report-export-actions button{height:50px;min-height:50px;border-radius:14px;font-size:14px}
+.report-tools [data-report=pdf]{box-shadow:0 3px 10px #0002;letter-spacing:.2px}
+.report-tools [data-report=export]{font-size:13px;background:#20362a;border-color:#60725b;color:#d4dec9}
+@media(max-width:600px){.report-tools{padding:0;gap:12px}.report-tools .report-presets{padding:5px;gap:4px}.report-month-controls{padding:11px}.report-export-actions button{height:50px;min-height:50px}.report-tabs{gap:4px}.report-filter{padding:12px}.report-filter input{font-size:14px}.report-filter button{min-height:44px;height:44px}}
