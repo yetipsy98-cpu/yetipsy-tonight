@@ -6,4 +6,11 @@ assert(html.includes('2026年10月经营月报'));assert(html.includes('ORDER-75
 assert(!html.includes('<script>'));assert(html.includes('&lt;script&gt;'));assert(html.includes('A4 portrait'));assert(html.includes('table-header-group'));assert(html.includes('净实收 = 原收款 + 补收 − 退款'));assert(html.includes('1,510.00'));
 assert.throws(()=>c.build({...sample,complete:false}));assert.throws(()=>c.build({...sample,start:'bad'}));
 const empty=c.build({complete:true,start:'2026-02-01',end:'2026-02-28',summary:{},item_summary:{}});assert(empty.includes('本期间暂无记录'));assert(empty.includes('2026-02-28'));assert(!empty.includes('NaN'));
+const groupedSample={...sample,products:[{item_name:'PAYMENT-DUIT-AAA',category:'C',payment_method:'duitnow'},{item_name:'PAYMENT-CASH-ZZZ',category:'C',payment_method:'cash'},{item_name:'PAYMENT-FOOD',category:'C',payment_method:'foodcourt'},{item_name:'PAYMENT-CASH-AAA',category:'C',payment_method:'cash'}]};
+const originalOrder=groupedSample.products.map(x=>x.item_name).join(',');
+const productSection=c.build(groupedSample).split('04　商品明细')[1].split('05　补收与退款')[0];
+assert(productSection.indexOf('PAYMENT-CASH-AAA')<productSection.indexOf('PAYMENT-CASH-ZZZ'));
+assert(productSection.indexOf('PAYMENT-CASH-ZZZ')<productSection.indexOf('PAYMENT-DUIT-AAA'));
+assert(productSection.indexOf('PAYMENT-DUIT-AAA')<productSection.indexOf('PAYMENT-FOOD'));
+assert.equal(groupedSample.products.map(x=>x.item_name).join(','),originalOrder);
 console.log('PASS A4 financial report, untruncated details, accounting dates, amendment notes, totals, escaping, empty period and invalid data guards');

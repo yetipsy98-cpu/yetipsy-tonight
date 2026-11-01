@@ -37,7 +37,7 @@ export function createOwnerReports({db,root,isOwner,notice,businessDay,allowExpo
   pdfWindow=popup;pdfBusy=true;if($('pdf'))$('pdf').disabled=true;
   popup.document.open();popup.document.write('<!doctype html><html lang="zh-Hans"><meta charset="utf-8"><title>Yetipsy 月报</title><body style="font:16px sans-serif;padding:30px">正在整理完整月报，请稍候…</body></html>');popup.document.close();
   try{
-   const [response,module]=await Promise.all([db.rpc('yt_owner_financial_export',{p_start:start,p_end:end}),import('./financial-pdf.js?v=20261101-full-monthly-pdf-v1')]);
+   const [response,module]=await Promise.all([db.rpc('yt_owner_financial_export',{p_start:start,p_end:end}),import('./financial-pdf.js?v=20261101-pdf-method-sort-v2')]);
    if(ticket!==pdfEpoch||!isOwner()||!(typeof allowExport==='function'?allowExport():allowExport)||popup.closed){if(!popup.closed)popup.close();return;}
    if(response.error)throw Error(response.error.message);
    await module.showFinancialReport(popup,response.data);

@@ -17,7 +17,9 @@ export function buildFinancialReportHTML(d){
  if(payments.length)payments.push(['合计','—',amount(s.sales_rm),amount(s.adjustments_rm),amount(s.refunds_rm),amount(s.net_rm)]);
  const categories=(d.categories||[]).map(x=>[x.category,x.series_name,count(x.quantity),amount(x.gross_rm),amount(x.discount_rm),amount(x.net_rm)]);
  if(categories.length)categories.push(['合计','',count(i.quantity),amount(i.gross_rm),amount(i.discount_rm),amount(i.net_rm)]);
- const products=(d.products||[]).map(x=>[x.item_name+'\n'+x.category+' / '+x.series_name,method(x.payment_method),count(x.quantity),amount(x.gross_rm),amount(x.discount_rm),amount(x.net_rm)]);
+ const paymentOrder=['cash','duitnow','foodcourt','card','bank_transfer','other','AB_Cash','AB_DuitNow','AB_Foodcourt','AB_Card','AB_Bank_Transfer','AB_Other'];
+ const rank=v=>{const n=paymentOrder.indexOf(v);return n<0?paymentOrder.length:n;};
+ const products=[...(d.products||[])].sort((a,b)=>rank(a.payment_method)-rank(b.payment_method)||method(a.payment_method).localeCompare(method(b.payment_method),'zh-Hans')||String(a.category||'').localeCompare(String(b.category||''),'zh-Hans')||String(a.item_name||'').localeCompare(String(b.item_name||''),'zh-Hans')||String(a.series_name||'').localeCompare(String(b.series_name||''),'zh-Hans')).map(x=>[x.item_name+'\n'+x.category+' / '+x.series_name,method(x.payment_method),count(x.quantity),amount(x.gross_rm),amount(x.discount_rm),amount(x.net_rm)]);
  const adjustments=(d.adjustments||[]).map(x=>[x.business_day+'\n'+x.order_no,x.kind==='refund'?'退款':'补收',method(x.method),amount(x.amount_rm),'于 '+stamp(x.modified_at)+' 修改\n'+(x.note||'—')]);
  const orders=(d.orders||[]).map(x=>[x.business_day+'\n'+x.order_no+'\n'+(x.table_label||'Walk-in'),method(x.payment_method),amount(x.bill_rm),amount(x.net_rm),amount(x.balance_rm),x.amendment_note||'—']);
  return `<!doctype html><html lang="zh-Hans"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Yetipsy ${esc(month)} ${esc(d.start)}_${esc(d.end)}</title><style>
@@ -27,7 +29,7 @@ export function buildFinancialReportHTML(d){
  ${table('01　每日业绩',['营业日','订单','原收款','补收','退款','净实收'],daily)}
  ${table('02　付款方式',['方式','涉及订单','原收款','补收','退款','净实收'],payments,'同一订单涉及多种付款方式时，会分别出现在对应方式中；涉及订单数不相加。')}
  ${table('03　商品分类／系列',['分类','系列','杯／份','商品原价','奖励优惠','商品净额'],categories)}
- ${table('04　商品明细 · '+count(products.length)+' 行',['商品／分类／系列','原付款方式','杯／份','原价','优惠','商品净额'],products,'同一商品及相同原付款方式合并，不同付款方式分行。商品金额与净实收可能因待补收／退款而不同，差额见订单明细。')}
+ ${table('04　商品明细 · '+count(products.length)+' 行',['商品／分类／系列','原付款方式','杯／份','原价','优惠','商品净额'],products,'先按付款方式排序，同一付款方式内按商品分类和名称排列；同一商品及相同原付款方式合并。商品金额与净实收可能因待补收／退款而不同，差额见订单明细。')}
  ${table('05　补收与退款 · '+count(adjustments.length)+' 笔',['归属营业日／单号','类型','付款方式','金额','修改时间／备注'],adjustments,'这些款项已计入原营业日的每日业绩，不会再次计入修改当天的 sales。')}
  <div class="appendix">${table('06　订单明细 · '+count(orders.length)+' 张',['营业日／单号／桌号','付款方式','修订账单','本期净实收','待补／退','修改备注'],orders,'待补／退：正数为待补收，负数为待退款。订单明细完整导出，不受页面显示数量限制。')}</div><p class="footnote">此报表用于店铺经营核对，非税务发票。统计截至生成时已记录的数据；修改记录按原营业日归账。核对：________________　日期：________________</p></body></html>`;
 }
