@@ -1,0 +1,14 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('play/pos/day-close.js','utf8').replace(/export /g,'');
+const c={Date,Number};vm.createContext(c);vm.runInContext(source+';globalThis.markup=statementMarkup;globalThis.enrich=statementWithPaymentMethods;',c);
+const items=[{product_id:'p',item_name:'Mojito',quantity:3,gross_rm:62,discount_rm:0,net_rm:62,payment_method:'cash'},{product_id:'p',item_name:'Mojito',quantity:1,gross_rm:20,discount_rm:0,net_rm:20,payment_method:'duitnow'}];
+const live={day:'2026-11-01',items,stats:{units:4,net_rm:82,gross_rm:82}};
+const html=c.markup(live);
+assert(html.includes('3 杯 · 现金'));assert(html.includes('1 杯 · DuitNow'));
+assert.equal((html.match(/class="statement-item"/g)||[]).length,2);assert(html.includes('1 种商品'));assert(html.includes('4 杯'));
+const snapshot={...live,items:[{product_id:'p',item_name:'Mojito',quantity:4,gross_rm:82,discount_rm:0,net_rm:82}]};
+const enriched=c.enrich(snapshot,live);assert.equal(enriched.items.length,2);assert.strictEqual(enriched.stats,snapshot.stats);assert.equal(snapshot.items.length,1);
+assert.strictEqual(c.enrich(snapshot,{...live,items:[{...items[0],quantity:99}]}),snapshot,'never replace saved financial data when totals differ');
+assert.strictEqual(c.enrich(live,live),live);
+const escaped=c.markup({...live,items:[{...items[0],payment_method:'<script>'}]});assert(escaped.includes('&lt;script&gt;'));assert(!escaped.includes('<script>'));
+console.log('PASS statement payment labels, separate rows, distinct product count, saved snapshot enrichment and unchanged totals');
