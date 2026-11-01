@@ -462,3 +462,27 @@ label,.owner-tools label{color:#dce7dc}.owner-tools small,.order-note small,.pro
 @media(max-width:480px){.receipt-canvas-heading{align-items:flex-start}.receipt-layout-tool-body{grid-template-columns:1fr}.receipt-preview-backdrop{padding:8px}.receipt-preview-window{max-height:96dvh;border-radius:14px}}
 
 /* Editor module cache v4: layout and English receipt editor. */
+
+/* Report controls: compact, aligned actions on mobile and desktop. */
+.report-tabs{display:flex;gap:8px;overflow:visible}
+.report-tabs>button{flex:1 1 0;width:0;min-width:0;min-height:44px;padding:10px 6px;text-align:center;justify-content:center;border-radius:13px;white-space:nowrap}
+.report-head [data-report=refresh]{flex:0 0 auto;width:auto;min-height:40px;padding:8px 15px;border-radius:12px;font-size:13px;line-height:1.3}
+.report-tools{display:flex;flex-wrap:wrap;gap:14px;padding:14px;margin:14px 0 8px;background:linear-gradient(140deg,#21372b99,#172b2099);border:1px solid #4d655455;border-radius:17px}
+.report-tools .report-presets{display:flex;flex:0 0 100%;flex-wrap:nowrap;gap:7px;padding:0;min-width:0}
+.report-tools button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:0;max-width:100%;min-height:46px;height:46px;margin:0;padding:10px 12px;border:1px solid #536b59;border-radius:12px;background:#233b2d;color:#e9eddd;font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;box-shadow:none;transition:background .15s,border-color .15s,transform .15s}
+.report-tools button:active:not(:disabled){transform:translateY(1px)}
+.report-tools button:hover:not(:disabled){background:#2e4a37;border-color:#a99c74}
+.report-tools button:focus-visible{outline:2px solid #e8ce96;outline-offset:3px}
+.report-tools button:disabled{opacity:.45;cursor:not-allowed}
+.report-tools .report-presets button{flex:1 1 0;width:0;height:38px;min-height:38px;padding:8px 5px;font-size:12px;border-color:#4b6453;background:#1a3024;color:#d9e3ce;border-radius:10px}
+.report-month-controls{display:flex;flex:1 1 270px;gap:9px;align-items:flex-end;min-width:0}
+.report-month-controls label{display:flex;flex-direction:column;flex:1 1 0;gap:7px;width:0;min-width:0;margin:0;font-size:12px;color:#bfccb7;line-height:1.25}
+.report-month-controls input{box-sizing:border-box;width:100%;max-width:100%;min-width:0;height:46px;min-height:46px;margin:0;padding:10px 12px;border:1px solid #58705d;border-radius:12px;background:#13271b;color:#edf1e2;font-size:15px;font-weight:600;line-height:1.2}
+.report-month-controls [data-report=viewMonth]{flex:0 0 94px;width:94px;padding:10px 8px;background:#2b4030;border-color:#657860;color:#ecebd6}
+.report-export-actions{display:flex;flex:1 1 270px;gap:9px;align-items:flex-end;min-width:0}
+.report-export-actions button{flex:1 1 0;width:0}
+.report-tools [data-report=pdf]{background:linear-gradient(135deg,#efd7a5,#e2c58c);border-color:#d6bc83;color:#192b1f;box-shadow:0 3px 10px #0002;font-weight:700}
+.report-tools [data-report=pdf]:hover:not(:disabled){background:linear-gradient(135deg,#f4dfb8,#ecd29c);border-color:#f1daa7}
+.report-tools [data-report=pdf] svg{width:18px;height:18px;flex:0 0 18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.report-tools [data-report=export]{margin:0;font-size:12px;background:transparent;border-color:#65775f;color:#dce2cb}
+@media(max-width:600px){.report-tools{flex-direction:column;gap:12px;padding:12px;border-radius:15px}.report-tools .report-presets{flex:0 0 auto;width:100%;gap:6px}.report-month-controls,.report-export-actions{flex:0 0 auto;width:100%}.report-export-actions button{height:46px;min-height:46px}.report-tabs{gap:7px}.report-tabs>button{font-size:14px}.report-tools [data-report=export]{font-size:12px}}
