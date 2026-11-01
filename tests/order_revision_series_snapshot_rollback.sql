@@ -1,0 +1,40 @@
+BEGIN;
+DO $test$
+DECLARE actor uuid;a uuid;b uuid;p1 uuid;p2 uuid;o uuid;item uuid;replacement uuid;rev jsonb;preview jsonb;payload jsonb;ts timestamptz;request uuid:=gen_random_uuid();
+BEGIN
+ SELECT auth_user_id INTO actor FROM public.work_accounts WHERE role='owner' AND active AND NOT must_change_password LIMIT 1;
+ IF actor IS NULL THEN RAISE EXCEPTION 'fixture_missing';END IF;
+ PERFORM set_config('request.jwt.claim.sub',actor::text,true);
+ PERFORM set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',actor)::text,true);
+ INSERT INTO public.yt_pos_series(name,benefit_mode,game_plays,active) VALUES('ROLLBACK snapshot A','games',1,true) RETURNING id INTO a;
+ INSERT INTO public.yt_pos_series(name,benefit_mode,game_plays,active) VALUES('ROLLBACK snapshot B','games',1,true) RETURNING id INTO b;
+ INSERT INTO public.yt_shop_products(title,price_rm,series_id,active,is_drink) VALUES('ROLLBACK original',347.10,a,true,true) RETURNING id INTO p1;
+ INSERT INTO public.yt_shop_products(title,price_rm,series_id,active,is_drink) VALUES('ROLLBACK replacement',531.10,b,true,true) RETURNING id INTO p2;
+ INSERT INTO public.yt_member_orders(source,status,amount_rm,created_by) VALUES('future_pos','fulfilled',347.10,actor) RETURNING id INTO o;
+ INSERT INTO public.yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm) VALUES(o,p1,'ROLLBACK original',1,347.10) RETURNING id INTO item;
+ INSERT INTO public.yt_pos_item_units(order_item_id,unit_number) VALUES(item,1) ON CONFLICT DO NOTHING;
+ UPDATE public.yt_member_orders SET payment_status='paid',paid_at=clock_timestamp(),paid_by=actor,payment_method='cash' WHERE id=o;
+ SELECT updated_at INTO ts FROM public.yt_member_orders WHERE id=o;
+ payload:=jsonb_build_array(jsonb_build_object('item_id',item,'product_id',p2,'quantity',1));
+ preview:=public.yt_pos_owner_revision_preview(o,payload);
+ IF (preview->>'net')::numeric<>531.10 OR (preview->>'balance_rm')::numeric<>184 OR (preview->>'received_rm')::numeric<>347.10 THEN RAISE EXCEPTION 'FAIL replacement preview %',preview;END IF;
+ rev:=public.yt_pos_owner_revision_apply(o,payload,'wrong key in correction',NULL,NULL,ts,request);
+ IF (rev->>'balance_rm')::numeric<>184 OR private.yt_pos_received(o)<>347.10 THEN RAISE EXCEPTION 'FAIL payment changed %',rev;END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.yt_member_order_items WHERE id=item AND product_id=p1 AND series_id_at_order=a AND quantity=0) OR NOT EXISTS(SELECT 1 FROM public.yt_pos_item_units WHERE order_item_id=item AND retired) THEN RAISE EXCEPTION 'FAIL old history overwritten';END IF;
+ SELECT id INTO STRICT replacement FROM public.yt_member_order_items WHERE order_id=o AND product_id=p2 AND quantity=1 AND series_id_at_order=b;
+ rev:=public.yt_pos_owner_revision_apply(o,payload,'wrong key in correction',NULL,NULL,ts,request);
+ IF NOT (rev->>'retried')::boolean OR (SELECT count(*) FROM public.yt_member_order_items WHERE order_id=o AND product_id=p2)<>1 THEN RAISE EXCEPTION 'FAIL duplicate retry';END IF;
+ BEGIN UPDATE public.yt_member_order_items SET series_id_at_order=a WHERE id=replacement;RAISE EXCEPTION 'FAIL immutable guard bypass';EXCEPTION WHEN raise_exception THEN IF SQLERRM<>'series_snapshot_immutable' THEN RAISE;END IF;END;
+ PERFORM public.yt_pos_adjustment_pay(o,184,'cash','actual top up test',gen_random_uuid());
+ IF private.yt_pos_received(o)<>531.10 THEN RAISE EXCEPTION 'FAIL top up';END IF;
+ -- Menu changes must not alter historical series on quantity/price edits.
+ UPDATE public.yt_shop_products SET series_id=a WHERE id=p2;
+ SELECT updated_at INTO ts FROM public.yt_member_orders WHERE id=o;
+ payload:=jsonb_build_array(jsonb_build_object('item_id',replacement,'product_id',p2,'quantity',2));
+ preview:=public.yt_pos_owner_revision_preview(o,payload);
+ IF preview#>>'{lines,0,series_id}' IS DISTINCT FROM b::text THEN RAISE EXCEPTION 'FAIL preview resnapshots catalogue %',preview;END IF;
+ rev:=public.yt_pos_owner_revision_apply(o,payload,'quantity correction after menu change',NULL,NULL,ts,gen_random_uuid());
+ IF NOT EXISTS(SELECT 1 FROM public.yt_member_order_items WHERE id=replacement AND quantity=2 AND series_id_at_order=b) OR (rev->>'balance_rm')::numeric<>531.10 OR private.yt_pos_received(o)<>531.10 THEN RAISE EXCEPTION 'FAIL historical quantity edit %',rev;END IF;
+END $test$;
+ROLLBACK;
+SELECT 'PASS cross-series replacement; original history retained; RM347.10 received + RM184 top-up = RM531.10; retries, immutable guard and historical-series edits; all fixtures rolled back' result;
