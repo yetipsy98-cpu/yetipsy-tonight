@@ -3,7 +3,7 @@ import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-set
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261010-copy-v15-4';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
-import {createConsole} from './console.js?v=20261020-receipt-compact-v3';
+import {createConsole} from './console.js?v=20261101-accounting-day-notes-v1';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-one-code-adjustment-v1';
 import {createStoreBox} from './store-box.js?v=20261031-cashier-level-options-v1';
@@ -112,7 +112,7 @@ async function changeCashierFirstPassword(e){e.preventDefault();const button=e.s
 const defaultTab=()=>limitedRole()?'limited':isOwner()?'admin':state.identity?.role==='cashier'?'pending':'create';
 const limitedRole=()=>typeof isOwnerLimited==='function'&&isOwnerLimited();
 function ensureLimitedHome(){let section=$('tab-limited');if(!section){document.querySelector('main')?.insertAdjacentHTML('beforeend','<section id="tab-limited" class="tab-view hidden"><div id="limitedReportsRoot"></div></section>');section=$('tab-limited');}else if(!$('limitedReportsRoot'))section.innerHTML='<div id="limitedReportsRoot"></div>';}
-async function loadLimitedReports(){const root=$('limitedReportsRoot');if(!root||!isOwnerLimited())return;const module=await import('./owner-reports.js?v=20261014-limited-report-full-v1');limitedReportView||=module.createOwnerReports({db,root,isOwner:isOwnerLimited,allowExport:false,notice:(message,bad)=>showNotice(message,bad),businessDay:state.businessDay});await limitedReportView.load();}
+async function loadLimitedReports(){const root=$('limitedReportsRoot');if(!root||!isOwnerLimited())return;const module=await import('./owner-reports.js?v=20261101-accounting-day-notes-v1');limitedReportView||=module.createOwnerReports({db,root,isOwner:isOwnerLimited,allowExport:false,notice:(message,bad)=>showNotice(message,bad),businessDay:state.businessDay});await limitedReportView.load();}
 function buildNav(){const nav=$('nav');$('tab-benefits')?.classList.toggle('benefits-off',state.luckyMode?.mode==='off');$('revisionApprovalTab')?.classList.toggle('hidden',!isOwner());$('ownerApprovalShortcut')?.classList.toggle('hidden',!isOwner());const tabs=limitedRole()
   ?[['limited','报表'],['ambassador','发 Pass']]
   :isOwner()
@@ -666,7 +666,7 @@ function receiptInner(r){
  const discount=Number(r.discount_total_rm||0);
  const status=refunded?label('已退款取消 ·','REFUND RECORD'):['cancelled','rejected'].includes(r.status)?label('已取消 · 非付款凭证','CANCELLED · NOT A RECEIPT'):paid?'✓ '+label('已收款 ·','PAYMENT RECEIPT'):label('尚未结账 ·','UNPAID BILL');
  const paymentName=(r.payment_method||'foodcourt').toUpperCase();
- const history=(r.payment_entries||[]).length>1?'<details class="receipt-payments" open><summary>'+label('收款与退款记录','PAYMENT HISTORY')+'</summary>'+(r.payment_entries||[]).map(e=>'<div class="receipt-row"><span>'+esc(({cash:label('现金','CASH'),foodcourt:label('食阁','FOODCOURT'),duitnow:'DuitNow',card:label('刷卡','CARD'),bank_transfer:label('转账','TRANSFER'),other:label('其他','OTHER')})[e.method]||e.method)+' · '+(Number(e.amount_rm)<0?label('退款','REFUND'):e.kind==='adjustment'?label('补收','ADJUSTMENT'):label('收款','PAYMENT'))+'</span><b>'+(Number(e.amount_rm)<0?'−':'')+money(Math.abs(e.amount_rm))+'</b></div>').join('')+'</details>':'';
+ const history=(r.payment_entries||[]).length>1?'<details class="receipt-payments" open><summary>'+label('收款与退款记录','PAYMENT HISTORY')+'</summary>'+(r.payment_entries||[]).map(e=>'<div class="receipt-row"><span>'+esc(({cash:label('现金','CASH'),foodcourt:label('食阁','FOODCOURT'),duitnow:'DuitNow',card:label('刷卡','CARD'),bank_transfer:label('转账','TRANSFER'),other:label('其他','OTHER')})[e.method]||e.method)+' · '+(Number(e.amount_rm)<0?label('退款','REFUND'):e.kind==='adjustment'?label('补收','ADJUSTMENT'):label('收款','PAYMENT'))+(e.business_day?'<small>ACCOUNTING DATE: '+esc(e.business_day)+'</small>':'')+(e.amendment_note?'<small>'+esc(e.amendment_note)+(e.note?' · '+esc(e.note):'')+'</small>':'')+'</span><b>'+(Number(e.amount_rm)<0?'−':'')+money(Math.abs(e.amount_rm))+'</b></div>').join('')+'</details>':'';
  return '<div class="receipt-paper" id="receiptPaper" style="--receipt-width:'+width+'mm">'+
  (business?field('business_name','<div class="receipt-logo">'+business+'</div>'):'')+(subtitle?field('subtitle','<div class="receipt-subhead">'+subtitle+'</div>'):'')+
  (address?field('address_line','<div class="receipt-business-line">'+address+'</div>'):'')+(contact?field('contact_line','<div class="receipt-business-line">'+contact+'</div>'):'')+
