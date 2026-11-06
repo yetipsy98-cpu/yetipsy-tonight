@@ -390,10 +390,26 @@ function diceLocalResult(tier,sessionId){const faces=diceResult(tier,sessionId),
  return {headline:`${count} 颗「1」`,kicker:'LUCKY DICE RESULT',detail:`五颗骰子已停稳 · ${count} / 5 颗「1」`,visual:`<div class="yt-result-dice">${faces.map(diceElement).join('')}</div>`,rule:'每颗骰子的结果对应公开的奖励档位，中奖概率只由本游戏的独立奖池决定。',score:count};
 }
 const cardFortunes=['上上签 · 今夜好事正在靠近。','好运签 · 你选的路会有惊喜。','桃花签 · 今晚有人记得你的笑。','贵人签 · 会有人为你带来好消息。','勇气签 · 先迈一步，好运才会出现。','如愿签 · 心里想的事，正在慢慢成真。'];
+function mysteryGiftMarkup(index){
+ const key=`ytGift${index}`;
+ return `<svg class="yt-gift-art" xmlns="http://www.w3.org/2000/svg" width="120" height="142" viewBox="0 0 120 142" aria-hidden="true" focusable="false">
+ <defs><linearGradient id="${key}Body" x2="1" y2="1"><stop stop-color="#537160"/><stop offset=".5" stop-color="#284c3a"/><stop offset="1" stop-color="#142f25"/></linearGradient><linearGradient id="${key}Gold" x2=".8" y2="1"><stop stop-color="#fff0bd"/><stop offset=".45" stop-color="#dcb572"/><stop offset="1" stop-color="#947044"/></linearGradient><radialGradient id="${key}Light"><stop stop-color="#fff3c1" stop-opacity=".9"/><stop offset="1" stop-color="#e8bd6e" stop-opacity="0"/></radialGradient></defs>
+ <ellipse class="yt-gift-shadow" cx="60" cy="130" rx="39" ry="7" fill="#000" opacity=".35"/>
+ <ellipse class="yt-gift-light" opacity="0" cx="60" cy="78" rx="57" ry="58" fill="url(#${key}Light)"/>
+ <path d="M21 64 60 77 99 64 99 111Q99 116 94 118L62 130Q60 131 57 130L25 119Q21 117 21 113Z" fill="url(#${key}Body)" stroke="#bca675" stroke-width=".8"/>
+ <path d="m60 77 39-13v47q0 5-5 7l-34 13Z" fill="#09291f" opacity=".45"/>
+ <path d="m47 73 14 5v52l-14-5Z" fill="url(#${key}Gold)"/><path d="m60 78 12-4v52l-12 5Z" fill="#b48b50"/>
+ <path d="m27 86 13 5m-13 4 13 5m37-9 13-5m-13 14 13-5" stroke="#e4d6a2" stroke-opacity=".13"/>
+ <g class="yt-gift-lid"><path d="M16 57 58 42Q60 41 63 42L104 56 104 69 61 85 16 70Z" fill="url(#${key}Gold)" stroke="#f7dca4" stroke-width=".8"/><path d="m16 57 44 15 44-16-43-14Z" fill="#e7cb92"/><path d="m60 72 44-16v13L61 85Z" fill="#a17c49"/><path d="m49 45 13-4 43 15-13 5ZM16 57l13-5 44 15-13 5Z" fill="#fff0c0" opacity=".85"/>
+ <path d="M60 49C31 48 29 23 45 29c10 4 15 20 15 20Zm1 0c28-4 28-28 13-21-9 4-13 21-13 21Z" fill="url(#${key}Gold)" stroke="#ffe6b0" stroke-width="1.3"/><path d="m57 46-9 14 12-4 10 5-7-16" fill="#d4ab68"/><ellipse cx="60" cy="47" rx="6" ry="4" fill="#ffe6a8"/></g>
+ <path class="yt-gift-spark" opacity="0" d="m60 18 3 9 9 3-9 3-3 9-3-9-9-3 9-3Z" fill="#fff1be"/>
+ </svg><span class="yt-gift-number">${String(index+1).padStart(2,'0')}</span>`;
+}
 async function playPick(isCard,session,progress={},game={}){
  const count=Math.max(3,Math.min(8,Number(game.choice_count||(isCard?6:5)))),fortunes=isCard&&Array.isArray(game.fortune_texts)&&game.fortune_texts.length===count?game.fortune_texts:cardFortunes.slice(0,count);
- const markup=Array.from({length:count},(_,i)=>isCard?`<button class="foil-card yt-pick-card" data-pick="${i}" aria-label="选择第${i+1}张牌"><span>✳</span><small>YETIPSY</small><em>0${i+1}</em></button>`:`<button class="gift-box yt-pick-box" data-pick="${i}" aria-label="选择第${i+1}个礼盒"><span>✦</span><em>0${i+1}</em></button>`).join('');
+ const markup=Array.from({length:count},(_,i)=>isCard?`<button class="foil-card yt-pick-card" data-pick="${i}" aria-label="选择第${i+1}张牌"><span>✳</span><small>YETIPSY</small><em>0${i+1}</em></button>`:`<button class="gift-box yt-pick-box" data-pick="${i}" aria-label="选择第${i+1}个礼盒">${mysteryGiftMarkup(i)}</button>`).join('');
  const v=arena(isCard?'MYSTERY CARD · 命运翻牌':'MYSTERY BOX · 惊喜盲盒',`<div class="yt-pick-intro">${isCard?'你会选中哪一张命运牌？':'挑选今晚属于你的神秘礼盒。'}</div><div class="game-picks yt-game-picks">${markup}</div><div id="ytPickSignature" class="yt-pick-signature"></div>`,'只有一次选择 · 点击其中一个');
+ if(!isCard){v.closest('.yt-premium-arena').classList.add('yt-mystery-arena');v.querySelector('.yt-game-picks').classList.add('yt-mystery-picks');v.querySelector('.yt-pick-intro').innerHTML='<span class="yt-box-eyebrow">A LITTLE MYSTERY, JUST FOR YOU</span><strong>今晚的惊喜，由你开启</strong><small>凭直觉，挑选一个礼盒</small>'; }
  const buttons=[...v.querySelectorAll('[data-pick]')];
  const selected=progress.choice!=null?Number(progress.choice)-1:await new Promise((resolve,reject)=>{
   let done=false;const timeout=setTimeout(()=>onPick(Math.floor(Math.random()*count),true),50000);
