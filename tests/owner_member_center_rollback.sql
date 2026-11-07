@@ -1,0 +1,67 @@
+-- BEGIN / ROLLBACK only. All awards, balances, logs and orders are restored.
+do $$
+declare actor uuid; cashier uuid; member uuid; other_member uuid; reward uuid; award uuid; expired_award uuid; locked_award uuid; o uuid; req uuid; r jsonb; d jsonb; base bigint; credit_entry uuid; x uuid; i integer;
+begin
+ select auth_user_id into actor from public.work_accounts where role='owner' and active and not must_change_password limit 1;
+ select auth_user_id into cashier from public.work_accounts where role='cashier' and active and not must_change_password limit 1;
+ select auth_user_id into member from public.pin_accounts where not exists(select 1 from public.work_accounts a where a.auth_user_id=pin_accounts.auth_user_id) order by created_at limit 1;
+ select auth_user_id into other_member from public.pin_accounts where auth_user_id<>member and not exists(select 1 from public.work_accounts a where a.auth_user_id=pin_accounts.auth_user_id) limit 1;
+ if actor is null or cashier is null or member is null or other_member is null then raise exception 'fixture_missing';end if;
+ if has_function_privilege('anon','public.yt_owner_member_detail(uuid,text,integer)','execute') or has_function_privilege('anon','public.yt_owner_member_operate(uuid,text,uuid,jsonb,text,uuid)','execute') then raise exception 'anonymous_access';end if;
+ foreach x in array array[cashier,member] loop
+  perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',x)::text,true);
+  begin perform public.yt_owner_member_search('',1);raise exception 'unauthorized_search';exception when others then if sqlerrm<>'owner_only' then raise;end if;end;
+  begin perform public.yt_owner_member_detail(member,'rewards',1);raise exception 'unauthorized_detail';exception when others then if sqlerrm<>'owner_only' then raise;end if;end;
+  begin perform public.yt_owner_member_operate(member,'reward_revoke',gen_random_uuid(),'{}','test deny',gen_random_uuid());raise exception 'unauthorized_write';exception when others then if sqlerrm<>'owner_only' then raise;end if;end;
+ end loop;
+ perform set_config('request.jwt.claims',jsonb_build_object('role','authenticated','sub',actor)::text,true);
+ d:=public.yt_owner_member_search(member::text,1);
+ if (d->>'total')::int<>1 or d#>>'{members,0,id}'<>member::text then raise exception 'search_wrong';end if;
+ d:=public.yt_owner_member_detail(member,'points',1);base:=(d#>>'{summary,points}')::bigint;
+ req:=gen_random_uuid();r:=public.yt_owner_member_operate(member,'points_credit',null,jsonb_build_object('points',123,'expected_balance',base),'rollback compensation',req);credit_entry:=(r->>'point_id')::uuid;
+ if (r->>'balance')::bigint<>base+123 then raise exception 'credit_wrong';end if;
+ r:=public.yt_owner_member_operate(member,'points_credit',null,jsonb_build_object('points',123,'expected_balance',base),'rollback compensation',req);
+ if not(r->>'idempotent')::boolean or private.yt_points_sync(member)<>base+123 then raise exception 'credit_retry_duplicate';end if;
+ begin perform public.yt_owner_member_operate(member,'points_credit',null,jsonb_build_object('points',124,'expected_balance',base),'rollback compensation',req);raise exception 'request_not_checked';exception when others then if sqlerrm<>'request_conflict' then raise;end if;end;
+ begin perform public.yt_owner_member_operate(member,'points_debit',null,jsonb_build_object('points',1,'expected_balance',base),'stale balance',gen_random_uuid());raise exception 'stale_balance_accepted';exception when others then if sqlerrm<>'member_balance_changed' then raise;end if;end;
+ r:=public.yt_owner_member_operate(member,'points_debit',null,jsonb_build_object('points',23,'expected_balance',base+123),'rollback deduction',gen_random_uuid());
+ if (r->>'balance')::bigint<>base+100 then raise exception 'debit_wrong';end if;
+ if (select sum(remaining_points) from public.yt_point_entries where customer_id=member and direction='earn' and (expires_at is null or expires_at>clock_timestamp()))<>base+100 then raise exception 'lots_mismatch';end if;
+ begin perform public.yt_owner_member_operate(member,'points_credit',null,'{"points":0}','invalid amount',gen_random_uuid());raise exception 'zero_credit';exception when others then if sqlerrm<>'invalid_points_amount' then raise;end if;end;
+ insert into public.rewards(name,category,validity_days,next_day_only,active) values('rollback member reward','voucher',30,false,true) returning id into reward;
+ req:=gen_random_uuid();r:=public.yt_owner_member_operate(member,'reward_issue',reward,'{}','rollback manual award',req);award:=(r->>'award_id')::uuid;
+ r:=public.yt_owner_member_operate(member,'reward_issue',reward,'{}','rollback manual award',req);
+ if not(r->>'idempotent')::boolean or (r->>'award_id')::uuid<>award then raise exception 'award_retry_duplicate';end if;
+ select jsonb_build_object('expected_status',status,'expected_expires_at',expires_at,'delivered',true) into d from public.user_rewards where id=award;
+ begin perform public.yt_owner_member_operate(other_member,'reward_redeem',award,d,'wrong member',gen_random_uuid());raise exception 'cross_member_write';exception when others then if sqlerrm<>'member_reward_not_found' then raise;end if;end;
+ begin perform public.yt_owner_member_operate(member,'reward_redeem',award,d-'delivered','delivery unconfirmed',gen_random_uuid());raise exception 'delivery_not_confirmed';exception when others then if sqlerrm<>'member_delivery_confirmation_required' then raise;end if;end;
+ begin perform public.yt_owner_member_operate(member,'reward_redeem',award,d||jsonb_build_object('expected_expires_at',now()),'stale reward data',gen_random_uuid());raise exception 'stale_reward_accepted';exception when others then if sqlerrm<>'member_reward_changed' then raise;end if;end;
+ req:=gen_random_uuid();r:=public.yt_owner_member_operate(member,'reward_redeem',award,d,'confirmed offline delivery',req);
+ if not exists(select 1 from public.redemptions where user_reward_id=award and staff_id=actor) or not exists(select 1 from public.user_rewards where id=award and status='redeemed') then raise exception 'redemption_incomplete';end if;
+ r:=public.yt_owner_member_operate(member,'reward_redeem',award,d,'confirmed offline delivery',req);
+ if not(r->>'idempotent')::boolean or (select count(*) from public.redemptions where user_reward_id=award)<>1 then raise exception 'redemption_retry_duplicate';end if;
+ begin perform public.yt_owner_member_operate(member,'reward_revoke',award,d,'revoke used reward',gen_random_uuid());raise exception 'used_reward_revoked';exception when others then if sqlerrm<>'member_reward_already_used' then raise;end if;end;
+ insert into public.user_rewards(customer_id,reward_id,redeem_after,expires_at) values(member,reward,now()+interval '1 day',now()+interval '2 days') returning id into x;
+ select jsonb_build_object('expected_status',status,'expected_expires_at',expires_at,'delivered',true) into d from public.user_rewards where id=x;
+ begin perform public.yt_owner_member_operate(member,'reward_redeem',x,d,'too early delivery',gen_random_uuid());raise exception 'early_redemption_accepted';exception when others then if sqlerrm<>'reward_unavailable' then raise;end if;end;
+ insert into public.user_rewards(customer_id,reward_id,redeem_after,expires_at,status) values(member,reward,now()-interval '3 days',now()-interval '1 day','expired') returning id into expired_award;
+ select jsonb_build_object('expected_status',status,'expected_expires_at',expires_at,'expires_at',now()+interval '7 days') into d from public.user_rewards where id=expired_award;
+ perform public.yt_owner_member_operate(member,'reward_extend',expired_award,d,'extend expired award',gen_random_uuid());
+ if not exists(select 1 from public.user_rewards where id=expired_award and status='available' and expires_at>now()) then raise exception 'extension_failed';end if;
+ select jsonb_build_object('expected_status',status,'expected_expires_at',expires_at) into d from public.user_rewards where id=expired_award;
+ perform public.yt_owner_member_operate(member,'reward_revoke',expired_award,d,'revoke duplicate award',gen_random_uuid());
+ if not exists(select 1 from public.user_rewards where id=expired_award and status='revoked') then raise exception 'revocation_failed';end if;
+ insert into public.user_rewards(customer_id,reward_id,redeem_after,expires_at) values(member,reward,now()-interval '1 hour',now()+interval '1 day') returning id into locked_award;
+ insert into public.yt_member_orders(source,status,amount_rm,created_by) values('future_pos','confirmed',20,actor) returning id into o;
+ insert into public.yt_pos_reward_holds(order_id,user_reward_id,reward_id,operator_id,request_id,state,rule_mode,discount_type,discount_value,expires_at) values(o,locked_award,reward,actor,gen_random_uuid(),'reserved','any_drink','fixed',5,now()+interval '10 minutes');
+ select jsonb_build_object('expected_status',status,'expected_expires_at',expires_at,'delivered',true) into d from public.user_rewards where id=locked_award;
+ begin perform public.yt_owner_member_operate(member,'reward_redeem',locked_award,d,'locked delivery',gen_random_uuid());raise exception 'locked_reward_used';exception when others then if sqlerrm<>'member_reward_locked' then raise;end if;end;
+ for i in 1..35 loop insert into public.user_rewards(customer_id,reward_id,redeem_after,expires_at) values(member,reward,now(),now()+interval '1 day');end loop;
+ d:=public.yt_owner_member_detail(member,'rewards',1);
+ if jsonb_array_length(d->'rows')<>30 or (d->>'total')::int<38 then raise exception 'reward_pagination_wrong';end if;
+ if jsonb_array_length(public.yt_owner_member_detail(member,'rewards',2)->'rows')<1 then raise exception 'reward_page_two_missing';end if;
+ foreach r in array array[public.yt_owner_member_detail(member,'points',1),public.yt_owner_member_detail(member,'games',1),public.yt_owner_member_detail(member,'orders',1),public.yt_owner_member_detail(member,'storebox',1),public.yt_owner_member_detail(member,'history',1)] loop
+  if r->>'rows' is null then raise exception 'missing_detail_tab';end if;
+ end loop;
+ if (select count(*) from public.audit_logs where action='owner.member_operation' and entity_id=member and metadata->>'reason'='rollback compensation')<>1 then raise exception 'audit_retry_duplicate';end if;
+end $$;
