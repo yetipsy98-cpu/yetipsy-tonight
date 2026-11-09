@@ -21,7 +21,7 @@ create table public.audit_logs(actor_id uuid,action text,entity_type text,entity
 create table private.yt_offer_code_attempts(id uuid);
 create function private.yt_owner_reset_v9(p_actor uuid,p_session text,p_action text,p_challenge uuid,p_request uuid,p_done bigint[],p_scopes text[]) returns jsonb language plpgsql as $$begin truncate table private.yt_offer_code_attempts,public.yt_ambassador_pos_sales,public.yt_member_orders;return '{}';end$$;
 `);
-await db.exec(fs.readFileSync(process.argv[2]||'sql/105_freeflow_self_order.sql','utf8'));console.log('PASS migration compiles on PostgreSQL 17 (PGlite).');
+await db.exec(fs.readFileSync(process.argv[2]||'sql/105_freeflow_self_order.sql','utf8'));await db.exec(fs.readFileSync('sql/106_freeflow_order_binding_staff.sql','utf8'));console.log('PASS migrations compile on PostgreSQL 17 (PGlite).');
 assert.equal((await db.query("select has_table_privilege('authenticated','public.yt_freeflow_members','select') allowed")).rows[0].allowed,false);
 assert.equal((await db.query("select has_function_privilege('anon','public.yt_freeflow(text,jsonb)','execute') allowed")).rows[0].allowed,false);
 assert.equal((await db.query("select has_function_privilege('authenticated','private.yt_freeflow_bind(uuid,uuid)','execute') allowed")).rows[0].allowed,false);
@@ -39,13 +39,14 @@ await actor('cashier');await fails('menu_save',{},'owner_only');await actor('sta
 await actor('owner');const menu=(await rpc('menu_save',{name:'TEST FF',start_time:'00:00',end_time:'00:00',active:true,product_ids:[ids.product,ids.product2]})).id;
 assert.equal((await rpc('menus')).menus.length,1);
 await actor('cashier');await fails('session_save',{order_id:ids.badorder,menu_id:menu,table_label:'A1'},'freeflow_order_invalid');
+await actor('staff');const unconfigured=await rpc('order_binding',{order_id:ids.order});assert.equal(unconfigured.session,null);assert.deepEqual(unconfigured.menus,[]);await fails('session_save',{order_id:ids.order,menu_id:menu,table_label:'A1'},'cashier_only');await actor('cashier');
 const session=(await rpc('session_save',{order_id:ids.order,menu_id:menu,table_label:'A1'})).id;
 const session2=(await rpc('session_save',{order_id:ids.order2,menu_id:menu,table_label:'A2'})).id;
-let token=(await rpc('token',{session_id:session})).token;await actor('a');await rpc('bind',{token});await rpc('bind',{token});let mine=await rpc('mine');assert.equal(mine.length,1);const member=mine[0].member_id;assert.equal(mine[0].table_label,'A1');
-await actor('cashier');const token2=(await rpc('token',{session_id:session2})).token;await actor('a');await fails('bind',{token:token2},'freeflow_already_bound');
+await actor('staff');const staffBinding=await rpc('order_binding',{order_id:ids.order});assert.equal(staffBinding.session.id,session);assert.deepEqual(staffBinding.menus,[]);assert.equal(staffBinding.can_select_menu,false);let token=(await rpc('token',{session_id:session})).token;await actor('a');await rpc('bind',{token});await rpc('bind',{token});let mine=await rpc('mine');assert.equal(mine.length,1);const member=mine[0].member_id;assert.equal(mine[0].table_label,'A1');
+const staffToken='00000000-0000-4000-8000-777777777777';await q("insert into yt_play_member_tokens values($1,$2,clock_timestamp()+interval '1 minute')",[staffToken,ids.d]);await actor('staff');await rpc('bind_member',{session_id:session2,token:staffToken});await actor('cashier');const token2=(await rpc('token',{session_id:session2})).token;await actor('a');await fails('bind',{token:token2},'freeflow_already_bound');
 await actor('b');await rpc('bind',{token});await actor('c');await fails('bind',{token},'freeflow_full');
 await actor('cashier');await rpc('token',{session_id:session});await actor('c');await fails('bind',{token},'freeflow_token_expired');
-console.log('PASS role boundaries, saved-order gate, exact capacity, idempotent binding, rotated code and cross-group duplicate binding.');
+console.log('PASS Cashier-only menu choice, staff order QR/member binding, role boundaries, saved-order gate, exact capacity, idempotent binding, rotated code and cross-group duplicate binding.');
 await actor('a');const order={member_id:member,product_id:ids.product,request_id:ids.request,lat:1.5,lng:103.5,table_label:'FORGED'};await fails('order',{...order,lat:null},'location_required');await fails('order',{...order,lat:5},'outside_service_area');const first=await rpc('order',order);assert.equal((await rpc('order',order)).id,first.id);await fails('order',{...order,product_id:ids.product2},'request_conflict');await fails('order',{...order,request_id:ids.request2},'freeflow_wait_for_cup');
 assert.equal((await rpc('mine'))[0].cups,0);assert(!JSON.stringify(await rpc('mine')).includes('requested_at'));assert(!JSON.stringify(await rpc('mine')).includes('served_at'));
 await actor('cashier');await rpc('session_save',{order_id:ids.order,table_label:'B8',menu_id:ids.product});assert.equal((await rpc('queue'))[0].table_label,'A1');
