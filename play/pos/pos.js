@@ -1,10 +1,10 @@
-import {createFreeflowWork} from './freeflow.js?v=20261110-freeflow-v1';
+import {createFreeflowWork} from './freeflow.js?v=20261110-freeflow-layout-v2';
 import {createPlayWork} from './play-upgrade.js?v=20261016-refresh-settings-v1';
 import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-settings-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261108-order-business-day-v1';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
-import {createConsole} from './console.js?v=20261107-member-center-v1';
+import {createConsole} from './console.js?v=20261110-freeflow-layout-v2';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-one-code-adjustment-v1';
 import {createStoreBox} from './store-box.js?v=20261031-cashier-level-options-v1';
@@ -120,7 +120,7 @@ function buildNav(){const nav=$('nav');$('tab-benefits')?.classList.toggle('bene
   ?[['admin','管理'],['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']]
   :isCashier()?[['orders','订单'],['create','点单'],['benefits','Game Pass'],['storebox','存酒箱']]
   :[['create','点单'],['orders','订单'],['benefits','Game Pass'],['storebox','存酒箱']];
- if(isOwner()||isCashier())tabs.push(['custompricing','订制计价']);
+ if(isOwner()||isCashier()){tabs.push(['freeflow','FreeFlow']);tabs.push(['custompricing','订制计价']);}
  if(state.luckyMode?.mode==='off'){const index=tabs.findIndex(([key])=>key==='benefits');if(index>=0)tabs.splice(index,1);}
  if(isCashier()||isOwner())tabs.push(['bell','服务铃']);
  if(state.ambassadorAccess&&!limitedRole())tabs.push(['ambassador','发 Pass']);
@@ -142,17 +142,19 @@ function showTab(tab,orderId=null){
  if(tab==='more')tab=isOwner()?'admin':'benefits';
  if(tab==='redeem')tab='create';
 
- if(!['create','pending','orders','unpaid','history','approvals','benefits','storebox','ambassador','bell','redeem','reset','admin','limited','custompricing'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='approvals'&&!isOwner())||(tab==='admin'&&!isOwner())||(tab==='limited'&&!limitedRole())||(tab==='ambassador'&&!state.ambassadorAccess&&!limitedRole())||(tab==='custompricing'&&!isOwner()&&!isCashier()))tab=defaultTab();
+ if(!['create','pending','orders','unpaid','history','approvals','benefits','storebox','ambassador','bell','redeem','reset','admin','limited','custompricing','freeflow'].includes(tab)||(tab==='pending'&&!isCashier())||(tab==='approvals'&&!isOwner())||(tab==='admin'&&!isOwner())||(tab==='limited'&&!limitedRole())||(tab==='ambassador'&&!state.ambassadorAccess&&!limitedRole())||(tab==='freeflow'&&!isCashier())||(tab==='custompricing'&&!isOwner()&&!isCashier()))tab=defaultTab();
  $('accountMenu').open=false;
  if(tab==='reset'&&consoleUI){consoleUI.open('pin');return;}
  if(tab!=='create'){closeCartDrawer();stopRedeemCamera();}if(tab!=='redeem')globalThis.ytAmbassadorTools?.pause?.();state.currentTab=tab;
- for(const section of ['create','pending','orders','unpaid','history','approvals','benefits','storebox','ambassador','bell','redeem','reset','admin','limited','custompricing'])$('tab-'+section)?.classList.toggle('hidden',section!==tab);
+ for(const section of ['create','pending','orders','unpaid','history','approvals','benefits','storebox','ambassador','bell','redeem','reset','admin','limited','custompricing','freeflow'])$('tab-'+section)?.classList.toggle('hidden',section!==tab);
  const orderView=['pending','orders','unpaid','history','approvals'].includes(tab);$('orderTabs').classList.toggle('hidden',!orderView);
  for(const b of $('orderTabs').querySelectorAll('button'))b.classList.toggle('active',b.dataset.goTab===tab);
  for(const b of $('nav').querySelectorAll('button'))b.classList.toggle('active',b.dataset.tab===tab||(orderView&&b.dataset.tab==='orders'));
  if(tab==='admin'&&!consoleUI)loadAdmin().then(loadOwnerRewardOffers).catch(e=>showNotice(errorText(e),true));
  if(tab==='admin')loadOwnerDashboard().catch(e=>showNotice(errorText(e),true));
  if(tab==='admin')playUpgrade.mapRefresh();
+ if(tab!=='freeflow'&&typeof freeflow!=='undefined')freeflow?.pause();
+ if(tab==='freeflow')freeflow?.loadWorkspace($('freeflowWorkspace'),orderId).catch(e=>showNotice(errorText(e),true));
  if(tab==='custompricing')customPricing?.open().catch(e=>showNotice(errorText(e),true));
  if(tab==='benefits')loadBenefits(orderId).catch(e=>showNotice(errorText(e),true));
  if(tab==='storebox')storeBox?.loadStaff().catch(e=>showNotice(errorText(e),true));
@@ -1229,9 +1231,10 @@ function bind(){
  document.addEventListener('click',e=>{const detail=e.target.closest('[data-custom-binding-details]');if(detail)showCustomBindingDetails(detail.dataset.customBindingDetails);});
  $('paidDateForm').onsubmit=e=>{e.preventDefault();refreshOrders(false);};$('paidToday').onclick=async()=>{try{const c=unpack(await db.rpc('yt_business_context'));state.businessDay=c.day;$('paidDate').value=c.day;if($('kdsHistoryDate'))$('kdsHistoryDate').value=c.day;await refreshOrders(false);}catch(e){showNotice(errorText(e),true);}};
  if($('kdsHistoryForm'))$('kdsHistoryForm').onsubmit=e=>{e.preventDefault();loadKdsHistory();};if($('kdsHistoryRefresh'))$('kdsHistoryRefresh').onclick=()=>loadKdsHistory();$('kdsHistoryDetails')?.addEventListener('toggle',()=>{if($('kdsHistoryDetails').open&&state.kdsHistoryDay!==$('kdsHistoryDate').value)loadKdsHistory();});
- freeflow=createFreeflowWork({db,isOwner,isCashier,getBusinessDay:()=>state.businessDay,qrLibrary,notice:showNotice,onNewOrder:()=>{showNotice('收到新的 FreeFlow 点单',false,true);announceNewOrder();},onQueueChange:rows=>{state.freeflowQueue=rows;renderKdsEmpty();}});
+ if(!$('tab-freeflow'))document.querySelector('main').insertAdjacentHTML('beforeend','<section id="tab-freeflow" class="tab-view hidden"><div id="freeflowWorkspace"></div></section>');
+ freeflow=createFreeflowWork({db,onOpenWorkspace:orderId=>showTab('freeflow',orderId),isOwner,isCashier,getBusinessDay:()=>state.businessDay,qrLibrary,notice:showNotice,onNewOrder:()=>{showNotice('收到新的 FreeFlow 点单',false,true);announceNewOrder();},onQueueChange:rows=>{state.freeflowQueue=rows;renderKdsEmpty();}});
  storeBox=createStoreBox({db,ownerRoot:$('storeBoxOwnerRoot'),staffRoot:$('storeBoxStaffRoot'),orderRoot:$('storeBoxOrderQueue'),isOwner,isCashier,isCashierAccount:()=>state.identity?.role==='cashier',notice:(message,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onQueueChange:updateStoreBoxQueue});
- if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isOwnerLimited,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,loadStoreBoxOwner:()=>storeBox.loadOwner(),customPricing,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onOwnerEdit:openEditDialog,onOrdersChanged:()=>refreshOrders(false),onReset:async(scopes)=>{
+ if(document.body.dataset.unified==='true')consoleUI=createConsole({db,work,isOwner,isOwnerLimited,isCashier,loadAdmin,loadOffers:loadOwnerRewardOffers,loadRights,loadStoreBoxOwner:()=>storeBox.loadOwner(),loadFreeflowSettings:()=>freeflow.loadSettings(document.getElementById('freeflowSettingsRoot')),customPricing,notice:(message,bad)=>showNotice(errorText(Error(message)),bad),getBusinessDay:()=>state.businessDay,onOwnerEdit:openEditDialog,onOrdersChanged:()=>refreshOrders(false),onReset:async(scopes)=>{
   stopPolling();if(scopes?.includes('records')){state.cart.clear();state.pendingSubmit=null;state.draftSummary=null;for(let i=sessionStorage.length-1;i>=0;i--){const key=sessionStorage.key(i);if(key?.startsWith('yt-pos-'))sessionStorage.removeItem(key);}}
   showNotice('所选范围已重置',false,true);location.reload();
  }});
