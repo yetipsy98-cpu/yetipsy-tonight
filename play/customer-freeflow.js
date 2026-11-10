@@ -1,25 +1,37 @@
-import {guestStorageKey,readGuestCredential,ensureGuestCredential,prepareGuestRestore,finishGuestRestore} from './freeflow-guest-storage.mjs?v=20261110-freeflow-guest-v6';
-import {ffError,freezeFreeflowRequest,freeflowLabels} from './freeflow-core.mjs?v=20261110-freeflow-guest-v6';
+import {guestStorageKey,readGuestCredential,ensureGuestCredential,prepareGuestRestore,finishGuestRestore} from './freeflow-guest-storage.mjs?v=20261110-freeflow-entry-v7';
+import {ffError,freezeFreeflowRequest,freeflowLabels} from './freeflow-core.mjs?v=20261110-freeflow-entry-v7';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));
-export function createCustomerFreeflow({db,getUser,showSheet,sheetHtml,toast,onGuestMode=()=>{}}){
+export function createCustomerFreeflow({db,getUser,showSheet,sheetHtml,toast,onGuestMode=()=>{},closeSheet=()=>{},onNeedLogin=()=>{}}){
  let guestToken=null,guestGeneration=0;
  const getIdentity=()=>guestToken?{id:'freeflow-guest-'+guestGeneration}:getUser();
  let timer=null,accessTimer=null,button=null,homeButton=null,epoch=0,accessEpoch=0,accessLoading=false,inflight=false;
  function activateGuest(token){if(token!==guestToken){guestGeneration++;accessEpoch++;accessLoading=false;clearInterval(accessTimer);accessTimer=null;}guestToken=token;}
  const guestRPC=async(action,credential,data={})=>{const r=await db.rpc('yt_freeflow_guest',{p_action:action,p_credential:credential,p_data:data});if(r.error)throw Error(r.error.message);return r.data;};
  const rpc=async(action,data={})=>{if(guestToken)return guestRPC(action,guestToken,data);const r=await db.rpc('yt_freeflow',{p_action:action,p_data:data});if(r.error)throw Error(r.error.message);return r.data;};
- function availability(rows){const enabled=!!getIdentity()&&rows.some(s=>['active','upcoming','paused'].includes(s.status));for(const el of [button,homeButton])if(el){el.hidden=!enabled;el.classList.toggle('ready',enabled);}const active=rows.find(s=>['active','upcoming','paused'].includes(s.status))||rows[0];const entry=document.getElementById('guestFreeflowOpen');if(entry)entry.disabled=!active;const name=document.getElementById('guestFreeflowName');if(name)name.textContent=active?.visitor_name||'访客';const status=document.getElementById('guestFreeflowState');if(status)status.textContent=active?(freeflowLabels[active.status]||active.status):'资格不可用';return enabled;}
+ const hasAccess=rows=>rows.some(s=>['active','upcoming','paused'].includes(s.status));
+ function leaveGuest(){const shop=!!document.getElementById('freeflowCustomer');clear();if(shop)closeSheet();}
+ function availability(rows){const enabled=!!getIdentity()&&rows.some(s=>['active','upcoming','paused'].includes(s.status));for(const el of [button,homeButton])if(el){el.hidden=!enabled;el.classList.toggle('ready',enabled);}const active=rows.find(s=>['active','upcoming','paused'].includes(s.status))||rows[0];const entry=document.getElementById('guestFreeflowOpen');if(entry)entry.disabled=!active;const name=document.getElementById('guestFreeflowName');if(name)name.textContent=active?.visitor_name||'访客';const status=document.getElementById('guestFreeflowState');if(status)status.textContent=active?(freeflowLabels[active.status]||active.status):'资格不可用';if(guestToken&&!enabled)leaveGuest();return enabled;}
  function mount(){
   button=document.getElementById('accountFreeflow');if(!button){button=document.createElement('button');button.type='button';button.id='accountFreeflow';button.hidden=true;button.innerHTML='<span>🍸</span><b>FREEFLOW · 自助点单</b><i>↗</i>';document.querySelector('#accountPage .account-actions')?.prepend(button);}
   homeButton=document.getElementById('homeFreeflow');if(!homeButton){homeButton=document.createElement('button');homeButton.type='button';homeButton.id='homeFreeflow';homeButton.hidden=true;homeButton.className='home-freeflow-entry';homeButton.innerHTML='<span class="shortcut-icon">🍸</span><span><strong>FreeFlow 自助点单</strong><small>FREEFLOW MENU</small></span><span>↗</span>';const anchor=document.querySelector('#homePage .home-game-actions');if(anchor)anchor.insertAdjacentElement('afterend',homeButton);else document.getElementById('homePage')?.prepend(homeButton);}
   button.onclick=homeButton.onclick=()=>open().catch(e=>toast(ffError(e),true));const guestButton=document.getElementById('guestFreeflowOpen');if(guestButton)guestButton.onclick=button.onclick;
  }
  async function refreshAccess(){mount();const actor=getIdentity()?.id;if(!actor){availability([]);return;}if(accessLoading)return;const version=accessEpoch;accessLoading=true;
-  try{const rows=await rpc('mine');if(version!==accessEpoch||getIdentity()?.id!==actor)return;availability(rows||[]);return rows;}finally{if(version===accessEpoch)accessLoading=false;if(version===accessEpoch&&getIdentity()?.id===actor&&!accessTimer)accessTimer=setInterval(()=>{if(!document.hidden)refreshAccess().catch(()=>{});},10000);}
+  try{const rows=await rpc('mine');if(version!==accessEpoch||getIdentity()?.id!==actor)return;availability(rows||[]);return rows;}catch(error){if(guestToken&&error.message==='guest_token_invalid'){try{localStorage.removeItem(guestStorageKey);}catch{}leaveGuest();return [];}throw error;}finally{if(version===accessEpoch)accessLoading=false;if(version===accessEpoch&&getIdentity()?.id===actor&&!accessTimer)accessTimer=setInterval(()=>{if(!document.hidden)refreshAccess().catch(()=>{});},10000);}
  }
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&getIdentity())refreshAccess().catch(()=>{});});
- async function resumeGuest(){const credential=readGuestCredential(localStorage);if(!credential)return false;try{const rows=await guestRPC('mine',credential);activateGuest(credential);mount();availability(rows);onGuestMode(!getUser());await refreshAccess();return true;}catch(error){if(error.message==='guest_token_invalid'){try{localStorage.removeItem(guestStorageKey);}catch{}return false;}throw error;}}
+ async function resumeGuest(){const credential=readGuestCredential(localStorage);if(!credential)return false;try{const rows=await guestRPC('mine',credential);if(!hasAccess(rows||[])){leaveGuest();return false;}activateGuest(credential);mount();availability(rows);onGuestMode(!getUser());await refreshAccess();return !!guestToken;}catch(error){if(error.message==='guest_token_invalid'){try{localStorage.removeItem(guestStorageKey);}catch{}leaveGuest();return false;}throw error;}}
+ async function requestBind(token){
+  if(getUser()||guestToken)return bind(token);
+  const key='yt-ff-entry:'+token;let choice;try{choice=sessionStorage.getItem(key);}catch{}
+  if(choice==='guest')return bind(token);
+  if(choice==='login'){await closeSheet();return onNeedLogin(token);}
+  showSheet('选择访问方式','FREEFLOW');sheetHtml('<div class="sheet-content ff-entry-choice"><button type="button" id="ffEntryLogin" class="button button-primary wide">登录</button><button type="button" id="ffEntryGuest" class="button button-outline wide">访客访问</button></div>');
+  let choosing=false;
+  const choose=async mode=>{if(choosing)return;choosing=true;try{sessionStorage.setItem(key,mode);if(mode==='login'){await closeSheet();await onNeedLogin(token);}else await bind(token);}catch(error){choosing=false;toast(ffError(error),true);}};
+  document.getElementById('ffEntryLogin').onclick=()=>choose('login');document.getElementById('ffEntryGuest').onclick=()=>choose('guest');
+ }
  async function bind(token){if(getUser()&&!guestToken){await rpc('bind',{token});}else{const credential=ensureGuestCredential(localStorage);await guestRPC('bind',credential,{token});activateGuest(credential);onGuestMode(!getUser());}await refreshAccess();const u=new URL(location.href);u.searchParams.delete('freeflow');history.replaceState(null,'',u.href);toast('FreeFlow 已开通');await open();}
  async function restore(token){const credential=prepareGuestRestore(localStorage,token);await guestRPC('restore',credential,{token});finishGuestRestore(localStorage,credential);activateGuest(credential);onGuestMode(!getUser());await refreshAccess();const u=new URL(location.href);u.searchParams.delete('freeflow_restore');history.replaceState(null,'',u.href);toast('FreeFlow 已恢复');await open();}
  async function open(){if(!getIdentity())throw Error('FreeFlow 资格不可用');clearInterval(timer);mount();const view=++epoch;let tab='menu',selected=null,cached=[],signature=null;showSheet('点单','FREEFLOW');sheetHtml('<div class="ff-shop" id="freeflowCustomer"><div class="ff-shop-empty">加载中</div></div>');
@@ -33,7 +45,7 @@ export function createCustomerFreeflow({db,getUser,showSheet,sheetHtml,toast,onG
   root.querySelectorAll('[data-ff-select]').forEach(b=>b.onclick=()=>{if(!canOrder||inflight)return;selected=selected?.product_id===b.dataset.ffSelect?null:{member_id:current.member_id,product_id:b.dataset.ffSelect};paint(cached);});
   const confirm=root.querySelector('#ffConfirm');if(confirm)confirm.onclick=()=>{if(selected&&canOrder)order(confirm,view,refresh).catch(e=>toast(ffError(e),true));};
  }
- async function refresh(force=false){const actor=getIdentity()?.id;if(!actor)return;const data=await rpc('mine');if(view!==epoch)return;if(getIdentity()?.id!==actor||!document.getElementById('freeflowCustomer')||document.getElementById('sheetBackdrop')?.classList.contains('hide')){clearInterval(timer);return;}availability(data||[]);if(inflight)return;cached=data||[];const next=JSON.stringify(cached);if(!force&&signature===next)return;signature=next;paint(cached);}
+ async function refresh(force=false){const actor=getIdentity()?.id;if(!actor)return;const data=await rpc('mine');if(view!==epoch)return;if(getIdentity()?.id!==actor||!document.getElementById('freeflowCustomer')||document.getElementById('sheetBackdrop')?.classList.contains('hide')){clearInterval(timer);return;}availability(data||[]);if(view!==epoch||inflight)return;cached=data||[];const next=JSON.stringify(cached);if(!force&&signature===next)return;signature=next;paint(cached);}
  await refresh(true);if(view===epoch)timer=setInterval(()=>{if(!document.hidden)refresh().catch(()=>{});},5000);
  }
  async function order(b,view,refresh){if(inflight)return;inflight=true;const root=document.getElementById('freeflowCustomer');root?.querySelectorAll('button').forEach(x=>x.disabled=true);const key='yt-ff-order:'+getIdentity().id;let accepted=false;
@@ -42,5 +54,5 @@ export function createCustomerFreeflow({db,getUser,showSheet,sheetHtml,toast,onG
  finally{inflight=false;if(view===epoch){try{await refresh(true);}catch{root?.querySelectorAll('button').forEach(x=>x.disabled=false);toast(accepted?'订单已提交，状态刷新失败，请重新打开 FreeFlow 查看。':'请重新打开 FreeFlow 查看状态。',true);}}}
  }
  function clear(){guestToken=null;onGuestMode(false);epoch++;accessEpoch++;clearInterval(timer);clearInterval(accessTimer);accessTimer=null;accessLoading=false;inflight=false;availability([]);}
- return {mount,open,bind,restore,resumeGuest,clear,refreshAccess,hideGuestView:()=>onGuestMode(false)};
+ return {mount,open,bind,requestBind,restore,resumeGuest,clear,refreshAccess,hideGuestView:()=>onGuestMode(false)};
 }
