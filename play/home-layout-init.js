@@ -1,5 +1,5 @@
 import {createClient} from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
-import {applyHomeLayout,homeBlocks} from './home-layout-core.js?v=20261012-v22';
+import {applyHomeLayout,homeBlocks} from './home-layout-core.js?v=20261110-freeflow-entry-v4';
 export function startHomeLayout({db,language}){
  const root=document.getElementById('homePage');
  if(!root)return {refresh:async()=>{},apply:()=>{}};

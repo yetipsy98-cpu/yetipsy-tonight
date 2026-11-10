@@ -25,5 +25,6 @@ export function applyHomeLayout(root,data,language='zh'){
   list.append(link);
  }
  root.append(list);
+ const freeflow=root.querySelector('#homeFreeflow'),claim=sections.claim;if(freeflow&&claim?.parentNode===root&&typeof root.insertBefore==='function')root.insertBefore(freeflow,claim);
 }
 
