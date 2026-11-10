@@ -15,13 +15,24 @@ create table public.profiles(id uuid,display_name text);
 create table public.yt_shop_products(id uuid primary key,title text,active boolean default true,is_drink boolean default true,sort_order integer default 0,category text);
 create table public.yt_member_orders(id uuid primary key,status text default 'fulfilled',payment_status text default 'unpaid',cancel_after_refund boolean default false,table_label text,order_no text);
 create table public.yt_ambassador_pos_sales(order_id uuid primary key references public.yt_member_orders(id),business_day date,male_count integer,female_count integer);
-create table public.yt_play_upgrade_settings(id boolean,bell_lat double precision,bell_lng double precision,bell_radius_m integer);
+create table public.yt_play_upgrade_settings(id boolean primary key,bell_lat double precision,bell_lng double precision,bell_radius_m integer,invite_min_spend_rm numeric,bell_enabled boolean default true,bell_remind_seconds integer default 30,bell_complete_seconds integer default 30);
+create table public.yt_play_bell_types(id text primary key,label_zh text,label_en text,enabled boolean default true,sort_order integer default 0);
+create table public.yt_play_bell_requests(id uuid primary key default gen_random_uuid(),customer_id uuid not null references auth.users(id),table_label text not null,type_id text references public.yt_play_bell_types(id),note text not null default '',created_at timestamptz not null default clock_timestamp(),acknowledged_at timestamptz,acknowledged_by uuid references auth.users(id),cancelled_at timestamptz,cancelled_by uuid references auth.users(id));
+create unique index yt_play_one_pending_bell on public.yt_play_bell_requests(customer_id) where acknowledged_at is null and cancelled_at is null;
+alter table public.yt_play_bell_requests enable row level security;
+revoke all on public.yt_play_bell_requests from public,anon,authenticated;
 create table public.yt_play_member_tokens(token_hash text,customer_id uuid,expires_at timestamptz);
 create table public.audit_logs(actor_id uuid,action text,entity_type text,entity_id uuid,metadata jsonb);
 create table private.yt_offer_code_attempts(id uuid);
-create function private.yt_owner_reset_v9(p_actor uuid,p_session text,p_action text,p_challenge uuid,p_request uuid,p_done bigint[],p_scopes text[]) returns jsonb language plpgsql as $$begin truncate table private.yt_offer_code_attempts,public.yt_ambassador_pos_sales,public.yt_member_orders;return '{}';end$$;
+create function private.yt_owner_reset_v9(p_actor uuid,p_session text,p_action text,p_challenge uuid,p_request uuid,p_done bigint[],p_scopes text[]) returns jsonb language plpgsql as $$begin truncate table private.yt_offer_code_attempts,public.yt_ambassador_pos_sales,public.yt_member_orders,public.yt_play_bell_requests restart identity;return '{}';end$$;
 `);
-await db.exec(fs.readFileSync(process.argv[2]||'sql/105_freeflow_self_order.sql','utf8'));await db.exec(fs.readFileSync('sql/106_freeflow_order_binding_staff.sql','utf8'));await db.exec(fs.readFileSync('sql/107_freeflow_deferred_table.sql','utf8'));await db.exec(fs.readFileSync('sql/108_freeflow_guest_mode.sql','utf8'));console.log('PASS migrations compile on PostgreSQL 17 (PGlite).');
+await db.exec(fs.readFileSync(process.argv[2]||'sql/105_freeflow_self_order.sql','utf8'));await db.exec(fs.readFileSync('sql/106_freeflow_order_binding_staff.sql','utf8'));await db.exec(fs.readFileSync('sql/107_freeflow_deferred_table.sql','utf8'));await db.exec(fs.readFileSync('sql/108_freeflow_guest_mode.sql','utf8'));
+const baseline=(file,name)=>{const text=fs.readFileSync(file,'utf8'),start=text.indexOf('create or replace function '+name+'(');assert(start>=0,name);return text.slice(start,text.indexOf('$$;',start)+3);};
+await db.exec(baseline('supabase/migrations/20261015155125_service_bell_always_on_cashier_only_audio.sql','private.yt_play_bell_settings'));
+for(const name of ['private.yt_play_bell_call','private.yt_play_bell_list','private.yt_play_bell_cancel','public.yt_play_bell_call','public.yt_play_bell_list','public.yt_play_bell_cancel'])await db.exec(baseline('supabase/migrations/20261015150000_order_owner_access_and_service_bell_cancel.sql',name));
+await db.exec(baseline('supabase/migrations/20261015151000_service_bell_ack_cancel_guard.sql','private.yt_play_bell_ack'));
+await db.exec(fs.readFileSync('supabase/migrations/20261110030424_guest_service_bell_gps_switches.sql','utf8'));
+console.log('PASS migrations compile on PostgreSQL 17 (PGlite).');
 assert.equal((await db.query("select has_table_privilege('authenticated','public.yt_freeflow_members','select') allowed")).rows[0].allowed,false);
 assert.equal((await db.query("select has_function_privilege('anon','public.yt_freeflow(text,jsonb)','execute') allowed")).rows[0].allowed,false);
 assert.equal((await db.query("select has_function_privilege('authenticated','private.yt_freeflow_bind(uuid,uuid)','execute') allowed")).rows[0].allowed,false);
@@ -34,7 +45,7 @@ for(const k of ['owner','cashier','staff','a','b','c','d'])await q('insert into 
 for(const k of ['a','b','c','d'])await q('insert into public.pin_accounts values($1)',[ids[k]]);
 await q("insert into yt_shop_products(id,title) values($1,'Lychee Martini'),($2,'Bourbon Coke')",[ids.product,ids.product2]);
 for(const k of ['order','order2','badorder']){await q('insert into yt_member_orders(id,order_no,status) values($1,$2,$3)',[ids[k],k,k==='badorder'?'pending':'fulfilled']);await q("insert into yt_ambassador_pos_sales values($1,(clock_timestamp() at time zone 'Asia/Kuala_Lumpur')::date,2,0)",[ids[k]]);}
-await db.exec('insert into yt_play_upgrade_settings values(true,1.5,103.5,100)');
+await db.exec('insert into yt_play_upgrade_settings(id,bell_lat,bell_lng,bell_radius_m) values(true,1.5,103.5,100)');
 await actor('cashier');await fails('menu_save',{},'owner_only');await actor('staff');await fails('manage',{},'cashier_only');await actor('a');await fails('queue',{},'staff_only');
 await actor('owner');const menu=(await rpc('menu_save',{name:'TEST FF',start_time:'00:00',end_time:'00:00',active:true,product_ids:[ids.product,ids.product2]})).id;
 assert.equal((await rpc('menus')).menus.length,1);
@@ -83,8 +94,35 @@ await resetRole();await actor('cashier');assert.equal((await rpc('manage')).sess
 await db.exec(`update yt_freeflow_sessions set starts_at=clock_timestamp()-interval '2 minutes',ends_at=clock_timestamp()-interval '1 minute' where id='${guestSession}'`);await anon();assert.equal((await guest('mine',restored))[0].status,'expired');await assert.rejects(()=>guest('order',restored,{...gd,request_id:'00000000-0000-4000-8000-700000000003'}),/freeflow_unavailable/);await resetRole();
 console.log('PASS real anon guest join/resume, shared paid capacity, GPS and one-cup gate, isolation from other guests/staff/members, Cashier recovery with token rotation, preserved pending/cup history, no Auth accounts, expiry.');
 
+// Guest service calls run under the actual anonymous role, including cancel/isolation.
+await q("insert into yt_play_bell_types(id,label_zh,label_en) values('help','协助','Help')");
+const bc1='00000000-0000-4000-8000-700000000001',bc2='00000000-0000-4000-8000-700000000002';
+const bell=async(action,credential,data={})=>{await db.exec('set role anon');try{return (await q('select public.yt_play_bell_guest($1,$2,$3::jsonb) result',[action,credential,JSON.stringify(data)]))[0].result;}finally{await db.exec('reset role');}};
+const bellFail=async(action,credential,data,error)=>assert.rejects(()=>bell(action,credential,data),new RegExp(error));
+const bellData={table:'G1',type:'help',note:'',lat:1.5,lng:103.5};
+await db.exec('set role anon');assert.equal((await q('select public.yt_play_bell_config() v'))[0].v.gps_required,true);assert.equal((await q('select public.yt_play_location_config() v'))[0].v.freeflow_gps_required,true);await db.exec('reset role');
+assert.deepEqual(await bell('list',bc1),[]);assert.equal((await q('select count(*) n from yt_play_bell_guests'))[0].n,0);
+await bellFail('call',bc1,{...bellData,lat:null},'location_required');await bellFail('call',bc1,{...bellData,lat:5},'outside_service_area');assert.equal((await q('select count(*) n from yt_play_bell_guests'))[0].n,0);
+const br1=await bell('call',bc1,bellData);await bellFail('call',bc1,bellData,'bell_already_active');assert.equal((await bell('list',bc1)).length,1);assert.deepEqual(await bell('list',bc2),[]);await bellFail('cancel',bc2,{id:br1.id},'bell_request_not_cancellable');await bellFail('ack',bc1,{id:br1.id},'invalid_bell_request');
+await bell('cancel',bc1,{id:br1.id});const br2=await bell('call',bc1,bellData);assert.equal((await bell('list',bc1)).find(r=>r.id===br1.id).status,'cancelled');
+await actor('cashier');assert((await q('select private.yt_play_bell_list() v'))[0].v.some(r=>r.id===br2.id));await q('select private.yt_play_bell_ack($1)',[br2.id]);await bellFail('cancel',bc1,{id:br2.id},'bell_request_not_cancellable');await bellFail('call',bc1,bellData,'bell_already_active');
+await q("update yt_play_bell_requests set acknowledged_at=clock_timestamp()-interval '1 hour' where id=$1",[br2.id]);assert.equal((await bell('list',bc1)).find(r=>r.id===br2.id).status,'completed');
+await actor('cashier');await assert.rejects(()=>q("select private.yt_play_bell_settings('{\"bell_gps_required\":false}')"),/owner_only/);
+await actor('owner');let bs=(await q('select private.yt_play_bell_settings($1::jsonb) v',[JSON.stringify({bell_gps_required:false})]))[0].v;assert.equal(bs.bell_gps_required,false);assert.equal(bs.freeflow_gps_required,true);
+// Disabled GPS accepts missing coordinates and no configured center; separate policies stay independent.
+const br3=await bell('call',bc1,{...bellData,lat:null,lng:null});await bell('cancel',bc1,{id:br3.id});await q('update yt_play_upgrade_settings set bell_lat=null,bell_lng=null');const far=await bell('call',bc2,{...bellData,lat:40,lng:-70});await bell('cancel',bc2,{id:far.id});
+await q("update yt_freeflow_sessions set starts_at=clock_timestamp()-interval '1 minute',ends_at=clock_timestamp()+interval '1 hour' where id=$1",[guestSession]);await actor('c');const bm=(await rpc('mine')).find(s=>s.session_id===guestSession);await fails('order',{member_id:bm.member_id,product_id:ids.product,request_id:crypto.randomUUID()},'bell_disabled');
+await actor('owner');await q('select private.yt_play_bell_settings($1::jsonb)',[JSON.stringify({freeflow_gps_required:false,bell_gps_required:true})]);await bellFail('call',bc2,{...bellData,lat:null},'bell_disabled');
+await anon();const guestOffCup=await guest('order',cred2,{member_id:g2.member_id,product_id:ids.product,request_id:crypto.randomUUID()});await resetRole();await actor('cashier');await rpc('complete',{request_id:guestOffCup.id,status:'served'});
+await actor('c');const offCup=await rpc('order',{member_id:bm.member_id,product_id:ids.product,request_id:crypto.randomUUID()});
+await actor('cashier');await rpc('complete',{request_id:offCup.id,status:'served'});
+await actor('owner');await q('select private.yt_play_bell_settings($1::jsonb)',[JSON.stringify({bell_gps_required:false})]);await actor('a');const memberBell=(await q("select public.yt_play_bell_call('M1','help','',null,null) v"))[0].v;await q('select public.yt_play_bell_cancel($1)',[memberBell.id]);
+assert.equal((await q("select has_table_privilege('anon','yt_play_bell_guests','select') v"))[0].v,false);assert.equal((await q("select has_function_privilege('anon','private.yt_play_bell_call_actor(uuid,boolean,text,text,text,double precision,double precision)','execute') v"))[0].v,false);assert.equal((await q("select has_schema_privilege('anon','private','usage') v"))[0].v,false);
+assert.equal((await q('select count(*) n from auth.users'))[0].n,7);
+console.log('PASS guest service isolation, cancellation/recall/cooldown, cashier queue and acknowledgement, owner-only independent GPS policies, no-center remote calls and member/guest FreeFlow GPS bypass.');
+
 // Real TRUNCATE inside this isolated DB verifies the new FK children are cleared atomically.
-await q("select private.yt_owner_reset_v9(null,null,null,null,null,null,null)");assert.equal((await q('select count(*) n from yt_freeflow_requests'))[0].n,0);assert.equal((await q('select count(*) n from yt_freeflow_sessions'))[0].n,0);assert.equal((await q('select count(*) n from yt_freeflow_guests'))[0].n,0);assert.equal((await q('select count(*) n from yt_freeflow_menus'))[0].n,1);
+await q("select private.yt_owner_reset_v9(null,null,null,null,null,null,null)");assert.equal((await q('select count(*) n from yt_freeflow_requests'))[0].n,0);assert.equal((await q('select count(*) n from yt_freeflow_sessions'))[0].n,0);assert.equal((await q('select count(*) n from yt_freeflow_guests'))[0].n,0);assert.equal((await q('select count(*) n from yt_play_bell_guests'))[0].n,0);assert.equal((await q('select count(*) n from yt_play_bell_requests'))[0].n,0);assert.equal((await q('select count(*) n from yt_freeflow_menus'))[0].n,1);
 await db.exec('delete from yt_shop_products');assert.equal((await q('select count(*) n from yt_freeflow_menu_items'))[0].n,0);
 console.log('PASS expiry, transactional records-reset FK compatibility, menu preservation and catalog mapping cleanup.');
 await db.close();})().catch(e=>{console.error(e.message,e.where||'');process.exit(1)});

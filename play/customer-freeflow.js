@@ -1,5 +1,6 @@
-import {guestStorageKey,readGuestCredential,ensureGuestCredential,prepareGuestRestore,finishGuestRestore} from './freeflow-guest-storage.mjs?v=20261110-freeflow-entry-v7';
-import {ffError,freezeFreeflowRequest,freeflowLabels} from './freeflow-core.mjs?v=20261110-freeflow-entry-v7';
+import {readLocationPolicy,serviceLocation} from './location-policy.mjs?v=20261110-guest-bell-gps-v8';
+import {guestStorageKey,readGuestCredential,ensureGuestCredential,prepareGuestRestore,finishGuestRestore} from './freeflow-guest-storage.mjs?v=20261110-guest-bell-gps-v8';
+import {ffError,freezeFreeflowRequest,freeflowLabels} from './freeflow-core.mjs?v=20261110-guest-bell-gps-v8';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v));
 export function createCustomerFreeflow({db,getUser,showSheet,sheetHtml,toast,onGuestMode=()=>{},closeSheet=()=>{},onNeedLogin=()=>{}}){
@@ -49,7 +50,7 @@ export function createCustomerFreeflow({db,getUser,showSheet,sheetHtml,toast,onG
  await refresh(true);if(view===epoch)timer=setInterval(()=>{if(!document.hidden)refresh().catch(()=>{});},5000);
  }
  async function order(b,view,refresh){if(inflight)return;inflight=true;const root=document.getElementById('freeflowCustomer');root?.querySelectorAll('button').forEach(x=>x.disabled=true);const key='yt-ff-order:'+getIdentity().id;let accepted=false;
- try{const draft=freezeFreeflowRequest(sessionStorage,key,b.dataset.ffMember,b.dataset.ffDrink);b.textContent='提交中';if(!navigator.geolocation)throw Error('location_required');const p=await new Promise((ok,no)=>navigator.geolocation.getCurrentPosition(ok,no,{enableHighAccuracy:true,timeout:12000,maximumAge:0}));if(view!==epoch)return;await rpc('order',{...draft,lat:p.coords.latitude,lng:p.coords.longitude});accepted=true;sessionStorage.removeItem(key);toast('下单成功');}
+ try{const draft=freezeFreeflowRequest(sessionStorage,key,b.dataset.ffMember,b.dataset.ffDrink);b.textContent='提交中';const policy=await readLocationPolicy(db),p=await serviceLocation(policy.freeflow_gps_required);if(view!==epoch)return;await rpc('order',{...draft,lat:p.lat,lng:p.lng});accepted=true;sessionStorage.removeItem(key);toast('下单成功');}
  catch(e){if(e.code===1||e.code===2||e.code===3)toast('定位失败，请允许定位并重新尝试。',true);else toast(ffError(e),true);}
  finally{inflight=false;if(view===epoch){try{await refresh(true);}catch{root?.querySelectorAll('button').forEach(x=>x.disabled=false);toast(accepted?'订单已提交，状态刷新失败，请重新打开 FreeFlow 查看。':'请重新打开 FreeFlow 查看状态。',true);}}}
  }
