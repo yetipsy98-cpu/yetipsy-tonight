@@ -1,4 +1,4 @@
-import {createCustomerFreeflow} from './customer-freeflow.js?v=20261110-freeflow-menu-v5';
+import {createCustomerFreeflow} from './customer-freeflow.js?v=20261110-freeflow-guest-v6';
 import {createLuckyBox} from './lucky-box.js?v=20261013-lucky-v2';
 import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
 import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261023-reward-min-zero-v1';
@@ -114,7 +114,7 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
    const bindToken=new URL(location.href).searchParams.get('bind');if(bindToken)await showOrderBinding(bindToken);
  });
 }catch(err){$('authError').textContent=errorText(err);}}
-async function initialize(){if(!db)return;const {data:{user},error}=await db.auth.getUser();if(error&&!/Auth session missing/i.test(error.message||''))console.warn('Session:',error.message);state.user=user||null;
+async function initialize(){if(!db)return;const {data:{user},error}=await db.auth.getUser();if(error&&!/Auth session missing/i.test(error.message||''))console.warn('Session:',error.message);state.user=user||null;if(user)customerFreeflow?.hideGuestView();
  if(!user){state.role=null;state.profile=null;state.wallet=[];state.passes=[];customerStoreBox?.clear();customerFreeflow?.clear();shell(false);return;}
  const [role,profile]=await Promise.all([
  db.from('staff_roles').select('role').eq('user_id',user.id).eq('active',true).maybeSingle(),
@@ -190,14 +190,15 @@ function showInviteShare(url){showSheet(i18n.lang==='zh'?'邀请好友':'Invite 
 async function showCodeSheet(title,subtitle,link,withBarcode=true,deadline=null,shortCode=null,shortKind='redeem',onRefresh=null){showSheet(title,'SCAN & CLAIM');sheetHtml(`<div class="sheet-content"><p>${esc(subtitle)}</p><div class="code-card"><b>YE·TIPSY</b><small style="display:block">PRESENT THIS CODE</small><div id="sheetQR" class="sheet-qr-container"></div>${withBarcode?'<svg id="sheetBarcode" aria-label="可扫描条形码"></svg>':''}<div class="token-text" id="sheetToken"></div></div><button type="button" id="sheetCopy" class="button button-outline wide">${shortCode?(shortKind==='gift'?'复制领取码':'复制兑换码'):'复制领取链接'}</button>${deadline?'<p id="sheetCountdown" class="tiny-help"></p>':''}${shortCode?'<p class="tiny-help">扫不到可直接输入短码。</p>':''}</div>`);$('sheetToken').textContent=shortCode||link;if(shortCode){$('sheetToken').classList.add('redeem-short-code');$('sheetToken').setAttribute('aria-label','短兑换码');}const codeURL=new URL(link);const codeKey=[...codeURL.searchParams.keys()][0]||'claim';const codeRaw=codeURL.searchParams.get(codeKey)||link;const raw=codeKey+':'+codeRaw;try{await qrcode($('sheetQR'),link);}catch(e){$('sheetQR').style.display='none';toast(shortCode?'二维码加载失败，请出示下方兑换码':'二维码素材加载失败，请复制链接',true);}if(withBarcode){try{await barcode($('sheetBarcode'),raw);}catch(e){$('sheetBarcode').classList.add('hide');}}
  $('sheetCopy').onclick=()=>copy(shortCode||link);if(deadline){const tick=()=>{const el=$('sheetCountdown');if(!el||!el.isConnected){clearInterval(timer);return;}const secs=Math.max(0,Math.ceil((millis(deadline)-Date.now())/1000));el.textContent=secs?(shortKind==='gift'?'领取截止：'+fmt(deadline):`${shortCode?(shortKind==='gift'?'二维码与领取码':'二维码与兑换码'):'动态二维码'} ${secs} 秒${onRefresh?'后刷新':'后失效'}`):onRefresh?'正在刷新二维码…':'已过期，需要重新生成';if(!secs){clearInterval(timer);if(onRefresh){Promise.resolve(onRefresh()).catch(e=>toast(errorText(e),true));}else if(shortCode){$('sheetCopy').disabled=true;$('sheetToken').classList.add('code-expired');}}};let timer=setInterval(tick,1000);tick();}}
 async function showRewardQR(reward){const code=uuid();const data=unpack(await db.rpc('yt_make_redeem_v5',{p_award:reward.id,p_token:code}));const link=newLink('redeem',code),expires=Date.parse(data.expires_at),refreshAt=new Date(Math.min(Number.isFinite(expires)?expires:Infinity,Date.now()+55000)).toISOString();await showCodeSheet('出示奖励凭证',reward.rewards?.name||'Yetipsy Reward',link,true,refreshAt,data.display_code,'redeem',()=>showRewardQR(reward));}
-function tokenDetails(raw){const s=String(raw||'').trim();const short=s.replace(/[\s-]/g,'').toUpperCase();if(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short))return {kind:'gift_code',token:short};let kind='claim',token=s;const prefixed=s.match(/^(gift|claim|bundle|redeem|box|bind|freeflow):([0-9a-f-]{36})$/i);if(prefixed){kind=prefixed[1].toLowerCase();token=prefixed[2];}
- try{const url=new URL(s);for(const k of ['claim','bundle','gift','redeem','box','bind','freeflow']){if(url.searchParams.has(k)){kind=k;token=url.searchParams.get(k);break;}}}catch{}
+function tokenDetails(raw){const s=String(raw||'').trim();const short=s.replace(/[\s-]/g,'').toUpperCase();if(/^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$/.test(short))return {kind:'gift_code',token:short};let kind='claim',token=s;const prefixed=s.match(/^(gift|claim|bundle|redeem|box|bind|freeflow|freeflow_restore):([0-9a-f-]{36})$/i);if(prefixed){kind=prefixed[1].toLowerCase();token=prefixed[2];}
+ try{const url=new URL(s);for(const k of ['claim','bundle','gift','redeem','box','bind','freeflow','freeflow_restore']){if(url.searchParams.has(k)){kind=k;token=url.searchParams.get(k);break;}}}catch{}
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token))throw Error('无效的二维码或条形码，请扫描完整凭证');return {kind,token};}
 const requestStore={get(key){try{return sessionStorage.getItem(key)}catch{return null}},set(key,v){try{sessionStorage.setItem(key,v)}catch{}},remove(key){try{sessionStorage.removeItem(key)}catch{}}};
 function retryId(key){let prev=requestStore.get('v11:'+key);if(prev)return prev;prev=uuid();requestStore.set('v11:'+key,prev);return prev;}
 async function previewClaim(raw,assumed=null){
  const info=tokenDetails(raw);if(assumed&&info.kind!=='gift_code')info.kind=assumed;
- if(info.kind==='freeflow'){if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录或注册会员后，即可绑定 FreeFlow。';return;}return customerFreeflow.bind(info.token);}
+ if(info.kind==='freeflow')return customerFreeflow.bind(info.token);
+ if(info.kind==='freeflow_restore')return customerFreeflow.restore(info.token);
  if(info.kind==='bind'){if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录后即可绑定这笔消费。';window.scrollTo(0,0);return;}return showOrderBinding(info.token);}
  if(info.kind==='box'){if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录或注册后，即可领取这个存酒箱。';window.scrollTo(0,0);return;}return customerStoreBox.openClaim(info.token);}
  if(['claim','bundle'].includes(info.kind)&&await luckyBox?.preview(info.token,info.kind))return;
@@ -797,6 +798,7 @@ function bindEvents(){
  $('homeLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountRecords').onclick=()=>showMyRecords().catch(e=>toast(errorText(e),true));$('homeWallet').onclick=()=>navigate('wallet');$('walletRefresh').onclick=()=>wallet().catch(e=>toast(errorText(e),true));$('accountScan').onclick=()=>openScanner('claim');let customButton=$('accountCustom');if(!customButton){customButton=document.createElement('button');customButton.id='accountCustom';customButton.type='button';customButton.innerHTML='<span>◇</span><b>我的订制 · MY CUSTOM</b><i>↗</i>';const actions=$('accountPage')?.querySelector('.account-actions');if(actions)actions.insertBefore(customButton,$('signOut'));}customButton.onclick=()=>loadMyCustom().catch(e=>toast(errorText(e),true));
  $('accountStaff').onclick=()=>openWorkspace('staff');$('accountOwner').onclick=()=>openWorkspace('owner');
  $('workspaceBack').onclick=()=>navigate('account');
+ if($('guestMemberLogin'))$('guestMemberLogin').onclick=async()=>{await closeSheet();customerFreeflow?.hideGuestView();shell(false);changeAuthMode('phone');};
  $('signOut').onclick=async()=>{if(!confirm('确认退出 Yetipsy Play？'))return;await closeSheet();const {error}=await db.auth.signOut();if(error)return toast(error.message,true);state.user=null;state.profile=null;state.role=null;customerStoreBox?.clear();customerFreeflow?.clear();shell(false);changeAuthMode('login');toast('已安全退出');};
  $('sheetClose').onclick=()=>{if(state.gamePlaying)return toast('游戏正在进行，请完成后再离开',true);closeSheet();};
  $('sheetBackdrop').onclick=e=>{if(e.target===$('sheetBackdrop')&&!state.gamePlaying)closeSheet();};
@@ -814,10 +816,11 @@ function bindEvents(){
  $('ownerOpenPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('reloadInsights').onclick=e=>pending(e.currentTarget,loadInsights).catch(()=>{});$('staffAccessGrant').onclick=e=>pending(e.currentTarget,grantStaff).catch(()=>{});
 }
-async function boot(){i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});customerFreeflow=createCustomerFreeflow({db,getUser:()=>state.user,showSheet,sheetHtml,toast});customerFreeflow.mount();ambassadorClient=createAmbassadorClient({db,toast:(message,bad)=>toast(message,bad)});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();setupBell();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
+async function boot(){i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});customerFreeflow=createCustomerFreeflow({db,getUser:()=>state.user,showSheet,sheetHtml,toast,onGuestMode:enabled=>{document.body.classList.toggle('freeflow-guest-mode',enabled);$('guestFreeflowView')?.classList.toggle('hide',!enabled);}});customerFreeflow.mount();ambassadorClient=createAmbassadorClient({db,toast:(message,bad)=>toast(message,bad)});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();setupBell();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
- db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();customerFreeflow?.clear();shell(false);changeAuthMode('phone');}});
+ const resumedGuest=await customerFreeflow.resumeGuest().catch(()=>false);
+ db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();customerFreeflow?.clear();shell(false);changeAuthMode('phone');setTimeout(()=>customerFreeflow?.resumeGuest().then(ok=>{if(ok&&!state.user)return customerFreeflow.open();}).catch(()=>{}),0);}});
   const qs=new URL(location.href).searchParams;
   const invite=(qs.get('invite')||'').toUpperCase();
   if(/^YT[A-Z0-9]{8}$/.test(invite)&&/^[0-9a-f-]{36}$/i.test(qs.get('invite_token')||'')){if(state.user){history.replaceState(null,'',new URL('./',location.href).href);toast('已有会员无需再次注册，邀请关系不会改变。');}else{state.referralDraft=invite;$('referralCode').value=invite;}}
@@ -825,12 +828,13 @@ async function boot(){i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox
   if(qs.has('bind')&&state.user)showOrderBinding(qs.get('bind')).catch(e=>toast(errorText(e),true));
   if(state.user)loadMyLoyalty().catch(()=>{});
  if(qs.has('reset')){try{await showResetFlow(qs.get('reset'));}catch(e){toast(errorText(e),true);}}
+ else if(qs.has('freeflow_restore')){try{await customerFreeflow.restore(qs.get('freeflow_restore'));}catch(e){toast(errorText(e),true);}}
  else if(qs.has('freeflow')){try{await previewClaim(qs.get('freeflow'),'freeflow');}catch(e){toast(errorText(e),true);}}
  else if(qs.has('box')){try{await previewClaim(qs.get('box'),'box');}catch(e){toast(errorText(e),true);}}
  else if(qs.has('claim')||qs.has('bundle')||qs.has('gift')){
   const kind=qs.has('claim')?'claim':qs.has('bundle')?'bundle':'gift';try{await previewClaim(qs.get(kind),kind);}catch(e){toast(errorText(e),true);}
  }
- 
+ if(resumedGuest&&!state.user&&qs.size===0)await customerFreeflow.open();
 }
 boot().catch(e=>{window.YT_CLIENT_READY='failed';console.error('Boot:',e);shell(false);$('authError').textContent='系统暂时无法启动：'+errorText(e);});
 
