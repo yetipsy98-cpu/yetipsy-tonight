@@ -1,0 +1,19 @@
+const words={
+ zh:{order:'点单',entry:'FreeFlow 自助点单',menu:'酒单',history:'我的记录',loading:'加载中',empty:'暂无可用配套',guest:'访客',member_login:'会员登录',login:'登录',visit:'访客访问',choose:'选择访问方式',choose_title:'今晚，轻松畅饮',table:'桌号',date:'场次日期',window:'有效时段',until:'有效至',cups:'杯',enjoyed:'已享用',current:'当前订单',confirm:'确认下单',selected:'已选 1 杯',none:'选择一款饮品',no_drinks:'暂无酒款',no_records:'暂无已享用记录',total:'已享用杯数',sessions:'场次',varieties:'酒款',all_dates:'全部月份',records_count:'{count} 场记录',session:'本场',next_day:'次日',active:'使用中',upcoming:'尚未开始',paused:'已暂停',closed:'已关闭',expired:'已到期',pending:'待出品',served:'已出品',cancelled:'已取消',unavailable:'资格不可用',opened:'FreeFlow 已开通',restored:'FreeFlow 已恢复',sending:'提交中',sent:'下单成功',gps_failed:'定位失败，请允许定位并重新尝试。',refresh_failed:'请重新打开 FreeFlow 查看状态。',submitted_refresh_failed:'订单已提交，请重新打开 FreeFlow 查看状态。',language:'Switch to English'},
+ en:{order:'Order drinks',entry:'FreeFlow ordering',menu:'Drinks',history:'My history',loading:'Loading',empty:'No package available',guest:'Guest',member_login:'Member login',login:'Log in',visit:'Continue as guest',choose:'Choose how to continue',choose_title:'Your evening, on the menu',table:'Table',date:'Session date',window:'Session hours',until:'Until',cups:'cups',enjoyed:'Enjoyed',current:'Current order',confirm:'Place order',selected:'1 drink selected',none:'Choose a drink',no_drinks:'No drinks available',no_records:'No served drinks yet',total:'Cups enjoyed',sessions:'Sessions',varieties:'Drinks tried',all_dates:'All months',records_count:'{count} sessions',session:'This session',next_day:'next day',active:'Active',upcoming:'Not started',paused:'Paused',closed:'Closed',expired:'Expired',pending:'Awaiting drink',served:'Served',cancelled:'Cancelled',unavailable:'Access unavailable',opened:'FreeFlow activated',restored:'FreeFlow restored',sending:'Sending',sent:'Order placed',gps_failed:'Location failed. Allow location access and try again.',refresh_failed:'Reopen FreeFlow to check your order.',submitted_refresh_failed:'Order placed. Reopen FreeFlow to check its status.',language:'切换至中文'}
+};
+export const freeflowText=(lang,key,vars={})=>(words[lang==='en'?'en':'zh'][key]||key).replace(/\{(\w+)\}/g,(_,k)=>vars[k]??'');
+const zone='Asia/Kuala_Lumpur';
+export function sessionDay(value){if(!value||!Number.isFinite(Date.parse(value)))return '';return new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));}
+export function sessionDate(value,lang='zh',monthOnly=false){if(!value||!Number.isFinite(Date.parse(value)))return '—';return new Intl.DateTimeFormat(lang==='en'?'en-MY':'zh-MY',{timeZone:zone,year:'numeric',month:'short',...(monthOnly?{}:{day:'numeric',weekday:'short'})}).format(new Date(value));}
+export function sessionHours(row,lang='zh'){
+ const format=value=>value&&Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat(lang==='en'?'en-MY':'zh-MY',{timeZone:zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value)):'—';
+ const from=format(row.starts_at),until=format(row.ends_at);
+ return `${from} – ${until}${row.starts_at&&sessionDay(row.starts_at)!==sessionDay(row.ends_at)?' · '+freeflowText(lang,'next_day'):''}`;
+}
+export function freeflowHistory(rows,month=''){
+ const all=[...rows].sort((a,b)=>(Date.parse(b.starts_at)||0)-(Date.parse(a.starts_at)||0));
+ const filtered=all.filter(r=>!month||sessionDay(r.starts_at).startsWith(month));
+ const groups=new Map();for(const row of filtered){const day=sessionDay(row.starts_at);if(!groups.has(day))groups.set(day,[]);groups.get(day).push(row);}
+ return {months:[...new Set(all.map(r=>sessionDay(r.starts_at).slice(0,7)).filter(Boolean))],groups:[...groups].map(([day,sessions])=>({day,sessions})),sessions:filtered.length,cups:filtered.reduce((n,r)=>n+Number(r.cups||0),0),varieties:new Set(filtered.flatMap(r=>(r.drinks||[]).filter(d=>Number(d.quantity)>0).map(d=>d.name))).size};
+}
