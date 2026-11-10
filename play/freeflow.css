@@ -10,3 +10,5 @@
 .freeflow-guest-mode #authView,.freeflow-guest-mode #mainView,.freeflow-guest-mode #workspaceView{display:none!important}.guest-freeflow-card{margin:54px 24px;padding:30px 22px;border:1px solid #cfb67c4d;border-radius:24px;background:linear-gradient(145deg,#35352a,#191f1a);text-align:center}.guest-freeflow-card h1{font-size:28px;margin:14px 0}.guest-freeflow-card>span{display:block;color:#b6b9a9;font-size:12px;margin-bottom:28px}.guest-freeflow-card .text-cta{display:block;margin:24px auto 0;font-size:12px;color:#a8ae9d}
 
 .ff-entry-choice{display:grid;gap:12px;padding-top:12px}
+
+.ff-kds .ff-kds-banner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin:0 0 14px;padding:12px 15px;border:1px solid #f5dea1;border-radius:12px;background:linear-gradient(110deg,#f4d998,#d9b365);color:#17271d;box-shadow:0 3px 12px #0002}.ff-kds .ff-kds-banner strong{font-size:clamp(26px,5vw,32px);font-weight:950;line-height:1.05;letter-spacing:.055em}.ff-kds .ff-kds-banner span{font-size:13px;font-weight:800;white-space:nowrap}.ff-kds .kds-source{display:block;font-size:13px;letter-spacing:.025em;line-height:1.5}
