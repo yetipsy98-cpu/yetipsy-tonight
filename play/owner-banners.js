@@ -19,11 +19,22 @@ export function createBannerManager({db,root,notify,onPublished=async()=>{}}){
  const url=path=>db.storage.from(BANNER_BUCKET).getPublicUrl(path).data.publicUrl;
  function clearPreview(){if(previewURL){URL.revokeObjectURL(previewURL);previewURL=null;}}
  function reset(){editing=null;imagePath=null;q('form').reset();clearPreview();image.classList.add('hide');q('button[type="submit"]').textContent='上传并保存';status.textContent='';}
- function render(){const list=q('.banner-manager-list');list.innerHTML=rows.length?rows.map(r=>'<div class="banner-manager-row"><img src="'+esc(url(r.image_path))+'" alt="'+esc(r.title)+'" loading="lazy"><div><strong>'+esc(r.title)+'</strong><small>'+ (r.enabled?'已上架':'已下架')+' · 排序 '+Number(r.sort_order)+'</small></div><button type="button" class="button button-outline" data-banner-edit="'+esc(r.id)+'">编辑</button></div>').join(''):'<p class="soft-text">暂无广告，上传第一张后即可在首页显示。</p>';}
+ function render(){const list=q('.banner-manager-list');list.innerHTML=rows.length?rows.map(r=>'<div class="banner-manager-row"><img src="'+esc(url(r.image_path))+'" alt="'+esc(r.title)+'" loading="lazy"><div><strong>'+esc(r.title)+'</strong><small>'+ (r.enabled?'已上架':'已下架')+' · 排序 '+Number(r.sort_order)+'</small></div><div class="banner-row-actions"><button type="button" class="button button-outline" data-banner-edit="'+esc(r.id)+'" '+(saving?'disabled':'')+'>编辑</button><button type="button" class="button button-outline banner-delete" data-banner-delete="'+esc(r.id)+'" '+(saving?'disabled':'')+'>删除</button></div></div>').join(''):'<p class="soft-text">暂无广告，上传第一张后即可在首页显示。</p>';}
  async function load(){const res=await db.rpc('yt_owner_banner_list');if(res.error)throw Error(res.error.message);rows=res.data||[];render();}
  q('[data-banner-new]').onclick=()=>{if(!saving)reset();};
  field('image').onchange=()=>{try{const file=field('image').files[0];if(!file)return;validateBannerFile(file);clearPreview();previewURL=URL.createObjectURL(file);image.src=previewURL;image.classList.remove('hide');imagePath=null;}catch(e){field('image').value='';notify(e.message,true);}};
- q('.banner-manager-list').onclick=e=>{const b=e.target.closest('[data-banner-edit]');if(!b||saving)return;const r=rows.find(x=>x.id===b.dataset.bannerEdit);if(!r)return;reset();editing=r.id;imagePath=r.image_path;field('title').value=r.title;field('sort').value=r.sort_order;field('enabled').checked=r.enabled;image.src=url(r.image_path);image.classList.remove('hide');q('button[type="submit"]').textContent='保存广告';field('title').focus();};
+ async function deleteBanner(id){
+  const row=rows.find(x=>x.id===id);if(!row||saving)return;
+  if(!confirm('确认删除广告「'+row.title+'」？删除后将从首页轮播移除。'))return;
+  let deleted=false;saving=true;root.querySelectorAll('input,button').forEach(el=>el.disabled=true);status.textContent='正在删除广告…';
+  try{const result=await db.rpc('yt_owner_banner_delete',{p_id:id});if(result.error)throw Error(result.error.message);deleted=true;
+   if(editing===id)reset();rows=rows.filter(x=>x.id!==id);render();
+   const updates=await Promise.allSettled([load(),onPublished()]);if(updates.some(x=>x.status==='rejected'))throw Error('refresh_failed');
+   status.textContent='广告已删除，首页轮播已更新';notify(status.textContent);
+  }catch(error){status.textContent=deleted?'广告已删除，请刷新页面查看最新内容':error.message==='owner_only'?'只有 Owner 可以删除广告':error.message;notify(status.textContent,true);
+  }finally{saving=false;root.querySelectorAll('input,button').forEach(el=>el.disabled=false);}
+ }
+ q('.banner-manager-list').onclick=e=>{const b=e.target.closest('[data-banner-delete],[data-banner-edit]');if(!b||saving)return;if(b.dataset.bannerDelete)return deleteBanner(b.dataset.bannerDelete);const r=rows.find(x=>x.id===b.dataset.bannerEdit);if(!r)return;reset();editing=r.id;imagePath=r.image_path;field('title').value=r.title;field('sort').value=r.sort_order;field('enabled').checked=r.enabled;image.src=url(r.image_path);image.classList.remove('hide');q('button[type="submit"]').textContent='保存广告';field('title').focus();};
  q('form').onsubmit=async e=>{e.preventDefault();if(saving)return;const title=field('title').value.trim(),sort=Number(field('sort').value),enabled=field('enabled').checked,file=field('image').files[0];
  try{if(!title||title.length>80||!Number.isInteger(sort)||sort<0||sort>999)throw Error('请填写广告名称和有效排序');if(!imagePath&&!file)throw Error('请先选择广告图片');
  saving=true;root.querySelectorAll('input,button').forEach(el=>el.disabled=true);
