@@ -1,6 +1,6 @@
-import {createServiceBellClient} from './service-bell-client.mjs?v=20261111-freeflow-monthly-v12';
-import {readLocationPolicy,serviceLocation} from './location-policy.mjs?v=20261111-freeflow-monthly-v12';
-import {createCustomerFreeflow} from './customer-freeflow.js?v=20261111-freeflow-monthly-v12';
+import {createServiceBellClient} from './service-bell-client.mjs?v=20261111-history-entry-fix-v13';
+import {readLocationPolicy,serviceLocation} from './location-policy.mjs?v=20261111-history-entry-fix-v13';
+import {createCustomerFreeflow} from './customer-freeflow.js?v=20261111-history-entry-fix-v13';
 import {createLuckyBox} from './lucky-box.js?v=20261013-lucky-v2';
 import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
 import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261023-reward-min-zero-v1';
@@ -9,7 +9,7 @@ import {createBannerManager} from './owner-banners.js?v=20261017-banner-create-m
 import {createHomeCarousel} from './home-carousel.js?v=20261010-copy-v15-4';
 import {createCustomerStoreBox} from './customer-store-box.js?v=20261030-sequential-levels-v1';
 import {createAmbassadorClient} from './ambassador-client.js?v=20261023-ambassador-short-ref-v1';
-import {createClientI18n} from './client-i18n.js?v=20261015-play-v1';
+import {createClientI18n} from './client-i18n.js?v=20261111-history-entry-fix-v13';
 
 const $=id=>document.getElementById(id);
 const urlConfig=window.YETIPSY_PLAY_CONFIG||{};

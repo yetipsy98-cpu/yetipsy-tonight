@@ -1,0 +1,13 @@
+const {JSDOM}=require('jsdom'),assert=require('node:assert/strict'),fs=require('node:fs');
+(async()=>{
+ const dom=new JSDOM(fs.readFileSync('play/index.html','utf8'),{url:'https://example.org/play/'});
+ for(const k of ['window','document','location','history','localStorage','sessionStorage'])global[k]=dom.window[k];
+ const historyButton=document.getElementById('accountFreeflowHistory');assert(historyButton,'history must exist in the actual HTML before eligibility is loaded');assert.equal(historyButton.hidden,false);assert(historyButton.closest('#accountPage .account-actions'));
+ let user=null,status=null,fail=false;const row={member_id:'m1',name:'Classic',status:'expired',starts_at:'2026-11-10T10:00:00Z',ends_at:'2026-11-10T16:00:00Z',cups:3,drinks:[{name:'Lychee Martini',quantity:3}],products:[{id:'p1',name:'Lychee Martini'}]};
+ const {createCustomerFreeflow}=await import('../play/customer-freeflow.js');const ui=createCustomerFreeflow({db:{rpc:async()=>fail?{error:{message:'offline'}}:{data:status?[{...row,status}]:[]}},getUser:()=>user,toast:()=>{},showSheet:()=>document.getElementById('sheetBackdrop').classList.remove('hide'),sheetHtml:h=>document.getElementById('sheetBody').innerHTML=h});
+ ui.mount();assert.equal(historyButton.hidden,false);user={id:'member'};fail=true;await assert.rejects(()=>ui.refreshAccess(),/offline/);assert.equal(historyButton.hidden,false);fail=false;
+ for(const state of [null,'upcoming','paused','closed','expired']){status=state;await ui.refreshAccess();assert.equal(historyButton.hidden,false,'history remains for '+state);assert.equal(document.getElementById('accountFreeflow').hidden,true);assert.equal(document.getElementById('homeFreeflow').hidden,true);await ui.open('history');assert.equal(document.getElementById('ffConfirm'),null);if(state)assert(document.querySelector('.ff-order-history'));}
+ status='active';await ui.refreshAccess();assert.equal(document.getElementById('accountFreeflow').hidden,false);assert.equal(historyButton.hidden,false);ui.clear();assert.equal(historyButton.hidden,false);
+ const {createClientI18n}=await import('../play/client-i18n.js');const i18n=createClientI18n({storage:localStorage});i18n.set('en');assert.equal(historyButton.querySelector('b').textContent,'FreeFlow history');i18n.set('zh');assert.equal(historyButton.querySelector('b').textContent,'FreeFlow 记录');
+ ui.clear();dom.window.close();console.log('PASS real member-page HTML includes permanent bilingual FreeFlow history before login/eligibility loading, including offline, empty, upcoming, paused, closed and expired states; ordering remains gated.');
+})().catch(e=>{console.error(e);process.exit(1);});
