@@ -1,7 +1,7 @@
-import {freeflowText,sessionDate,sessionHours,freeflowHistory} from './freeflow-view.mjs?v=20261111-freeflow-history-import-v11';
-import {readLocationPolicy,serviceLocation} from './location-policy.mjs?v=20261111-freeflow-history-import-v11';
-import {guestStorageKey,readGuestCredential,ensureGuestCredential,prepareGuestRestore,finishGuestRestore,prepareGuestImport,hasPendingGuestImport,clearGuestDevice} from './freeflow-guest-storage.mjs?v=20261111-freeflow-history-import-v11';
-import {ffError,freezeFreeflowRequest} from './freeflow-core.mjs?v=20261111-freeflow-history-import-v11';
+import {freeflowText,sessionDate,sessionHours,freeflowHistory} from './freeflow-view.mjs?v=20261111-freeflow-monthly-v12';
+import {readLocationPolicy,serviceLocation} from './location-policy.mjs?v=20261111-freeflow-monthly-v12';
+import {guestStorageKey,readGuestCredential,ensureGuestCredential,prepareGuestRestore,finishGuestRestore,prepareGuestImport,hasPendingGuestImport,clearGuestDevice} from './freeflow-guest-storage.mjs?v=20261111-freeflow-monthly-v12';
+import {ffError,freezeFreeflowRequest} from './freeflow-core.mjs?v=20261111-freeflow-monthly-v12';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function createCustomerFreeflow({db,getUser,showSheet,sheetHtml,toast,onGuestMode=()=>{},closeSheet=()=>{},onNeedLogin=()=>{},getLocale=()=> 'zh',setLocale=null,onImportLogin=()=>{}}){
  let guestToken=null,guestGeneration=0,localLanguage=null,repaint=null,chooserPaint=null,lastRows=[],viewMode='order';

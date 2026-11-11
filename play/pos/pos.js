@@ -1,10 +1,10 @@
-import {createFreeflowWork} from './freeflow.js?v=20261111-freeflow-history-import-v11';
-import {createPlayWork} from './play-upgrade.js?v=20261111-freeflow-history-import-v11';
+import {createFreeflowWork} from './freeflow.js?v=20261111-freeflow-monthly-v12';
+import {createPlayWork} from './play-upgrade.js?v=20261111-freeflow-monthly-v12';
 import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-settings-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261108-order-business-day-v1';
 import {createCustomPricing} from './custom-pricing.js?v=20261016-cart-visible-delete-v1';
 import {createBannerManager} from '../owner-banners.js?v=20261017-banner-create-mode-v1';
-import {createConsole} from './console.js?v=20261110-freeflow-layout-v2';
+import {createConsole} from './console.js?v=20261111-freeflow-monthly-v12';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261023-one-code-adjustment-v1';
 import {createStoreBox} from './store-box.js?v=20261031-cashier-level-options-v1';
@@ -113,7 +113,7 @@ async function changeCashierFirstPassword(e){e.preventDefault();const button=e.s
 const defaultTab=()=>limitedRole()?'limited':isOwner()?'admin':state.identity?.role==='cashier'?'pending':'create';
 const limitedRole=()=>typeof isOwnerLimited==='function'&&isOwnerLimited();
 function ensureLimitedHome(){let section=$('tab-limited');if(!section){document.querySelector('main')?.insertAdjacentHTML('beforeend','<section id="tab-limited" class="tab-view hidden"><div id="limitedReportsRoot"></div></section>');section=$('tab-limited');}else if(!$('limitedReportsRoot'))section.innerHTML='<div id="limitedReportsRoot"></div>';}
-async function loadLimitedReports(){const root=$('limitedReportsRoot');if(!root||!isOwnerLimited())return;const module=await import('./owner-reports.js?v=20261101-report-tools-v2');limitedReportView||=module.createOwnerReports({db,root,isOwner:isOwnerLimited,allowExport:false,notice:(message,bad)=>showNotice(message,bad),businessDay:state.businessDay});await limitedReportView.load();}
+async function loadLimitedReports(){const root=$('limitedReportsRoot');if(!root||!isOwnerLimited())return;const module=await import('./owner-reports.js?v=20261111-freeflow-monthly-v12');limitedReportView||=module.createOwnerReports({db,root,isOwner:isOwnerLimited,allowExport:false,notice:(message,bad)=>showNotice(message,bad),businessDay:state.businessDay});await limitedReportView.load();}
 function buildNav(){const nav=$('nav');$('tab-benefits')?.classList.toggle('benefits-off',state.luckyMode?.mode==='off');$('revisionApprovalTab')?.classList.toggle('hidden',!isOwner());$('ownerApprovalShortcut')?.classList.toggle('hidden',!isOwner());const tabs=limitedRole()
   ?[['limited','报表'],['ambassador','发 Pass']]
   :isOwner()

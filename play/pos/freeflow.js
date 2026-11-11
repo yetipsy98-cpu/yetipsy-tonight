@@ -1,4 +1,4 @@
-import {ffError,parseMemberToken,freeflowLabels} from '../freeflow-core.mjs?v=20261111-freeflow-history-import-v11';
+import {ffError,parseMemberToken,freeflowLabels} from '../freeflow-core.mjs?v=20261111-freeflow-monthly-v12';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const stamp=v=>v?new Intl.DateTimeFormat('zh-MY',{timeZone:'Asia/Kuala_Lumpur',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v)):'—';
 export function createFreeflowWork({db,isOwner,isCashier,getBusinessDay,qrLibrary,notice,onQueueChange,onNewOrder,onOpenWorkspace}){
