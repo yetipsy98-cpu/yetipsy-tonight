@@ -182,3 +182,5 @@
 @media(hover:hover){.yt-mystery-picks .yt-pick-box:not(:disabled):hover{transform:translateY(-7px)}.yt-mystery-picks .yt-pick-box:not(:disabled):hover .yt-gift-art{filter:drop-shadow(0 5px 15px #daba5d40)}}
 @media(max-width:360px){.yt-mystery-arena .yt-pick-intro strong{font-size:18px}.yt-mystery-arena .yt-box-eyebrow{font-size:6px}.yt-play-content .yt-mystery-arena{padding:22px 10px 16px}.yt-mystery-picks .yt-pick-box{padding-bottom:10px}.yt-mystery-arena .arena-label{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.yt-mystery-arena .yt-orbit{animation:none}.yt-mystery-picks .yt-pick-box,.yt-mystery-picks .yt-gift-art,.yt-mystery-picks .yt-gift-lid,.yt-mystery-picks .yt-gift-light,.yt-mystery-picks .yt-gift-spark{transition:none}}
+
+.banner-manager-row>div{min-width:0}.banner-row-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.banner-row-actions .banner-delete{color:#efb8aa;border:1px solid #c9826b66;background:#7c3d2a12}.banner-row-actions button:disabled{opacity:.5;cursor:wait}@media(max-width:360px){.banner-row-actions{grid-column:2;justify-content:flex-start}}

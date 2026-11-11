@@ -1,4 +1,4 @@
-import {BANNER_BUCKET} from './owner-banners.js?v=20261009-client-v5-1';
+import {BANNER_BUCKET} from './owner-banners.js?v=20261111-banner-delete-v14';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function createHomeCarousel({db,root}){
  let slides=[],index=0,paused=false,startX=null,epoch=0;
@@ -11,5 +11,6 @@ export function createHomeCarousel({db,root}){
  root.onpointerdown=e=>{startX=e.clientX;};root.onpointerup=e=>{if(startX!==null&&Math.abs(e.clientX-startX)>45)select(index+(e.clientX<startX?1:-1));startX=null;};root.onpointercancel=()=>startX=null;
  root.onmouseenter=()=>paused=true;root.onmouseleave=()=>paused=false;root.onfocusin=()=>paused=true;root.onfocusout=()=>paused=false;
  render([]);const timer=setInterval(()=>{if(slides.length>1&&!paused&&document.visibilityState==='visible'&&root.getClientRects().length&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches)select(index+1);},5500);
- return {refresh,destroy(){clearInterval(timer);}};
+ const onVisibility=()=>{if(document.visibilityState==='visible')refresh().catch(()=>{});};document.addEventListener?.('visibilitychange',onVisibility);
+ return {refresh,destroy(){clearInterval(timer);document.removeEventListener?.('visibilitychange',onVisibility);}};
 }
