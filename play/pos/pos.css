@@ -311,3 +311,75 @@ body.sheet-open{overflow:hidden}
 .manual-adjustment-actions{display:grid;grid-template-columns:1fr 1fr;margin:10px 0}.manual-adjustment-actions button{min-height:46px}.cashier-adjustment-history{margin:10px 0;padding:12px;border:1px solid var(--line,#53675a);border-radius:14px}.cashier-adjustment-history>summary{cursor:pointer;font-weight:700}.manual-adjustment-dialog{width:min(620px,100%);max-height:min(88dvh,900px);overflow:auto}.manual-adjustment-items{display:grid;gap:8px;margin:14px 0;padding:12px;border:1px solid var(--line,#53675a);border-radius:12px}.manual-adjustment-items .checkline{padding:9px 4px}.manual-discount-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.manual-approval-section{margin-top:16px}.manual-approval-section>.order{margin-top:12px}@media(max-width:560px){.manual-discount-fields{grid-template-columns:1fr}.manual-adjustment-dialog{padding:18px}}
 
 .banner-manager-row>div{min-width:0}.banner-row-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.banner-row-actions .banner-delete{color:#efb8aa;border:1px solid #c9826b66;background:#7c3d2a12}.banner-row-actions button:disabled{opacity:.5;cursor:wait}@media(max-width:360px){.banner-row-actions{grid-column:2;justify-content:flex-start}}
+
+/* Service bell: a dedicated service board with the same visual hierarchy as KDS. */
+#tab-bell .bell-workspace{padding:24px;background:linear-gradient(145deg,#20352b,#172a22);border:1px solid #4c614d;border-radius:20px}
+#tab-bell .bell-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:22px;border-bottom:1px solid #ffffff18}
+#tab-bell .bell-header .kicker{margin:0 0 8px;color:#d9b977;font-size:11px;letter-spacing:.16em}
+#tab-bell .bell-header h2{margin:0;color:#fff0c5;font-size:30px;line-height:1.2}
+#tab-bell .bell-subtitle{margin:8px 0 0;color:#a9bbae;font-size:12px}
+#tab-bell .bell-header-actions{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:10px}
+#tab-bell .bell-audio-badge{padding:7px 10px;border-radius:8px;background:#102219;border:1px solid #49604e;color:#b9c9b9;font-size:11px}
+#tab-bell .bell-header-actions button{margin:0;min-height:36px;padding:8px 13px;font-size:12px}
+#tab-bell .bell-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:20px 0 26px}
+#tab-bell .bell-metric{display:grid;align-content:start;gap:10px;padding:15px 17px;min-width:0;border:1px solid #ffffff13;background:#14261e;border-radius:12px}
+#tab-bell .bell-metric>span{font-size:11px;color:#a9bcad}
+#tab-bell .bell-metric>strong{color:#f3e6c5;font-size:24px;font-weight:800;line-height:1.25;overflow-wrap:anywhere}
+#tab-bell .bell-metric strong small{color:#a9bcad;font-size:11px;font-weight:500}
+#tab-bell .bell-metric-primary{border-color:#c6a25770;background:linear-gradient(120deg,#57452a70,#292f21)}
+#tab-bell .bell-metric-primary>strong{color:#f5ce7d}
+#tab-bell .bell-section-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+#tab-bell .bell-section-heading h3{display:flex;align-items:center;gap:9px;margin:0;color:#eee7d4;font-size:16px}
+#tab-bell #bellPendingCount{display:inline-grid;place-items:center;min-width:25px;height:25px;padding:0 6px;border-radius:7px;background:#cba45c24;color:#edc679;font-size:13px}
+#tab-bell .bell-section-heading>small{color:#92a797;font-size:11px}
+#tab-bell .bell-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:14px;align-items:start}
+#tab-bell .service-ticket{display:flex;flex-direction:column;min-width:0;height:100%;padding:18px;border:1px solid #b28e4b;border-top:4px solid #d7b263;border-radius:15px;background:linear-gradient(150deg,#2a4030,#1c3025);box-shadow:0 8px 22px #07100a30}
+#tab-bell .bell-ticket-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#tab-bell .bell-ticket-source{color:#c5ad76;font-size:9px;font-weight:800;letter-spacing:.12em}
+#tab-bell .bell-status{display:inline-block;width:max-content;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;line-height:1.3}
+#tab-bell .bell-status-pending{background:#d7aa4d26;color:#f2ce82}
+#tab-bell .bell-status-confirmed{background:#67b98b20;color:#b1dfbd}
+#tab-bell .bell-status-cancelled{background:#ffffff09;color:#aeb9b2}
+#tab-bell .bell-table-block{margin:18px 0 16px;min-width:0}
+#tab-bell .bell-table-block>span{color:#b0c1b1;font-size:10px;letter-spacing:.12em}
+#tab-bell .bell-table-number{margin:4px 0 0;color:#fff0bd;font-size:48px;font-weight:900;line-height:1.1;overflow-wrap:anywhere}
+#tab-bell .bell-request{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid #ffffff18;border-bottom:1px solid #ffffff18}
+#tab-bell .bell-request-icon{display:grid;flex:none;place-items:center;width:36px;height:36px;border-radius:10px;background:#c9a154;color:#152219;font-size:25px;font-weight:900}
+#tab-bell .bell-request>div{min-width:0}
+#tab-bell .bell-request h4{margin:0;color:#f6f0dc;font-size:19px;line-height:1.4;overflow-wrap:anywhere}
+#tab-bell .bell-request small{display:block;margin-top:3px;color:#a4b5a7;font-size:11px;overflow-wrap:anywhere}
+#tab-bell .bell-request-note{margin:12px 0 0;padding:10px 12px;border-radius:8px;background:#10241b;color:#e3dfcf;font-size:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+#tab-bell .bell-request-note>span{display:block;margin-bottom:3px;color:#a9b7aa;font-size:10px}
+#tab-bell .bell-ticket-time{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin-top:auto;padding:16px 0 12px;font-size:11px;color:#a7b9a9}
+#tab-bell .bell-ticket-time strong{color:#f1cf8c;font-size:13px}
+#tab-bell .bell-ticket-time time{font-size:10px;color:#91a594}
+#tab-bell .bell-ack{width:100%;min-height:46px;margin:0;border:1px solid #e6c986;border-radius:10px;background:linear-gradient(110deg,#dfc383,#c3a05a);color:#1a271d;font-size:15px;font-weight:800;box-shadow:none;cursor:pointer}
+#tab-bell .bell-ack:hover{filter:brightness(1.08)}
+#tab-bell .bell-ack:disabled{opacity:.6;cursor:wait}
+#tab-bell .bell-waiting-long{border-color:#dc9465;border-top-color:#e6a06a}
+#tab-bell .bell-waiting-long .bell-ticket-time strong{color:#ffc295}
+#tab-bell .bell-empty{grid-column:1/-1;display:grid;justify-items:center;padding:40px 20px;border:1px dashed #56715c;border-radius:14px;background:#10251b50;text-align:center}
+#tab-bell .bell-empty-icon{display:grid;place-items:center;width:48px;height:48px;border:1px solid #72947a;border-radius:50%;color:#b5d0b4;background:#35523b60;font-size:25px}
+#tab-bell .bell-empty h3{margin:14px 0 6px;font-size:17px;color:#dbe7d8}
+#tab-bell .bell-empty p{margin:0;font-size:12px;color:#9bb09f}
+#tab-bell .bell-history{margin-top:24px;border:1px solid #ffffff16;border-radius:12px;background:#12251d;overflow:hidden}
+#tab-bell .bell-history>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px;cursor:pointer;color:#d7dfd0;font-size:13px;font-weight:700;list-style:none}
+#tab-bell .bell-history>summary::-webkit-details-marker{display:none}
+#tab-bell .bell-history>summary small{font-size:10px;color:#a7b7a7;font-weight:400}
+#tab-bell .bell-history>summary small:after{content:' ＋';color:#dbbd7e}
+#tab-bell .bell-history[open]>summary small{font-size:0}
+#tab-bell .bell-history[open]>summary small:after{content:'收起 −';font-size:10px}
+#tab-bell #bellHistory{padding:0 16px 16px}
+#tab-bell .bell-history-scope{margin:0 0 12px;color:#a7b7a7;font-size:11px}
+#tab-bell .bell-history-stats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px}
+#tab-bell .bell-history-stats>span{padding:8px 11px;background:#ffffff06;border-radius:7px;font-size:11px;color:#a6b6a7}
+#tab-bell .bell-history-stats b{margin-left:7px;color:#e4d2a3;font-size:13px}
+#tab-bell .bell-history-scroll{overflow:auto}
+#tab-bell .bell-history-table{width:100%;border-collapse:collapse;text-align:left;min-width:540px;table-layout:auto}
+#tab-bell .bell-history-table th{padding:10px 9px;border-bottom:1px solid #ffffff20;color:#98ad9d;font-size:10px;font-weight:500;white-space:nowrap}
+#tab-bell .bell-history-table td{padding:13px 9px;border-bottom:1px solid #ffffff0c;color:#cad4c6;font-size:12px;overflow-wrap:anywhere;max-width:280px}
+#tab-bell .bell-history-table tr:last-child td{border-bottom:0}
+#tab-bell .bell-history-table td:first-child{white-space:nowrap;color:#9fb0a1;font-size:11px}
+#tab-bell .bell-history-table td>strong{color:#f0ddb1;font-size:15px}
+#tab-bell button:focus-visible,#tab-bell summary:focus-visible,#tab-bell .bell-history-scroll:focus-visible{outline:2px solid #f3d49a;outline-offset:3px}
+@media(max-width:760px){#tab-bell .bell-workspace{padding:16px;border-radius:14px}#tab-bell .bell-header{align-items:flex-start;gap:12px}#tab-bell .bell-header h2{font-size:25px}#tab-bell .bell-header-actions{flex-direction:column;align-items:flex-end;gap:8px}#tab-bell .bell-audio-badge{font-size:9px;padding:6px 8px}#tab-bell .bell-overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:16px 0 22px}#tab-bell .bell-metric{padding:12px;gap:8px}#tab-bell .bell-metric>strong{font-size:21px}#tab-bell .bell-board{gap:12px}#tab-bell .bell-table-number{font-size:44px}}

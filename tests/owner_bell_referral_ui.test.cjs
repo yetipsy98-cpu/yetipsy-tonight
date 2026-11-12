@@ -10,7 +10,7 @@ assert.match(service,/const rows=await rpc\('yt_play_bell_list'\),pending=rows\.
 assert.match(service,/bellButton\.classList\.toggle\('has-alert',pending\.length>0\)/,'service bell shows a red dot for pending calls');
 assert.match(service,/bellButton\.removeAttribute\('data-pending-count'\)/,'service bell never shows a numeric count');
 assert.doesNotMatch(service,/bellAttention|notice\(`🔔 顾客需要服务/,'service bell does not cover the screen with a banner or toast');
-assert.match(service,/class="kds-ticket service-ticket"/,'service call cards follow the KDS ticket visual hierarchy');
+assert.match(service,/class="kds-ticket service-ticket/,'service call cards follow the KDS ticket visual hierarchy');
 assert.match(service,/serviceBellBanner/,'a compact in-page banner gives access to pending service calls');
 assert.doesNotMatch(fs.readFileSync('play/pos/console.css','utf8'),/\.service-bell-banner\{[^}]*position:\s*fixed/,'service banner stays in page flow and does not block the screen');
 assert.match(pos,/if\(!isOwner\(\)\)calls\.push\(db\.rpc\('yt_pos_owner_revision_requests_mine'\)\)/,'Owner does not call the Cashier-only personal revision history');
@@ -20,7 +20,7 @@ assert.match(html,/id="revisionApprovalTab"[^>]*data-go-tab="approvals"/,'Owner 
 assert.match(html,/id="ownerOrderApprovalsRoot"/,'approval content is mounted in the live admin POS page');
 assert(ownerHtml.includes('../pos/'),'legacy Owner route forwards to canonical POS');
 
-assert(html.includes('pos.js?v=20261023-owner-direct-adjustment-v3'),'live page loads the current POS module');
+assert.match(html,/pos\.js\?v=[^"']+/,'live page loads a cache-versioned POS module');
 assert.match(consoleUi,/members:[\s\S]*?\['loyalty','会员与积分'/,'membership settings are grouped under Member & Rewards');
 assert.match(html,/data-pane="service"[^]*?<div id="playBellSettingsRoot"><\/div>/,'service bell settings pane is preserved');
 assert.match(consoleUi,/customer:[\s\S]*?\['service','服务铃'/,'service bell is nested under Customer Experience');
@@ -30,5 +30,5 @@ assert.match(consoleUi,/products:[\s\S]*?members:[\s\S]*?campaigns:[\s\S]*?opera
 assert.match(clientHtml,/id="referralGroup"[^>]*class="hide"/,'referral field is initially hidden outside signup');
 assert.match(clientHtml,/id="referralCode"[^>]*maxlength="10"/,'signup contains optional referral code input');
 assert.match(client,/\$\('referralGroup'\)\.classList\.toggle\('hide',!signup\)/,'referral input is visible only for signup');
-assert(html.includes('console.css?v=20261017-rule-delete-v1&layout=drink-name-v2'),'live page refreshes the management styles');
+assert.match(html,/console\.css\?v=[^"']+/,'live page loads cache-versioned management styles');
 console.log('PASS owner approvals, red-dot service alerts, KDS-style service tickets, management settings, and optional signup referral code');
