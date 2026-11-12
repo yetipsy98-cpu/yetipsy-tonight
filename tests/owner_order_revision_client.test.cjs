@@ -10,19 +10,19 @@ assert.match(publishedOwnerPage,/id="ownerApprovalShortcut"[^>]*data-go-tab="app
 assert.match(publishedOwnerPage,/<section id="tab-approvals"[^>]*>[\s\S]*?id="ownerOrderApprovalsRoot"/);
 assert.match(src,/if\(tab==='approvals'\)loadOwnerApprovals\(\)/);
 assert.match(src,/ownerApprovalShortcut.*isOwner\(\)/);
-class El{constructor(){this.value='';this.checked=false;this.disabled=false;this.innerHTML='';this.textContent='';this.classList={add(){},remove(){},toggle(){}};}querySelector(){return this.button??=new El();}querySelectorAll(){return this.inputs??=[];}focus(){}}
+class El{constructor(){this.value='';this.checked=false;this.disabled=false;this.innerHTML='';this.textContent='';this.classList={add(){},remove(){},toggle(){},contains(){return false;}};}querySelector(){return this.button??=new El();}querySelectorAll(){return this.inputs??=[];}focus(){}}
 const els=new Map(),$=id=>{if(!els.has(id))els.set(id,new El());return els.get(id);};
-let calls=[],fail=false,owner=true;const state={editOrder:{id:'order1',payment_status:'paid',updated_at:'original-date'},editCart:new Map([['first',{item_id:'old-item',product_id:'product1',quantity:2,unit_price_rm:20}]]),editBusy:false,adjustmentBalance:20};
-const ctx={state,$,crypto,document:{body:{classList:{remove(){}}}},console,confirm:()=>true,isOwner:()=>owner,money:n=>'RM'+Number(n||0).toFixed(2),unpack:r=>{if(r.error){const e=Error(r.error.message);e.code=r.error.code;throw e;}return r.data;},showNotice(){},errorText:e=>e.message,revisionSummary:()=>'',benefitSummary:()=>'',revisionHistory:()=>'',busy:async(b,fn)=>{try{await fn();}catch(e){}},refreshOrders:async()=>{},db:{rpc:async(name,args)=>{calls.push({name,args:JSON.parse(JSON.stringify(args))});if(name==='yt_pos_owner_revision_preview')return{data:{net:60,balance_rm:20}};if(fail)throw Error('Failed to fetch');return{data:{payment_status:'paid',balance_rm:15}};}}};vm.createContext(ctx);
+let calls=[],fail=false,owner=true;const state={editOrder:{id:'order1',business_day:'2026-11-12',payment_status:'paid',updated_at:'original-date'},editCart:new Map([['first',{item_id:'old-item',product_id:'product1',quantity:2,unit_price_rm:20}]]),editBusy:false,adjustmentBalance:20};
+const ctx={state,$,crypto,document:{body:{classList:{remove(){}}}},console,confirm:()=>true,isOwner:()=>owner,isCashier:()=>false,money:n=>'RM'+Number(n||0).toFixed(2),unpack:r=>{if(r.error){const e=Error(r.error.message);e.code=r.error.code;throw e;}return r.data;},showNotice(){},errorText:e=>e.message,revisionSummary:()=>'',benefitSummary:()=>'',revisionHistory:()=>'',busy:async(b,fn)=>{try{await fn();}catch(e){}},refreshOrders:async()=>{},db:{rpc:async(name,args)=>{calls.push({name,args:JSON.parse(JSON.stringify(args))});if(name==='yt_pos_owner_revision_preview')return{data:{net:60,balance_rm:20}};if(fail)throw Error('Failed to fetch');return{data:{payment_status:'paid',balance_rm:15}};}}};vm.createContext(ctx);
 vm.runInContext(src.slice(src.indexOf('let editPreviousFocus='),src.indexOf('// POS V4 -'))+'\nglobalThis.reopen=0;openEditDialog=async()=>{reopen++;state.editPending=null;state.adjustmentPending=null;};',ctx);
 const event={preventDefault(){},submitter:$('editSettlementSubmit')};
 (async()=>{
  const workPage=fs.readFileSync('play/admin/pos/index.html','utf8');const option=workPage.match(/<input id="editRevokeBenefits"[^>]*>/)[0];assert(!option.includes('checked'));assert(workPage.includes('id="editSettlementConfirmed" type="checkbox" required'));for(const role of ['pos','owner','staff','cashier'])assert(fs.readFileSync(`play/${role}/index.html`,'utf8').includes('admin/pos/'),role+' alias route');
- $('editReason').value='quantity change';$('editTable').value='T1';fail=true;
+ $('editBusinessDay').value='2026-11-12';$('editReason').value='quantity change';$('editTable').value='T1';fail=true;
  await ctx.submitEditOrder(event);const saved=state.editPending;assert(saved);assert.equal(saved.p_revoke,false);assert.equal(saved.p_expected_updated,'original-date');assert.equal(saved.p_items[0].item_id,'old-item');
  ctx.editDialogChange({dataset:{editQty:'first'},value:'1'});assert.equal(state.editCart.get('first').quantity,2);
  $('editReason').value='programmatic mutation';fail=false;await ctx.submitEditOrder(event);
- const edits=calls.filter(x=>x.name==='yt_pos_owner_revision_apply');assert.equal(edits.length,2);assert.deepEqual(edits[0].args,edits[1].args);assert.equal(ctx.reopen,1);
+ const edits=calls.filter(x=>x.name==='yt_pos_owner_revision_apply_v3');assert.equal(edits.length,2);assert.deepEqual(edits[0].args,edits[1].args);assert.equal(ctx.reopen,1);
  // Require actual receipt confirmation before creating the money request.
  $('editSettlementAmount').value='5';$('editSettlementMethod').value='cash';$('editSettlementNote').value='received';$('editSettlementConfirmed').checked=false;
  await ctx.submitAdjustment(event);assert.equal(calls.filter(x=>x.name==='yt_pos_adjustment_pay').length,0);
