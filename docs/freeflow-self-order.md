@@ -102,3 +102,11 @@ Amba 订单的取消按钮与 FreeFlow 发码入口分别显示。Owner 执行�
 - Customers and visitors can enable **代点 / Order for the table** to build a mixed-drink batch with quantities. Normal mode retains the one-own-pending-cup interaction. Server session locking enforces the shared limit for all devices, including older clients.
 - Each cup remains an independent KDS request. Proxy tickets are marked **代点**. Ordering, served-cup totals, monthly reports and customer history continue to count cups; no extra POS sale is generated for individual drinks.
 - Mixed batches are atomic, with an exact request payload retained for retry after a lost response. Batch metadata is not included in customer projections. Records reset uses the existing request/member/session children; no new FK-linked reset table is introduced.
+
+### Cart drawer and unpaid-tab additions (2026-11-14)
+
+- Proxy ordering uses **查看购物车 / View cart**. The drawer holds quantities, clear-cart, notes and submission controls; closing it keeps the current selection and returns to the menu. Shared group capacity is rechecked by the server when submitting.
+- Cashier/Owner may use **继续加单** on an accepted unpaid tab, including a FreeFlow tab. The separate picker leaves the new-order draft alone, appends new item IDs at current server prices, and preserves the original table, business day, item prices, reserved units and existing offers.
+- Previously served rows are marked served before inserting additions. Only new products needing production enter KDS; FreeFlow seats remain excluded and approved historical backfills keep their existing KDS exclusion. Store Box items continue using the existing preparation/claim flow.
+- Paid, cancelled, unaccepted, pending backdate and pending DuitNow-review orders cannot be appended to. Tabs older than 72 hours require Owner access and a reason. Requests are frozen for safe retry after a lost response, including if checkout happens after the first append committed.
+- FreeFlow group prices/capacity remain separate from appended regular products. Later FreeFlow people top-ups still work, and regular product value is excluded from FreeFlow commission calculations.

@@ -528,3 +528,32 @@ body.sheet-open{overflow:hidden}
 #ffDeltaForm .ff-payment-confirm{display:flex;align-items:center;gap:8px}
 #ffDeltaForm .ff-payment-confirm input{width:18px;height:18px;flex:none}
 #ffPaxError{color:#efb995;font-size:12px}
+/* Continue an unpaid tab without touching the separate new-order cart. */
+.order-append-overlay{display:flex;align-items:stretch;justify-content:flex-end;padding:0;background:#07110caa;backdrop-filter:blur(3px)}
+.order-append-dialog{display:flex;flex-direction:column;width:min(1080px,100%);height:100dvh;background:#182a20;border-left:1px solid #8e794e;color:#eee7cf;box-shadow:-20px 0 70px #0005;overflow:hidden}
+.append-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 24px;border-bottom:1px solid #ffffff15;background:#203328}
+.append-head p{margin:0 0 7px;font-size:10px;letter-spacing:.15em;color:#c5ab72}
+.append-head h2{margin:0 0 7px;color:#f2dbac;font-size:25px}
+.append-head small{color:#acbca6;font-size:11px;line-height:1.5}
+.append-head>div:last-child{display:flex;gap:8px}
+.append-head button{margin:0;padding:8px 12px;font-size:12px;min-height:36px}
+.append-layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;flex:1;min-height:0}
+.append-picker{min-height:0;overflow:auto;padding:20px;overscroll-behavior:contain}
+.append-filter{display:flex;gap:9px;margin-bottom:14px}
+.append-filter input,.append-filter select{min-width:0;margin:0;padding:10px;font-size:12px}
+.append-filter input{flex:2}.append-filter select{flex:1}
+.append-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.append-product{display:grid;gap:7px;position:relative;text-align:left;padding:15px;border:1px solid #4d634d;border-radius:12px;background:linear-gradient(145deg,#283f2c,#1b3022);color:#e7e4cd;min-height:125px;cursor:pointer}
+.append-product strong{font-size:14px;line-height:1.4;overflow-wrap:anywhere}.append-product small{color:#93aa92;font-size:10px}.append-product b{color:#e5c989;font-size:16px}.append-product>span{position:absolute;right:12px;bottom:13px;color:#b8c8ab;font-size:10px}
+.append-summary{padding:20px;min-height:0;overflow:auto;border-left:1px solid #ffffff13;background:#14271c;overscroll-behavior:contain}
+.append-summary-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}.append-summary-head h3{margin:0;font-size:16px;color:#e9d4a4}.append-summary-head>strong{padding:4px 8px;border-radius:6px;background:#d0ae6020;font-size:11px;color:#d5c28e}
+.append-cart-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:12px 0;border-bottom:1px solid #ffffff12}.append-cart-row>div:first-child{display:grid;gap:5px}.append-cart-row strong{font-size:12px;color:#dfddc6;overflow-wrap:anywhere}.append-cart-row small{font-size:10px;color:#8fa58c}.append-cart-row>strong{grid-column:1/-1;text-align:right;font-size:12px;color:#d5be89}
+.append-stepper{display:flex;align-items:center;gap:10px}.append-stepper button{display:grid;place-items:center;min-width:29px;height:29px;padding:0;border:1px solid #8e7b4f80;border-radius:7px;background:#2d4029;color:#e4d098;font-size:16px}.append-stepper b{font-size:12px;color:#e4d4ad}
+.append-note-label{display:grid;gap:7px;margin-top:19px;color:#b9c6ad;font-size:11px}.append-note-label textarea{margin:0;min-height:65px;font-size:12px}
+.append-help{margin:12px 0;font-size:10px;color:#8fa58d;line-height:1.7}
+.append-totals{display:grid;gap:10px;margin-top:20px;padding-top:15px;border-top:1px solid #ffffff18}.append-totals>div{display:flex;justify-content:space-between;gap:10px;color:#a6b79d;font-size:11px}.append-totals b{color:#d1c49b;font-size:12px}.append-totals strong{color:#edd4a0;font-size:21px}.append-totals>div:last-child{align-items:center;color:#e6d5b0;margin-top:5px;font-size:13px}
+#appendError{font-size:12px;color:#efbc99;line-height:1.6;white-space:pre-wrap}
+#appendSave{min-height:45px;border-radius:10px;background:#d1b071;border:1px solid #e5c58a;color:#1b2b1d;font-size:13px;font-weight:800}
+.append-empty{padding:20px 0;color:#98ad91;text-align:center;font-size:12px}
+.order-append-dialog button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:700px){.append-layout{grid-template-columns:1fr;overflow:auto;display:block}.append-picker{overflow:visible;padding:15px}.append-products{grid-template-columns:repeat(2,minmax(0,1fr))}.append-summary{overflow:visible;padding:18px 15px;border-top:1px solid #ffffff18;border-left:0}.append-head{padding:17px 15px}.append-head h2{font-size:22px}.append-head small{font-size:10px}.append-head button{padding:7px 10px;font-size:11px}.append-product{min-height:110px;padding:12px}.append-product strong{font-size:12px}}

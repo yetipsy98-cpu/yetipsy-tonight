@@ -13,12 +13,12 @@ test('all work entry points expose one KDS and one open-tab window',()=>{
 });
 
 test('KDS and settlement queues are separated by order state',()=>{
- assert.match(js,/row\.status==='confirmed'&&!isAmbassadorOrder\(row\)&&!\['pending','approved'\]\.includes\(row\.backdate_approval_status\)&&productionItems\(row\)\.some\(item=>!item\.fulfilled\)/);
- assert.match(js,/function productionItems\(row\)/);
+ assert.match(js,/row\.status==='confirmed'&&!\['pending','approved'\]\.includes\(row\.backdate_approval_status\)&&productionItems\(row\)\.some\(item=>!item\.fulfilled\)/);
+ assert.match(js,/function productionItems\(row\)/);assert.match(js,/if\(item\.name==='Freeflow Male'\|\|item\.name==='Freeflow Female'\)return\[\];/);
  assert.match(js,/if\(item\.store_box_item\)\{const prep=row\.package_preps/);
  assert.match(js,/yt_pos_kds_package_preps/);
  assert.match(js,/已进入 KDS/);
- assert.match(js,/row\.payment_status==='unpaid'&&\(row\.status==='fulfilled'\|\|row\.status==='confirmed'\)/);
+ assert.match(js,/function unpaidRows\(\)[^]*?row\.payment_status==='unpaid'/);
  assert.match(js,/renderKdsOrder/);
  assert.match(js,/目前没有待付款挂单/);
  assert.match(js,/yt_pos_create_order_with_rewards_v4/);
