@@ -508,3 +508,14 @@ body.sheet-open{overflow:hidden}
 #ownerOrderApprovalsRoot .approval-pagination:empty{display:none}
 #ownerOrderApprovalsRoot .approval-pagination button{min-height:34px;margin:0;padding:7px 11px;font-size:11px}
 #ownerOrderApprovalsRoot .approval-pagination span{font-size:10px;color:#a3b5a2}
+.ff-time-editor{margin:14px 0;padding:16px;border:1px solid #bda16080;border-radius:12px;background:#14291f}
+.ff-time-editor h4{margin:0;color:#f1d8a3;font-size:15px}
+.ff-time-editor label{display:grid;gap:6px;margin-top:12px;color:#becab6;font-size:12px}
+.ff-time-editor input,.ff-time-editor textarea{width:100%;min-width:0;color-scheme:dark}
+.ff-time-editor .ff-time-error{color:#efb795;font-size:12px}
+.ff-time-history{margin:12px 0;border:1px solid #ffffff1c;border-radius:10px;padding:12px}
+.ff-time-history summary{font-size:12px;color:#c9bd99;cursor:pointer}
+.ff-time-history article{margin-top:12px;padding:12px;border-left:3px solid #b1965b;border-radius:6px;background:#12271d}
+.ff-time-history header{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#ddca9c;font-size:12px}
+.ff-time-history time,.ff-time-history p{color:#b3c1aa;font-size:11px;line-height:1.6}
+.ff-time-history .ff-time-reason{white-space:pre-wrap;overflow-wrap:anywhere;color:#e4dfcb}

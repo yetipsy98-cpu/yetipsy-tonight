@@ -85,3 +85,11 @@ Amba 订单的取消按钮与 FreeFlow 发码入口分别显示。Owner 执行�
 - 迁移 `20261111113549_freeflow_monthly_report.sql` 先于前端部署；仅新增受保护的汇总函数并扩充现有公共包装函数，不新增业务表，重置范围不变。
 
 - 会员记录入口固定写入「我的」页面 HTML，不再在资格加载时临时生成或按当前用户／点单权限设置隐藏；该页面本身沿用登录控制。资格为空、暂停、关闭、到期或请求失败时，历史入口保持可见。中英文标签在页面级语言切换中独立更新。
+
+### Cashier time controls (2026-11-14)
+
+- Binding/recovery QR codes last up to five minutes. Binding codes still stop working at the session end and rotating a code invalidates the old one.
+- Cashier/Owner may select any enabled Owner menu outside its configured dates or hours. This only associates the menu: customer ordering still checks the session start/end, status, valid order, GPS policy and one pending cup.
+- Use **更改有效时间 / 延时** on the FreeFlow group or order binding screen. Enter Malaysia start/end dates and times and a required 2–300 character reason. Closed/refunded/cancelled groups cannot be extended; paused groups remain paused.
+- Each successful time change records its before/after interval, actor and reason in the existing audit log. Owner can expand **有效时间更改记录** on that group's original business day. Sales, members and cup records keep their original business day.
+- Time changes use expected timestamps and a frozen request UUID for safe retries; members already in another unfinished session must be resolved first.
