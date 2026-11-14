@@ -557,3 +557,34 @@ body.sheet-open{overflow:hidden}
 .append-empty{padding:20px 0;color:#98ad91;text-align:center;font-size:12px}
 .order-append-dialog button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:700px){.append-layout{grid-template-columns:1fr;overflow:auto;display:block}.append-picker{overflow:visible;padding:15px}.append-products{grid-template-columns:repeat(2,minmax(0,1fr))}.append-summary{overflow:visible;padding:18px 15px;border-top:1px solid #ffffff18;border-left:0}.append-head{padding:17px 15px}.append-head h2{font-size:22px}.append-head small{font-size:10px}.append-head button{padding:7px 10px;font-size:11px}.append-product{min-height:110px;padding:12px}.append-product strong{font-size:12px}}
+/* Append picker and cart use separate views, matching the ordering cart drawer. */
+.order-append-dialog{position:relative}
+.order-append-dialog .append-layout{display:block;overflow:auto}
+.order-append-dialog .append-picker{overflow:visible;min-height:100%}
+.order-append-dialog .append-products{grid-template-columns:repeat(auto-fill,minmax(155px,1fr))}
+.append-cart-dock{display:flex;flex:none;align-items:center;justify-content:space-between;gap:14px;padding:15px 22px max(16px,env(safe-area-inset-bottom));border-top:1px solid #ffffff18;background:#14291d}
+.append-cart-dock>div{display:grid;gap:5px}.append-cart-dock span{font-size:10px;color:#9fb499}.append-cart-dock span b{margin-left:7px;color:#c4d0b6}.append-cart-dock strong{color:#e8ca92;font-size:22px}
+.append-cart-dock>button{min-height:44px;padding:11px 20px;border:1px solid #dfbf7f;border-radius:10px;background:#d2af6b;color:#19271b;font-weight:800;font-size:13px}
+.append-cart-backdrop{position:absolute;inset:0;z-index:20;display:flex;align-items:stretch;justify-content:flex-end;background:#06120da8;backdrop-filter:blur(3px)}
+.append-cart-backdrop[hidden]{display:none!important}
+.append-cart-panel{display:flex;flex-direction:column;width:min(420px,100%);max-height:100%;background:linear-gradient(135deg,#24382a,#15271c);border-left:1px solid #a99156;border-radius:20px 0 0 20px;overflow:hidden;box-shadow:-16px 0 50px #0005}
+.append-cart-head{display:flex;align-items:center;justify-content:space-between;gap:15px;flex:none;padding:20px;border-bottom:1px solid #ffffff18}
+.append-cart-head h3{margin:0 0 7px;color:#ead3a1;font-size:19px}.append-cart-head h3 span{display:inline-block;padding:4px 7px;margin-left:5px;background:#c7a25a25;border-radius:6px;color:#c6b588;font-size:10px}.append-cart-head small{font-size:10px;color:#a1b69a}
+.append-cart-head>button{display:grid;place-items:center;flex:none;width:35px;height:35px;padding:0;border:1px solid #ffffff20;border-radius:50%;background:#ffffff0a;color:#e1d4b2;font-size:16px}
+.append-cart-panel .append-summary{flex:1;min-height:0;overflow:auto;border:0;overscroll-behavior:contain}
+.append-cart-clear{padding:7px 0;margin-top:10px;background:transparent;border:0;color:#b1a486;font-size:10px;text-decoration:underline;text-underline-offset:4px}
+.append-cart-submit{flex:none;padding:15px 20px max(18px,env(safe-area-inset-bottom));border-top:1px solid #ffffff18;background:#13251b}.append-cart-submit #appendSave{margin:0}
+@media(max-width:700px){.order-append-dialog .append-products{grid-template-columns:repeat(2,minmax(0,1fr))}.append-cart-backdrop{align-items:flex-end}.append-cart-panel{width:100%;max-height:88dvh;border-left:0;border-top:1px solid #a99156;border-radius:22px 22px 0 0}.append-cart-head{padding:18px 15px}.append-cart-dock{padding-left:16px;padding-right:16px}}
+/* One FreeFlow card per session; notes and table snapshots remain distinct. */
+.ff-kds-group .kds-table-number{overflow-wrap:anywhere}
+.ff-kds-group-lines{display:grid;gap:10px;margin-top:14px}
+.ff-kds-group-line{padding:13px;border:1px solid #ffffff16;border-radius:11px;background:#10271a60}
+.ff-kds-line-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.ff-kds-line-title h4{min-width:0;margin:0;color:#f5e3bd;font-size:18px;font-weight:850;line-height:1.4;overflow-wrap:anywhere}
+.ff-kds-line-title>strong{flex:none;color:#e7bf6e;font-size:23px;line-height:1.2}
+.ff-kds-line-members{display:block;margin-top:6px;color:#9eb294;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ff-kds-group-line .ff-kds-note{margin:10px 0 0;white-space:pre-wrap}
+.ff-kds-line-actions{display:flex;gap:8px;margin-top:12px}
+.ff-kds-line-actions button{flex:1;margin:0;min-height:34px;padding:7px 10px;font-size:11px}
+.ff-kds-line-actions .main-button{min-height:42px;font-size:13px}
+.ff-kds-group>.action-row{margin-top:13px}

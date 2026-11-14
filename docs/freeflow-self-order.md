@@ -110,3 +110,10 @@ Amba 订单的取消按钮与 FreeFlow 发码入口分别显示。Owner 执行�
 - Previously served rows are marked served before inserting additions. Only new products needing production enter KDS; FreeFlow seats remain excluded and approved historical backfills keep their existing KDS exclusion. Store Box items continue using the existing preparation/claim flow.
 - Paid, cancelled, unaccepted, pending backdate and pending DuitNow-review orders cannot be appended to. Tabs older than 72 hours require Owner access and a reason. Requests are frozen for safe retry after a lost response, including if checkout happens after the first append committed.
 - FreeFlow group prices/capacity remain separate from appended regular products. Later FreeFlow people top-ups still work, and regular product value is excluded from FreeFlow commission calculations.
+
+### Append-cart drawer and grouped FreeFlow KDS (2026-11-14)
+
+- **继续加单** now opens a product picker with a bottom cart bar. **查看购物车** expands a separate cart drawer for quantities, notes and confirmation. Closing the drawer preserves the selection; clearing it affects only the pending addition. Existing append pricing, permissions and retry semantics remain unchanged.
+- KDS groups FreeFlow requests by authoritative session ID, not table label or member account. One card represents one group; its badge counts pending cups. Same product/name/note/table lines show a combined quantity, while different notes and delivery snapshots remain separate.
+- **出 1 杯** and **取消 1 杯** still process individual request IDs. **整组确认出品** submits the exact displayed snapshot of request IDs in one transaction. Already served/cancelled cups are skipped; cups added later are never included automatically. Counts, customer history and monthly reports continue to use individual cup records.
+- The KDS navigation counter counts group cards, while each card displays its cup count. A new cup still triggers the existing Cashier-only announcement even when its group card already exists.

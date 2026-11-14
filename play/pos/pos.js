@@ -1,5 +1,5 @@
-import {createOrderAppender} from './order-append.js?v=20261114-cart-append-v19';
-import {createFreeflowWork} from './freeflow.js?v=20261114-cart-append-v19';
+import {createOrderAppender} from './order-append.js?v=20261114-drawer-group-kds-v20';
+import {createFreeflowWork} from './freeflow.js?v=20261114-drawer-group-kds-v20';
 import {createPlayWork} from './play-upgrade.js?v=20261112-service-bell-kds-v15';
 import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-settings-v1';
 import {revisionSummary,benefitSummary,revisionHistory} from './owner-order-edit.js?v=20261112-owner-approvals-v16';
