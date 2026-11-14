@@ -93,3 +93,12 @@ Amba 订单的取消按钮与 FreeFlow 发码入口分别显示。Owner 执行�
 - Use **更改有效时间 / 延时** on the FreeFlow group or order binding screen. Enter Malaysia start/end dates and times and a required 2–300 character reason. Closed/refunded/cancelled groups cannot be extended; paused groups remain paused.
 - Each successful time change records its before/after interval, actor and reason in the existing audit log. Owner can expand **有效时间更改记录** on that group's original business day. Sales, members and cup records keep their original business day.
 - Time changes use expected timestamps and a frozen request UUID for safe retries; members already in another unfinished session must be resolved first.
+
+### Shared group queue and additional people (2026-11-14)
+
+- Cashier/Owner opens **添加人数 / 差价** from the original FreeFlow order or group. New male/female counts use the original unit prices, increase that group's capacity immediately, and keep its menu, effective time and business day.
+- An unpaid order's bill increases. An already-paid order preserves all existing receipts and shows only the additional outstanding amount under **待收款 / 补收差价**. New seats work before this balance is collected. Partial collections require confirmation of actual money received, retain AB payment classifications, and accrue commission only on money received. No second initial checkout is created.
+- The group's pending-cup limit equals its number of people. Everyone shares that limit: in a three-person group A can order two, B one, and C must wait. Serving or cancelling one cup releases one place.
+- Customers and visitors can enable **代点 / Order for the table** to build a mixed-drink batch with quantities. Normal mode retains the one-own-pending-cup interaction. Server session locking enforces the shared limit for all devices, including older clients.
+- Each cup remains an independent KDS request. Proxy tickets are marked **代点**. Ordering, served-cup totals, monthly reports and customer history continue to count cups; no extra POS sale is generated for individual drinks.
+- Mixed batches are atomic, with an exact request payload retained for retry after a lost response. Batch metadata is not included in customer projections. Records reset uses the existing request/member/session children; no new FK-linked reset table is introduced.

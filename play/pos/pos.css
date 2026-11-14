@@ -519,3 +519,12 @@ body.sheet-open{overflow:hidden}
 .ff-time-history header{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#ddca9c;font-size:12px}
 .ff-time-history time,.ff-time-history p{color:#b3c1aa;font-size:11px;line-height:1.6}
 .ff-time-history .ff-time-reason{white-space:pre-wrap;overflow-wrap:anywhere;color:#e4dfcb}
+.ff-pax-summary{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0}
+.ff-pax-summary>span{display:grid;gap:8px;padding:12px 16px;flex:1;background:#14291f;border:1px solid #ffffff18;border-radius:10px;font-size:11px;color:#adc0a9}
+.ff-pax-summary b{color:#efd7a1;font-size:20px}
+#ffPaxForm,#ffDeltaForm{padding:16px;margin:16px 0;border:1px solid #b69a5860;border-radius:12px;background:#14291f}
+#ffPaxForm label,#ffDeltaForm label{display:grid;gap:6px;font-size:12px;color:#c3ccb8;margin:10px 0}
+#ffPaxForm input,#ffDeltaForm input,#ffDeltaForm select{width:100%;min-width:0}
+#ffDeltaForm .ff-payment-confirm{display:flex;align-items:center;gap:8px}
+#ffDeltaForm .ff-payment-confirm input{width:18px;height:18px;flex:none}
+#ffPaxError{color:#efb995;font-size:12px}

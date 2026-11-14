@@ -27,3 +27,17 @@
 @media(max-width:350px){.ff-shop-summary{padding:17px 13px}.ff-shop-heading h3{font-size:23px}.ff-shop-meta{font-size:11px}.ff-shop-cups{margin-left:0}.ff-session-window{grid-template-columns:1fr}.ff-menu-item{padding:12px;min-height:158px}.ff-menu-name{font-size:13px}.ff-order-dock button{min-width:110px;padding:13px 10px}.ff-history-card summary{padding:14px}.ff-history-count b{font-size:22px}}
 
 #accountFreeflowHistory[hidden],#guestFreeflowHistory[hidden],#guestFreeflowOpen[hidden],.ff-shop [hidden]{display:none!important}.ff-guest-archive{margin-top:16px}.ff-save-records{margin:0 0 20px}.ff-save-records button{display:flex;justify-content:space-between;align-items:center;gap:14px;width:100%;padding:15px 17px;border:1px solid #d9bf8255;border-radius:13px;background:linear-gradient(120deg,#594b2c55,#283529);color:#eed5a1;font-size:13px;font-weight:750}.ff-save-records small{display:block;margin-top:8px;text-align:center;color:#9fa993;font-size:10px}.ff-note-field{display:grid;gap:9px;margin:17px 0 0}.ff-note-field>span{display:flex;justify-content:space-between;gap:10px;color:#d6c39b;font-size:12px}.ff-note-field small{color:#9ba48f;font-size:10px;font-weight:400}.ff-note-field textarea{width:100%;resize:vertical;min-height:72px;padding:12px;border:1px solid #d2ba7a33;border-radius:13px;background:#0c160e66;color:#e9e4d3;font:inherit;font-size:12px;line-height:1.6;box-sizing:border-box}.ff-note-field textarea:focus{outline:2px solid #d8bd7b66;outline-offset:2px}.ff-note-field textarea:disabled{opacity:.45}.ff-history-note{display:block;white-space:pre-wrap;margin-top:6px;font-size:10px;color:#b8b298;line-height:1.5}.ff-pending-note{white-space:pre-wrap;font-size:11px;margin:8px 0 0;color:#c9bd9c}.ff-kds-note{white-space:pre-wrap;margin:13px 0 0;padding:12px 14px;border-left:3px solid #e1bb6d;border-radius:4px 10px 10px 4px;background:#c7a36018;color:#f1dba8;font-size:16px;font-weight:600;line-height:1.5}.ff-kds-note b{display:block;margin-bottom:5px;color:#baac89;font-size:10px;letter-spacing:.08em}
+/* Shared table queue and proxy ordering. */
+.ff-group-capacity{margin:16px 0;padding:14px;border:1px solid #be9d5760;border-radius:12px;background:#d5b26810}
+.ff-group-capacity>div{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:13px;color:#f1ddb0}
+.ff-group-capacity>div>span{color:#b6c7ae;font-size:12px}
+.ff-group-capacity>label{display:flex;align-items:center;gap:10px;margin-top:13px;padding-top:12px;border-top:1px solid #ffffff15;cursor:pointer}
+.ff-group-capacity input{width:20px;height:20px;accent-color:#cba85e;flex:none}
+.ff-group-capacity label>span{display:grid;gap:4px;font-size:14px;color:#ead2a0}
+.ff-group-capacity label small{color:#a9bba4;font-size:11px}
+.ff-proxy-cart{display:grid;gap:8px;margin:12px 0}
+.ff-proxy-cart>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:10px;background:#183025;border:1px solid #ffffff16}
+.ff-proxy-cart>div>strong{font-size:13px;color:#e1dcc5;overflow-wrap:anywhere}
+.ff-proxy-cart>div>span{display:flex;align-items:center;gap:12px;flex:none}
+.ff-proxy-cart button{width:34px;height:34px;border:1px solid #ad945555;border-radius:8px;background:#2e4430;color:#f1d9a1}
+.ff-proxy-cart b{color:#f3dfaf;font-size:15px}
