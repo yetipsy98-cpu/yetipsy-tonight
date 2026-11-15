@@ -1,0 +1,32 @@
+const {PGlite}=require('@electric-sql/pglite'),fs=require('fs'),assert=require('node:assert/strict');
+(async()=>{const db=new PGlite();await db.exec(`
+create schema private;
+create function private.yt_business_day(timestamptz) returns date language sql immutable as $$select ($1 at time zone 'Asia/Kuala_Lumpur')::date$$;
+create table yt_member_orders(id uuid primary key default gen_random_uuid(),source text default 'future_pos',payment_status text default 'unpaid',payment_method text default 'cash',amount_rm numeric default 90,created_at timestamptz default now()-interval '1 day',paid_at timestamptz,paid_by uuid,pos_business_day date);
+create table yt_ambassador_passes(id uuid primary key default gen_random_uuid(),reservation_day date,status text default 'issued');
+create table yt_ambassador_pos_sales(order_id uuid primary key,pass_id uuid,ambassador_id uuid,business_day date,male_count int default 2,female_count int default 0,male_price numeric default 45,female_price numeric default 45,commission_rate numeric default 10);
+create table yt_ambassador_checkins(id uuid primary key default gen_random_uuid(),request_id uuid unique,pass_id uuid,ambassador_id uuid,checked_by uuid,business_day date,male_count int,female_count int,male_price numeric,female_price numeric,sales numeric,commission_rate numeric,commission_amount numeric,note text);
+create table yt_ambassador_ledger(ambassador_id uuid,checkin_id uuid unique,entry_type text,amount numeric,created_by uuid,business_day date,note text);
+create table yt_pos_payment_entries(order_id uuid,request_id uuid unique,method text,amount_rm numeric,kind text,received_at timestamptz,business_day date,actor_id uuid);
+`);
+const fn=(file,name)=>{const s=fs.readFileSync(file,'utf8'),a=s.toLowerCase().indexOf('create or replace function private.'+name+'(');assert(a>=0);const match=s.slice(a).match(/as\s+(\$function\$|\$\$)[\s\S]*?\1\s*;/i);assert(match,name);return s.slice(a,a+match.index+match[0].length);};
+await db.exec(fn('sql/085_ambassador_pos_sales.sql','yt_ambassador_pos_payment_method'));
+await db.exec(fn('sql/085_ambassador_pos_sales.sql','yt_ambassador_pos_capture'));
+await db.exec(fn('supabase/migrations/20261108110123_order_revision_business_day_and_held_sales.sql','yt_pos_payment_capture'));
+await db.exec('create trigger amba_method before update of payment_status,payment_method on yt_member_orders for each row execute function private.yt_ambassador_pos_payment_method();create trigger amba_capture after update of payment_status on yt_member_orders for each row execute function private.yt_ambassador_pos_capture();create trigger pos_capture after update of payment_status on yt_member_orders for each row execute function private.yt_pos_payment_capture();');
+const q=async(s,p)=>(await db.query(s,p)).rows;
+const make=async(offset=1)=>{const day=(await q('select current_date-$1::int as day',[offset]))[0].day;const pass=(await q('insert into yt_ambassador_passes(reservation_day) values($1) returning id',[day]))[0].id;const order=(await q('insert into yt_member_orders(pos_business_day,created_at) values($1,$1::date::timestamptz) returning id',[day]))[0].id;await q('insert into yt_ambassador_pos_sales(order_id,pass_id,business_day) values($1,$2,$3)',[order,pass,day]);return {order,pass,day};};
+const pay=x=>q("update yt_member_orders set payment_status='paid',paid_at=clock_timestamp(),payment_method='cash' where id=$1 returning payment_method",[x.order]);
+const yesterday=await make();await assert.rejects(()=>pay(yesterday),/ambassador_pass_not_valid_today/);assert.deepEqual((await q('select payment_status from yt_member_orders where id=$1',[yesterday.order]))[0].payment_status,'unpaid');
+await db.exec(fs.readFileSync('supabase/migrations/20261115031353_amba_existing_order_checkout_any_day.sql','utf8'));
+assert.deepEqual((await pay(yesterday))[0].payment_method,'AB_Cash');
+let ledger=(await q('select * from yt_pos_payment_entries where order_id=$1',[yesterday.order]))[0];assert.deepEqual(ledger.business_day,yesterday.day);assert.deepEqual(Number(ledger.amount_rm),90);assert.deepEqual((await q('select business_day from yt_ambassador_checkins where request_id=$1',[yesterday.order]))[0].business_day,yesterday.day);assert.deepEqual(Number((await q('select amount from yt_ambassador_ledger'))[0].amount),9);
+// Owner-corrected accounting dates can differ from the original reservation date.
+const changed=await make(4);await q('update yt_member_orders set pos_business_day=current_date-2 where id=$1',[changed.order]);await q('update yt_ambassador_pos_sales set business_day=current_date-2 where order_id=$1',[changed.order]);await pay(changed);assert.deepEqual((await q('select business_day from yt_pos_payment_entries where order_id=$1',[changed.order]))[0].business_day,(await q('select pos_business_day from yt_member_orders where id=$1',[changed.order]))[0].pos_business_day);
+const invalid=await make();await q("update yt_ambassador_passes set status='cancelled' where id=$1",[invalid.pass]);await assert.rejects(()=>pay(invalid),/ambassador_pass_not_found/);const method=await make();await assert.rejects(()=>q("update yt_member_orders set payment_status='paid',payment_method='invalid' where id=$1",[method.order]),/invalid_payment_method/);
+const normal=(await q('insert into yt_member_orders default values returning id'))[0].id;await assert.rejects(()=>q("update yt_member_orders set payment_status='paid',payment_method='AB_Cash' where id=$1",[normal]),/invalid_payment_method/);await pay({order:normal});assert.deepEqual((await q('select payment_method from yt_member_orders where id=$1',[normal]))[0].payment_method,'cash');
+// Repeated paid updates must not capture money or commission twice.
+await q("update yt_member_orders set payment_status='paid' where id=$1",[yesterday.order]);assert.deepEqual(Number((await q('select count(*) n from yt_pos_payment_entries where order_id=$1',[yesterday.order]))[0].n),1);
+const migration=fs.readFileSync('supabase/migrations/20261115031353_amba_existing_order_checkout_any_day.sql','utf8');assert(!/create or replace function private.yt_ambassador_pos_(order_create|pass_lookup)/i.test(migration),'first redemption/create restrictions remain unchanged');
+await db.close();console.log('PASS reproduces old cross-day failure; existing Amba checkout succeeds, original/corrected business day and commission preserved, cancelled passes and invalid methods blocked, normal payments unchanged, no duplicate capture.');
+})().catch(e=>{console.error(e);process.exit(1);});
