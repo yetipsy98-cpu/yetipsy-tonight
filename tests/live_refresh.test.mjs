@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {createRefreshGate,createWorkspaceLiveRefresh} from '../play/pos/live-refresh.mjs';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let count=0,active=0,max=0,releases=[],args=[];
+const gate=createRefreshGate(async silent=>{count++;max=Math.max(max,++active);args.push(silent);await new Promise(r=>releases.push(r));active--;return count;},{merge:(a,b)=>[a[0]!==false&&b[0]!==false]});
+const first=gate.request(true);await sleep(0);const burst=Array.from({length:50},()=>gate.request(true));const manual=gate.request(false);assert.equal(count,1);releases.shift()();await sleep(0);assert.equal(count,2);assert.equal(max,1);assert.equal(args[1],false);releases.shift()();await Promise.all([first,...burst,manual]);assert.equal(count,2,'50 notifications while reading produce one trailing read');
+let failed=0;const retryGate=createRefreshGate(async()=>{failed++;if(failed===1)throw Error('network');return 'ok';});await assert.rejects(retryGate.request(),/network/);assert.equal(await retryGate.request(),'ok');
+let visible=true,enabled=true;const reads={orders:0,freeflow:0,bell:0},channels=[],removed=[];
+const db={channel(topic,config){const c={topic,config,on(_type,_event,callback){this.event=callback;return this;},subscribe(callback){this.status=callback;return this;}};channels.push(c);return c;},removeChannel(c){removed.push(c);return Promise.resolve();}};
+const live=createWorkspaceLiveRefresh({db,readers:Object.fromEntries(Object.keys(reads).map(key=>[key,()=>{reads[key]++;}])),isActive:()=>enabled,isVisible:()=>visible,delay:4,retryDelay:10});
+assert.equal(live.start(),3);assert(channels.every(c=>c.config.config.private===true));for(const c of channels)c.status('SUBSCRIBED');await sleep(12);assert.deepEqual(reads,{orders:1,freeflow:1,bell:1});
+for(let i=0;i<100;i++)channels[0].event({payload:{table:'untrusted'}});await sleep(12);assert.equal(reads.orders,2,'100 customer writes batch into one read');assert.equal(reads.bell,1,'scopes do not refresh unrelated lists');
+visible=false;for(const c of channels)c.event({});await sleep(12);assert.equal(reads.orders,2);visible=true;live.resume();await sleep(12);assert.deepEqual(reads,{orders:3,freeflow:2,bell:2});
+const stale=channels[0];channels[0].status('CHANNEL_ERROR');channels[1].status('TIMED_OUT');await sleep(25);assert.equal(channels.length,6,'one reconnect for multiple channel errors');assert.equal(removed.length,3);stale.event({});await sleep(10);assert.equal(reads.orders,3,'old session callbacks cannot update the new subscription');
+channels[3].status('SUBSCRIBED');await sleep(12);assert.equal(reads.orders,4,'reconnected stream reconciles its list');enabled=false;channels[3].event({});live.resume();await sleep(12);assert.equal(reads.orders,4);live.stop();enabled=true;channels[3].event({});await sleep(12);assert.equal(reads.orders,4);assert.equal(removed.length,6);
+console.log('PASS serialized manual/poll/live reads, 100-event batching, trailing reads, errors, private scopes, background pause, foreground reconciliation, reconnect deduplication, stale callbacks and logout cleanup.');
