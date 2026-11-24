@@ -51,11 +51,30 @@ await q("update yt_member_orders set payment_status='paid' where id=$1",[order])
 const mix=uid(60);await q("insert into yt_member_orders(id,order_no,amount_rm,created_by,status) values($1,'MIX',70,$2,'confirmed')",[mix,ids.owner]);await q("insert into yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm) values($1,$2,'Package',1,45),($1,$3,'Drink',1,25)",[mix,pack,drink]);await q("insert into yt_pos_payment_entries(order_id,request_id,method,amount_rm,kind,business_day) values($1,$2,'cash',70,'sale',current_date)",[mix,uid(61)]);const money=await q('select method,amount_rm from yt_pos_payment_entries where order_id=$1 order by amount_rm',[mix]);assert.deepEqual(money.map(x=>[x.method,Number(x.amount_rm)]),[['cash',25],['Freeflow-Cash',45]]);assert.equal(Number((await q('select private.yt_pos_received($1) n',[mix]))[0].n),70);
 // Real base creation finalises access-only orders and enforces concurrent duplicate-table confirmation.
 await db.exec(\`create function private.yt_pos_create_order_with_rewards_v4(uuid,text,text,jsonb,text,uuid,text,date) returns jsonb language sql as $$select private.yt_pos_create_order($1,$2,$3,$4,$5)$$;\`);
+// Exercise the real v4 checkout boundary rather than bypassing reward/preorder validation.
+await db.exec(\`alter table yt_pos_preorder_holds add operator_id uuid,add draft_id uuid,add expires_at timestamptz;
+create table yt_moon_preorder_holds(operator_id uuid,draft_id uuid,state text,expires_at timestamptz);
+alter table yt_member_orders add requested_business_day date,add checkout_mode text;
+create table yt_pos_order_backdate_requests(order_id uuid primary key,requested_business_day date,requester_id uuid);
+create function private.yt_pos_create_order_with_rewards_v3(uuid,text,text,jsonb,text,uuid,text) returns jsonb language plpgsql as $$
+declare r jsonb;o public.yt_member_orders%rowtype;
+begin
+ r:=private.yt_pos_create_order($1,$2,$3,$4,$5);
+ select * into o from public.yt_member_orders where id=(r->>'id')::uuid;
+ -- The actual reward and Moon hooks enforce this lifecycle before attaching.
+ if o.status not in ('pending','confirmed') or o.payment_status<>'unpaid' then raise exception 'order_not_available_for_preorder';end if;
+ update public.yt_member_orders set checkout_mode=$7 where id=o.id;
+ return r;
+end$$;\`);
+await db.exec(fs.readFileSync('supabase/migrations/20261124105953_freeflow_checkout_before_access_fulfillment.sql','utf8'));
 const creation={p_request:uid(70),p_table:'NEW',p_note:'test',p_items:[{product_id:pack,quantity:2}],p_channel:'cashier',p_draft:uid(71),p_checkout_mode:'pay_later',p_business_day:new Date().toISOString().slice(0,10)};
 const create=async(d,allow=false)=>(await q('select public.yt_ff_checkout_order($1::jsonb,$2) r',[JSON.stringify(d),allow]))[0].r;
 const created=await create(creation);assert.equal(created.status,'fulfilled');assert.equal((await create(creation)).idempotent,true);await assert.rejects(()=>create({...creation,p_table:'changed'}),/request_conflict/);
 await assert.rejects(()=>create({...creation,p_request:uid(72)}),/freeflow_table_occupied/);const confirmed=await create({...creation,p_request:uid(72)},true);assert.notEqual(confirmed.id,created.id);
 await actor('staff');await assert.rejects(()=>create({...creation,p_request:uid(73)},true),/cashier_only/);
+await actor('staff');const staffCreated=await create({...creation,p_request:uid(74),p_draft:uid(75),p_table:'STAFF-NEW',p_channel:'staff'});assert.equal(staffCreated.status,'pending','review is still required for staff orders');
+await actor('owner');const mixedCreated=await create({...creation,p_request:uid(76),p_draft:uid(77),p_table:'MIX-NEW',p_items:[{product_id:pack,quantity:1},{product_id:drink,quantity:1}]});assert.equal(mixedCreated.status,'confirmed','regular drinks still require production');
+assert.equal((await q("select coalesce(current_setting('yt.ff.checkout_building',true),'') state"))[0].state,'','checkout guard is restored');
 // Customers can see group totals, while group batches never become a personal score.
 await actor('owner');const member=uid(80);await q('insert into yt_freeflow_members(id,session_id,customer_id) values($1,$2,$3)',[member,sg.id,ids.customer]);await rpc('pax_add',{session_id:sg.id,people:2,expected_capacity:1,request_id:uid(79)});await q('update yt_play_upgrade_settings set freeflow_gps_required=false');
 await actor('customer');await rpc('order',{member_id:member,product_id:drink,request_id:uid(81)});await rpc('order',{member_id:member,request_id:uid(82),items:[{product_id:drink,quantity:2}],note:'group'});let mine=(await rpc('mine')).find(x=>x.session_id===sg.id);assert.equal(mine.group_pending,3);assert.equal(mine.pending_requests.length,1);assert.equal(mine.group_orders.length,2);
