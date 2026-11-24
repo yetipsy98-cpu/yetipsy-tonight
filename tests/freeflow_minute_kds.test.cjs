@@ -1,0 +1,7 @@
+const assert=require('node:assert/strict');
+(async()=>{const {groupFreeflowQueue}=await import('../play/pos/freeflow-kds.mjs');const rows=[
+{id:'a1',session_id:'A',kitchen_batch_id:'A-first',kitchen_started_at:'2026-11-24T12:00:00Z',requested_at:'2026-11-24T12:00:00Z',name:'Lychee',table_label:'A3'},
+{id:'b1',session_id:'B',kitchen_batch_id:'B-first',kitchen_started_at:'2026-11-24T12:00:30Z',requested_at:'2026-11-24T12:00:30Z',name:'Lychee',table_label:'A3'},
+{id:'a2',session_id:'A',kitchen_batch_id:'A-first',kitchen_started_at:'2026-11-24T12:00:00Z',requested_at:'2026-11-24T12:00:45Z',name:'Lychee',table_label:'A3'},
+{id:'a3',session_id:'A',kitchen_batch_id:'A-second',kitchen_started_at:'2026-11-24T12:01:10Z',requested_at:'2026-11-24T12:01:10Z',name:'Lychee',table_label:'A3'}];
+let groups=groupFreeflowQueue(rows.slice().reverse());assert.deepEqual(groups.map(g=>g.kitchen_batch_id),['A-first','B-first','A-second']);assert.deepEqual(groups.map(g=>g.quantity),[2,1,1]);assert.equal(groups[0].lines[0].quantity,2);const moved=rows.map(r=>({...r,table_label:r.session_id==='A'?'B8':r.table_label}));groups=groupFreeflowQueue(moved);assert.deepEqual(groups.map(g=>g.kitchen_batch_id),['A-first','B-first','A-second']);assert.deepEqual(groups.map(g=>g.tables[0]),['B8','A3','B8']);console.log('PASS KDS FIFO batches A/B/A, one-minute additions merge without jumping queue, same-table groups stay separate and table moves preserve order.');})().catch(e=>{console.error(e);process.exit(1);});

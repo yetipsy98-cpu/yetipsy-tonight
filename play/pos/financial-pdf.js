@@ -22,7 +22,7 @@ export function buildFinancialReportHTML(d){
  const products=[...(d.products||[])].sort((a,b)=>rank(a.payment_method)-rank(b.payment_method)||method(a.payment_method).localeCompare(method(b.payment_method),'zh-Hans')||String(a.category||'').localeCompare(String(b.category||''),'zh-Hans')||String(a.item_name||'').localeCompare(String(b.item_name||''),'zh-Hans')||String(a.series_name||'').localeCompare(String(b.series_name||''),'zh-Hans')).map(x=>[x.item_name+'\n'+x.category+' / '+x.series_name,method(x.payment_method),count(x.quantity),amount(x.gross_rm),amount(x.discount_rm),amount(x.net_rm)]);
  const ff=d.freeflow||{};
  const freeflow=table('06　FreeFlow 出杯统计',['项目','杯数'],[['已出品总杯数',count(ff.cups)]],'按场次营业日统计，仅计算已出品；待出品及取消不计，FreeFlow 杯数不重复计入营业额。')
-  +table('FreeFlow · 出杯数前 5 位',['排名','会员／访客','已出品杯数'],(ff.top5||[]).slice(0,5).map((x,i)=>[i+1,x.name,count(x.cups)]))
+  +table('FreeFlow · 分组出杯前 5 位',['排名','分组／订单','已出品杯数'],(ff.top5||[]).slice(0,5).map((x,i)=>[i+1,x.name,count(x.cups)]))
   +table('FreeFlow · 酒款统计',['酒款','已出品杯数'],(ff.drinks||[]).map(x=>[x.name,count(x.cups)]));
  const adjustments=(d.adjustments||[]).map(x=>[x.business_day+'\n'+x.order_no,x.kind==='refund'?'退款':'补收',method(x.method),amount(x.amount_rm),'于 '+stamp(x.modified_at)+' 修改\n'+(x.note||'—')]);
  const orders=(d.orders||[]).map(x=>[x.business_day+'\n'+x.order_no+'\n'+(x.table_label||'Walk-in'),method(x.payment_method),amount(x.bill_rm),amount(x.net_rm),amount(x.balance_rm),x.amendment_note||'—']);
