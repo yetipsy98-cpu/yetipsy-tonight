@@ -1,3 +1,4 @@
+import {createCategoryRail} from './category-rail.mjs?v=20261124-category-scroll-v30';
 import {catalogModel,catalogMarkup,syncCatalogSelection} from './catalog-view.mjs?v=20261124-pos-shop-v29';
 import {createRefreshGate,createWorkspaceLiveRefresh} from './live-refresh.mjs?v=20261124-live-refresh-v27';
 import {createOrderAppender} from './order-append.js?v=20261114-drawer-group-kds-v20';
@@ -191,7 +192,7 @@ async function loadCatalog(){const [products,series]=await Promise.all([db.rpc('
  const cats=[...new Set(state.catalog.filter(x=>x.active).map(x=>x.category))].sort();for(const c of cats)category.add(new Option(c,c));category.value=cats.includes(chosen)?chosen:'';renderCategoryButtons();
   const sel=$('productSeries');const value=sel.value;sel.replaceChildren(new Option('未配置系列（不发权益）',''));for(const row of state.series)sel.add(new Option(row.name+' · '+row.benefit_mode,row.id));sel.value=state.series.some(x=>x.id===value)?value:'';
   renderCatalog();renderCart();if(isOwner()){renderProductAdmin();renderSeriesAdmin();}}
-function renderCategoryButtons(){const root=$('categoryProductButtons');if(!root)return;const options=[...$('categoryProduct').options],signature=JSON.stringify(options.map(o=>[o.value,o.textContent]));if(root.dataset.signature!==signature){const left=root.scrollLeft;root.replaceChildren(...options.map(option=>{const b=document.createElement('button');b.type='button';b.className='category-pill';b.dataset.category=option.value;b.textContent=option.textContent;b.setAttribute('aria-pressed','false');return b;}));root.dataset.signature=signature;root.scrollLeft=left;}root.querySelectorAll('[data-category]').forEach(b=>{const active=b.dataset.category===$('categoryProduct').value&&!$('searchProduct').value.trim();b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});}
+function renderCategoryButtons(){const root=$('categoryProductButtons');if(!root)return;const options=[...$('categoryProduct').options],signature=JSON.stringify(options.map(o=>[o.value,o.textContent]));if(root.dataset.signature!==signature){const left=root.scrollLeft;root.replaceChildren(...options.map(option=>{const b=document.createElement('button');b.type='button';b.className='category-pill';b.dataset.category=option.value;b.textContent=option.textContent;b.setAttribute('aria-pressed','false');return b;}));root.dataset.signature=signature;root.scrollLeft=left;}root.querySelectorAll('[data-category]').forEach(b=>{const active=b.dataset.category===$('categoryProduct').value&&!$('searchProduct').value.trim();b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});root.updateCategoryRail?.();}
 function updateCatalogSelection(){syncCatalogSelection($('catalog'),state.cart,{locked:state.draftSaving||!!state.pendingSubmit||state.draftMutating||!!state.ambassadorDraft||!!state.draftSummary?.holds?.length||!!state.draftSelection});}
 function renderCatalog(){renderCategoryButtons();const model=catalogModel(state.catalog,{category:$('categoryProduct').value,search:$('searchProduct').value});$('catalog').innerHTML=catalogMarkup(model);if($('posCatalogCaption'))$('posCatalogCaption').textContent=model.label+' · '+model.items.length+' 款';if($('posSearchClear'))$('posSearchClear').hidden=!model.searching;updateCatalogSelection();}
 
@@ -1256,6 +1257,7 @@ function bind(){
  $('logout').onclick=async()=>{saveDraft();stopRedeemCamera();stopPolling();if(db)await db.auth.signOut();resetLogin();};
  $('posSearchClear')?.addEventListener('click',()=>{$('searchProduct').value='';renderCatalog();$('searchProduct').focus({preventScroll:true});});
  $('posScanPass')?.addEventListener('click',()=>{openCartDrawer();setDraftRedeemOpen(true);});
+ createCategoryRail($('categoryProductButtons'),{left:$('categoryScrollLeft'),right:$('categoryScrollRight')});
  $('searchProduct').oninput=renderCatalog;$('categoryProduct').onchange=renderCatalog;
  $('categoryProductButtons').onclick=e=>{const b=e.target.closest('button[data-category]');if(!b)return;$('categoryProduct').value=b.dataset.category;$('searchProduct').value='';renderCatalog();};
  $('catalog').onclick=e=>{const btn=e.target.closest('[data-add]');if(btn)adjustCart(btn.dataset.add,1);};
