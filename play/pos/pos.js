@@ -1,3 +1,4 @@
+import {createCatalogAdmin} from './catalog-admin.js?v=20261125-catalog-admin-v37';
 import {createOrderAudit} from './order-audit.js?v=20261125-cancelled-tabs-v35';
 import {adjustmentPreview} from './adjustment-preview.mjs?v=20261125-cart-offers-v31';
 import {createCategoryRail} from './category-rail.mjs?v=20261124-category-scroll-v30';
@@ -19,7 +20,7 @@ import {createAmbassadorTools} from './ambassador.js?v=20261114-amba-session-v22
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
 const $=id=>document.getElementById(id);
-let orderAudit=null;
+let orderAudit=null,catalogAdmin=null;
 function viewOrderAudit(id){if(!isOwner()&&!isCashier())return;orderAudit??=createOrderAudit({db,canRead:()=>!!state.identity&&(isOwner()||isCashier()),notice:showNotice});return orderAudit.open(id);}
 const POLL_CLOCK_TICK_MS=5000;
 let lastOwnerApprovalCountPollAt=0,workReadEpoch=0,workspaceLive=null;
@@ -88,7 +89,7 @@ function showNotice(message,bad=false,persist=false){const n=$('notice'),label=$
 function busy(btn,fn){if(btn?.disabled)return Promise.resolve();if(btn)btn.disabled=true;return Promise.resolve().then(fn).catch(e=>{showNotice(errorText(e),true);throw e}).finally(()=>{if(btn)btn.disabled=false});}
 async function getBearer(){const {data,error}=await db.auth.getSession();if(error||!data.session?.access_token)throw Error('not_authenticated');return data.session.access_token;}
 async function work(action,data={},signed=false){const headers={'Content-Type':'application/json',apikey:conf.publishableKey};if(signed)headers.Authorization='Bearer '+await getBearer();const endpoint=action.startsWith('reset_')?(conf.url||'')+'/functions/v1/yt-owner-reset':workURL;const resp=await fetch(endpoint,{method:'POST',headers,cache:'no-store',body:JSON.stringify({action,...data})});const res=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));if(!resp.ok||!res.ok)throw Error(res.error||'server_unavailable');return res;}
-function resetLogin(){orderAudit?.clear();workReadEpoch++;orderRefreshGate.clear();playUpgrade.clear();orderAppender?.clear();orderApprovals?.clear();clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.revisionRequests=[];state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();storeBox?.clear();freeflow?.clear();state.freeflowQueue=[];limitedReportView?.clear();limitedReportView=null;state.cart.clear();state.ambassadorDraft=null;state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.ownerDashboard=null;state.ownerDashboardDay=null;state.ownerDashboardLoading=false;state.storeBoxQueue=[];state.seenStoreBox=new Set();state.seenStoreBoxInitialized=false;state.seenKds=new Set();state.seenKdsInitialized=false;state.seenPending=new Set();state.seenInitialized=false;state.activeView='login';state.identity=null;customPricing?.refreshAccess();state.authUserId=null;consoleUI?.roleChanged();buildNav();$('revisionApprovalTab')?.classList.toggle('hidden',!isOwner());if(!isOwner()){approvalCount=null;$('revisionApprovalCount')?.classList.add('hidden');}$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
+function resetLogin(){catalogAdmin?.clear();orderAudit?.clear();workReadEpoch++;orderRefreshGate.clear();playUpgrade.clear();orderAppender?.clear();orderApprovals?.clear();clearInterval(state.benefitTimer);state.shownBenefit=null;state.benefitLoading=false;state.benefitListEpoch=(state.benefitListEpoch||0)+1;benefitEpoch++;state.editBusy=false;closeEditDialog();state.revisionRequests=[];state.editCart.clear();state.editPending=null;state.adjustmentPending=null;stopRedeemCamera();stopPolling();storeBox?.clear();freeflow?.clear();state.freeflowQueue=[];limitedReportView?.clear();limitedReportView=null;state.cart.clear();state.ambassadorDraft=null;state.draftSummary=null;state.draftSelection=null;state.pendingSubmit=null;state.draftEpoch++;state.ownerDashboard=null;state.ownerDashboardDay=null;state.ownerDashboardLoading=false;state.storeBoxQueue=[];state.seenStoreBox=new Set();state.seenStoreBoxInitialized=false;state.seenKds=new Set();state.seenKdsInitialized=false;state.seenPending=new Set();state.seenInitialized=false;state.activeView='login';state.identity=null;customPricing?.refreshAccess();state.authUserId=null;consoleUI?.roleChanged();buildNav();$('revisionApprovalTab')?.classList.toggle('hidden',!isOwner());if(!isOwner()){approvalCount=null;$('revisionApprovalCount')?.classList.add('hidden');}$('accountMenu').classList.add('hidden');$('accountMenu').open=false;$('signinForm').classList.remove('hidden');$('firstPasswordForm').classList.add('hidden');$('signin').classList.remove('hidden');$('dashboard').classList.add('hidden');$('logout').classList.add('hidden');$('accountName').textContent='WORK ACCOUNT';}
 async function login(e){e.preventDefault();await busy($('signinBtn'),async()=>{
  const username=$('username').value.trim().toLowerCase(),password=$('password').value;
  const result=await work('login',{username,password});
@@ -194,7 +195,7 @@ async function loadOwnerDashboard(force=false){
 async function loadCatalog(){const [products,series]=await Promise.all([db.rpc('yt_pos_catalog'),db.rpc('yt_pos_series_catalog')]);state.catalog=unpack(products)||[];state.series=unpack(series)||[];
  const category=$('categoryProduct');const chosen=category.value;category.replaceChildren(new Option('全部类别',''));
  const cats=[...new Set(state.catalog.filter(x=>x.active).map(x=>x.category))].sort();for(const c of cats)category.add(new Option(c,c));category.value=cats.includes(chosen)?chosen:'';renderCategoryButtons();
-  const sel=$('productSeries');const value=sel.value;sel.replaceChildren(new Option('未配置系列（不发权益）',''));for(const row of state.series)sel.add(new Option(row.name+' · '+row.benefit_mode,row.id));sel.value=state.series.some(x=>x.id===value)?value:'';
+  const sel=$('productSeries');const value=sel.value;sel.replaceChildren(new Option('未配置系列（不发权益）',''));for(const row of state.series)sel.add(new Option(row.name+' · '+({games:'小游戏资格',choose:'游戏结算领取',none:'不赠送权益',pending:'不发放权益'}[row.benefit_mode]||row.benefit_mode),row.id));sel.value=state.series.some(x=>x.id===value)?value:'';
   renderCatalog();renderCart();if(isOwner()){renderProductAdmin();renderSeriesAdmin();}}
 function renderCategoryButtons(){const root=$('categoryProductButtons');if(!root)return;const options=[...$('categoryProduct').options],signature=JSON.stringify(options.map(o=>[o.value,o.textContent]));if(root.dataset.signature!==signature){const left=root.scrollLeft;root.replaceChildren(...options.map(option=>{const b=document.createElement('button');b.type='button';b.className='category-pill';b.dataset.category=option.value;b.textContent=option.textContent;b.setAttribute('aria-pressed','false');return b;}));root.dataset.signature=signature;root.scrollLeft=left;}root.querySelectorAll('[data-category]').forEach(b=>{const active=b.dataset.category===$('categoryProduct').value&&!$('searchProduct').value.trim();b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});root.updateCategoryRail?.();}
 function updateCatalogSelection(){syncCatalogSelection($('catalog'),state.cart,{locked:state.draftSaving||!!state.pendingSubmit||state.draftMutating||!!state.ambassadorDraft||!!state.draftSummary?.holds?.length||!!state.draftSelection});}
@@ -536,15 +537,17 @@ async function orderAction(orderId,action,container){if(action==='request_cancel
 let bannerManager=null;
 async function loadPOSBanners(){if(!isOwner())return;if(!bannerManager)bannerManager=createBannerManager({db,root:$('ownerBannersPanel'),notify:showNotice});await bannerManager.load();}
 async function loadAdmin(){if(!isOwner())return;await loadPOSBanners();await loadCatalog();await Promise.all([loadRights(),loadRewardRules()]);}
-function renderProductAdmin(){if(!isOwner())return;const root=$('productAdminList');root.innerHTML=state.catalog.length?state.catalog.map(p=>`<div class="admin-entry"><div><strong>${esc(p.name)}</strong><small>${esc(p.category)} · ${money(p.price_rm)} · ${p.active?'可点单':'已停用'} · ${esc(p.series_name||'没有系列权益')}</small></div><div class="admin-entry-actions"><button data-copy-product="${esc(p.id)}" type="button">复制</button><button data-product="${esc(p.id)}" type="button">编辑</button></div></div>`).join(''):'<div class="empty">当前没有产品。请先新增菜单。</div>';}
+function catalogAdminView(){return catalogAdmin??=createCatalogAdmin({productsRoot:$('productAdminList'),seriesRoot:$('seriesList'),products:()=>state.catalog,series:()=>state.series,canEdit:isOwner});}
+function renderProductAdmin(){if(isOwner())catalogAdminView().renderProducts();}
+function openCatalogEditor(kind,title){const editor=$(kind==='product'?'productEditor':'seriesEditor');if(!editor)return;editor.open=true;$(kind==='product'?'productEditorTitle':'seriesEditorTitle').textContent=title;editor.querySelector('.catalog-extra')?.removeAttribute('open');editor.scrollIntoView({block:'start',behavior:'smooth'});$(kind==='product'?'productName':'seriesName').focus({preventScroll:true});}
 async function saveProduct(e){e.preventDefault();await busy($('productForm').querySelector('[type=submit]'),async()=>{
  const id=$('productId').value||null;const price=Number($('productPrice').value);if(!Number.isFinite(price)||price<0||price>5000)throw Error('请输入正确产品价格');
  unpack(await db.rpc('yt_pos_owner_product_v2',{p_id:id,p_name:$('productName').value.trim(),p_category:$('productCategory').value.trim(),p_price:price,p_active:$('productActive').checked,p_sort:Number($('productSort').value),p_series:$('productSeries').value||null}));
- clearProduct();await loadCatalog();showNotice(id?'产品已更新':'产品已加入菜单');
+ clearProduct();$('productEditor').open=false;await loadCatalog();showNotice(id?'产品已更新':'产品已加入菜单');
  }).catch(()=>{});}
-function editProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value=p.id;$('productName').value=p.name;$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=p.sort_order||100;$('productSeries').value=p.series_id||'';window.scrollTo({top:0,behavior:'smooth'});}
-function copyProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value='';$('productName').value=p.name+' 副本';$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=Number(p.sort_order||100)+1;$('productSeries').value=p.series_id||'';$('productName').focus();$('productName').select();}
-function clearProduct(){$('productForm').reset();$('productId').value='';$('productActive').checked=true;$('productSort').value=100;$('productSeries').value='';}
+function editProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value=p.id;$('productName').value=p.name;$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=p.sort_order??100;$('productSeries').value=p.series_id||'';openCatalogEditor('product','编辑商品');}
+function copyProduct(id){const p=state.catalog.find(x=>x.id===id);if(!p)return;consoleUI?consoleUI.open('catalog','products'):showTab('admin');$('productId').value='';$('productName').value=p.name+' 副本';$('productCategory').value=p.category;$('productPrice').value=p.price_rm;$('productActive').checked=p.active;$('productSort').value=Number(p.sort_order??100)+1;$('productSeries').value=p.series_id||'';openCatalogEditor('product','复制商品');$('productName').select();}
+function clearProduct(){if($('productEditorTitle'))$('productEditorTitle').textContent='新增商品';$('productForm').reset();$('productId').value='';$('productActive').checked=true;$('productSort').value=100;$('productSeries').value='';}
 async function loadRights(){if(!isOwner())return;const staff=unpack(await db.rpc('yt_pos_staff_list'))||[];
  $('staffRights').innerHTML=staff.length?staff.map(x=>`<div class="admin-entry"><div><strong>${esc(x.username)}</strong><small>${x.active?'Active':'Disabled'} · ${x.role==='cashier'?'Cashier 独立账号':'Staff'}</small></div>${x.role==='cashier'?'<span>独立 Cashier 账号</span>':`<label class="checkline"><input type="checkbox" data-cashier="${esc(x.id)}" ${x.can_cashier?'checked':''} ${!x.active?'disabled':''}><span>收银权限</span></label><label class="checkline"><input type="checkbox" data-edit-staff="${esc(x.id)}" ${x.can_edit_orders?'checked':''} ${!x.active?'disabled':''}><span>改单权限</span></label>`}</div>`).join(''):'<div class="empty">还没有 Staff 账户。</div>';}
 async function loadRewardRules(){
@@ -731,16 +734,12 @@ async function changeEditRight(id,allowed,input){await busy(input,async()=>{
  unpack(await db.rpc('yt_pos_owner_edit_access',{p_staff:id,p_allowed:allowed}));
  showNotice('改单权限更新成功');await loadRights();
 }).catch(()=>{input.checked=!allowed});}
-function renderSeriesAdmin(){if(!isOwner())return;
- const root=$('seriesList');root.innerHTML=state.series.length?state.series.map(s=>`<div class="admin-entry"><div><strong>${esc(s.name)}</strong>
- <small>${esc(s.benefit_mode)} · ${Number(s.game_plays||0)} 次 · ${s.active?'已开放':'关闭'}${s.game_plays>1?' · 暂不可发放':''}</small></div>
- <button type="button" data-series="${esc(s.id)}">编辑</button></div>`).join(''):'<div class="empty">还没有系列。先建立 CLASSIC / TOWER 等分类并设置权益。</div>';
-}
+function renderSeriesAdmin(){if(isOwner())catalogAdminView().renderSeries();}
 function editSeries(id){const s=state.series.find(x=>x.id===id);if(!s)return;
  consoleUI?consoleUI.open('catalog','series'):showTab('admin');$('seriesId').value=s.id;$('seriesName').value=s.name;$('seriesMode').value=s.benefit_mode;
  $('seriesPlays').value=s.game_plays??0;$('seriesPointPercent').value=s.point_percent??'';
  $('seriesSplit').checked=!!s.can_split;$('seriesActive').checked=!!s.active;
- $('seriesName').scrollIntoView({block:'center',behavior:'smooth'});
+ openCatalogEditor('series','编辑权益系列');
 }
 async function saveSeries(event){event.preventDefault();const btn=$('seriesForm').querySelector('[type=submit]');await busy(btn,async()=>{
  const mode=$('seriesMode').value,plays=Number($('seriesPlays').value);
@@ -749,7 +748,7 @@ async function saveSeries(event){event.preventDefault();const btn=$('seriesForm'
   p_id:$('seriesId').value||null,p_name:$('seriesName').value.trim(),p_mode:mode,p_plays:plays,
   p_point_percent:$('seriesPointPercent').value===''?null:Number($('seriesPointPercent').value),
   p_split:$('seriesSplit').checked,p_active:$('seriesActive').checked
- }));$('seriesForm').reset();$('seriesId').value='';await loadCatalog();showNotice('系列规则已保存');
+ }));$('seriesForm').reset();$('seriesId').value='';$('seriesEditor').open=false;await loadCatalog();showNotice('系列规则已保存');
 }).catch(()=>{});}
 
 async function loadBenefits(preferred=null,poll=false){
@@ -1298,6 +1297,7 @@ function bind(){
  $('jumpPending').onclick=()=>showTab('pending');
  $('ownerDashboardRefresh').onclick=()=>loadOwnerDashboard(true).catch(e=>showNotice(errorText(e),true));
  document.body.addEventListener('click',e=>{const b=e.target.closest('button[data-action][data-order]');if(b)orderAction(b.dataset.order,b.dataset.action,b);});
+ $('newCatalogProduct').onclick=()=>{if(!isOwner())return;clearProduct();openCatalogEditor('product','新增商品');};$('closeProductEditor').onclick=()=>{$('productEditor').open=false;};$('newCatalogSeries').onclick=()=>{if(!isOwner())return;$('seriesForm').reset();$('seriesId').value='';openCatalogEditor('series','新增权益系列');};$('closeSeriesEditor').onclick=()=>{$('seriesEditor').open=false;};
  $('productForm').onsubmit=saveProduct;$('clearProduct').onclick=clearProduct;
  $('productAdminList').onclick=e=>{const copy=e.target.closest('[data-copy-product]');if(copy){copyProduct(copy.dataset.copyProduct);return;}const b=e.target.closest('[data-product]');if(b)editProduct(b.dataset.product);};
  $('staffRights').onchange=e=>{const cashier=e.target.closest('input[data-cashier]');if(cashier)changeRight(cashier.dataset.cashier,cashier.checked,cashier);const edit=e.target.closest('input[data-edit-staff]');if(edit)changeEditRight(edit.dataset.editStaff,edit.checked,edit);};
