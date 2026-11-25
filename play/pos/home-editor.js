@@ -6,10 +6,11 @@ const copy=x=>JSON.parse(JSON.stringify(x));
 const normalize=x=>({...copy(defaults),...x,blocks:Array.isArray(x?.blocks)&&x.blocks.length===6?x.blocks:copy(defaults.blocks),labels:{...copy(defaults.labels),...(x?.labels||{})},links:Array.isArray(x?.links)?x.links.slice(0,5):[]});
 export function createHomeEditor({db,root,notice}){
  let draft=copy(defaults),published=copy(defaults);
+ const fieldLabels={title_zh:'首页标题 · 中文',title_en:'首页标题 · English',subtitle_zh:'副标题 · 中文',subtitle_en:'副标题 · English'};
  const f=k=>root.querySelector('[data-key="'+k+'"]');
  function draw(){
   root.innerHTML='<article class="card"><p class="kicker">OWNER · HOMEPAGE</p><h2>客户端自定义</h2><p class="muted">可编辑中英文、按钮、模块顺序与轮播显示。先保存草稿，再发布。</p>'+
-  ['title_zh','title_en','subtitle_zh','subtitle_en'].map(k=>'<label>'+k+'<input data-key="'+k+'" maxlength="140"></label>').join('')+
+  ['title_zh','title_en','subtitle_zh','subtitle_en'].map(k=>'<label>'+fieldLabels[k]+'<input data-key="'+k+'" maxlength="140"></label>').join('')+
   '<div class="pair"><label>主题金色<input type="color" data-key="accent"></label><label>轮播比例<select data-key="banner_ratio"><option>16/9</option><option>32/9</option><option>2/1</option><option>4/3</option></select></label></div>'+
   '<label>轮播显示<select data-key="banner_fit"><option value="contain">完整显示</option><option value="cover">铺满裁切</option></select></label>'+
   '<h3>版块排序与显示</h3><div id="homeLayoutBlocks"></div><h3>按钮名称（中文 / English）</h3><div id="homeLayoutLabels"></div>'+

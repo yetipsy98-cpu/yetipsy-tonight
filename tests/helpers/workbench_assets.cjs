@@ -1,0 +1,2 @@
+const assert=require('node:assert/strict');
+module.exports=function assertWorkbenchAssets(html){const entry=html.match(/<script type="module" src="([^"]*pos\.js\?v=[^"]+)"/);assert(entry,'versioned canonical POS entry');assert(html.includes('rel="modulepreload" href="'+entry[1]+'"'),'preload must match the active POS script');assert.match(html,/console\.css\?v=[\w-]+/,'versioned settings stylesheet');};
