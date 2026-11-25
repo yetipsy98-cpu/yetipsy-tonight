@@ -20,6 +20,8 @@ create sequence yt_pos_order_serial;
 await db.exec(fs.readFileSync('supabase/migrations/20261023014042_fix_order_revision_payment_method_result_ambiguity.sql','utf8'));
 await db.exec(fs.readFileSync('supabase/migrations/20261124090752_independent_freeflow_packages_and_group_orders.sql','utf8'));
 await db.exec(fs.readFileSync('supabase/migrations/20261125053442_foodcourt_product_checklist.sql','utf8'));
+await db.exec(fs.readFileSync(process.env.FOODCOURT_CART_MIGRATION||'supabase/migrations/20261125061003_foodcourt_owner_cart.sql','utf8'));
+await db.exec(fs.readFileSync(process.env.FOODCOURT_ALLOCATION_GUARD||'supabase/migrations/20261125061157_foodcourt_allocation_guard.sql','utf8'));
 const uid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0'),q=async(s,p)=>(await db.query(s,p)).rows;
 const ids={owner:uid(1),cashier:uid(2),staff:uid(3),customer:uid(4),limited:uid(5)};for(const id of Object.values(ids))await q('insert into auth.users values($1)',[id]);
 const actor=role=>q("select set_config('test.role',$1,false),set_config('test.uid',$2,false)",[role,ids[role]]);
@@ -42,10 +44,11 @@ assert.equal(Number((await q("select count(*) n from yt_pos_item_units where ben
 assert.equal((await q('select method from yt_pos_payment_entries where order_id=$1',[ff.order_id]))[0].method,'Freeflow-Foodcourt');
 const raw=(await q('select * from yt_member_orders where id=$1',[first.order_id]))[0];assert.equal(raw.status,'fulfilled');assert.equal(raw.pos_business_day.toISOString().slice(0,10),day);
 let overview=await rpc('day');assert.equal(overview.rows.length,2);assert.equal(overview.rows.find(r=>r.product_id===drink).quantity,10);assert.equal(overview.rows.find(r=>r.product_id===pack).quantity,3,'FreeFlow is one directly sold product, no cup expansion');
-let row=overview.rows.find(r=>r.product_id===drink);await actor('cashier');await rpc('mark',{product_key:row.product_key,fingerprint:row.fingerprint,checked:true});assert.equal((await rpc('day')).rows.find(r=>r.product_id===drink).checked,true);
-await assert.rejects(()=>rpc('supplement',{...add,request_id:uid(22)}),/owner_only/);
-for(const role of ['staff','customer','limited']){await actor(role);await assert.rejects(()=>rpc('day'),/cashier_only/);}
-await actor('owner');
+let row=overview.rows.find(r=>r.product_id===drink);await actor('cashier');
+for(const action of ['day','mark','context','orders','preview','supplement','revise'])await assert.rejects(()=>rpc(action,{...add,order_id:first.order_id,product_key:row.product_key,fingerprint:row.fingerprint,checked:true}),/owner_only/);
+for(const role of ['staff','customer','limited']){await actor(role);await assert.rejects(()=>rpc('day'),/owner_only/);}
+await actor('owner');await rpc('mark',{product_key:row.product_key,fingerprint:row.fingerprint,checked:true});assert.equal((await rpc('day')).rows.find(r=>r.product_id===drink).checked,true);
+
 // Two bills for the same item are selectable. Editing one leaves the other intact.
 const other=await rpc('supplement',{...add,request_id:uid(23),quantity:2});overview=await rpc('day');row=overview.rows.find(r=>r.product_id===drink);assert.equal(row.quantity,12);assert.equal(row.orders.length,2);assert.equal(row.checked,false);await assert.rejects(()=>rpc('mark',{product_key:row.product_key,fingerprint:'old',checked:true}),/order_changed_reload/);
 const revise=async(order_id,quantity,request_id,extra={})=>{const c=await rpc('context',{order_id});const items=quantity?c.items.map(i=>({item_id:i.id,product_id:i.product_id,quantity,unit_price_rm:i.unit_price_rm})):[];const cancel=quantity===0;const p=await rpc('preview',{order_id,items,cancel});const payload={order_id,request_id,expected_updated:c.updated_at,items,cancel,expected_net:p.net,expected_balance:p.balance_rm,...extra};return {payload,result:await rpc('revise',payload)};};
@@ -69,9 +72,28 @@ const multi=await rpc('supplement',{...add,request_id:uid(35),quantity:1});await
 const mc=await rpc('context',{order_id:multi.order_id}),kept=mc.items.filter(i=>i.product_id===second).map(i=>({item_id:i.id,product_id:i.product_id,quantity:i.quantity,unit_price_rm:i.unit_price_rm}));let pp=await rpc('preview',{order_id:multi.order_id,items:kept,cancel:false});await rpc('revise',{order_id:multi.order_id,request_id:uid(36),expected_updated:mc.updated_at,items:kept,cancel:false,expected_net:pp.net,expected_balance:pp.balance_rm});let after=await rpc('context',{order_id:multi.order_id});assert.equal(after.items.length,1);assert.equal(after.items[0].product_id,second);assert.equal(after.items[0].quantity,2);assert.equal(after.amount_rm,40);
 // An incorrect confirmed refund amount is rejected before any revision or money changes.
 const c=await rpc('context',{order_id:first.order_id});await assert.rejects(()=>rpc('revise',{order_id:first.order_id,request_id:uid(37),expected_updated:c.updated_at,items:[],cancel:true,expected_net:0,expected_balance:-1}),/settlement_changed_reload/);assert.equal((await rpc('context',{order_id:first.order_id})).amount_rm,225);
+// Multi-product cart is one new bill, including direct FreeFlow and regular products.
+const batch={request_id:uid(80),items:[{product_id:drink,quantity:2,unit_price_rm:25,expected_price:25},{product_id:pack,quantity:1,unit_price_rm:45,expected_price:45},{product_id:second,quantity:3,unit_price_rm:20,expected_price:20}]};
+const countBefore=Number((await q('select count(*) n from yt_member_orders'))[0].n),mixed=await rpc('supplement',batch);assert.equal(mixed.amount_rm,155);assert.equal(Number((await q('select count(*) n from yt_member_orders'))[0].n),countBefore+1);assert.equal((await rpc('context',{order_id:mixed.order_id})).items.length,3);assert.equal((await rpc('supplement',batch)).retried,true);
+assert.deepEqual((await q('select method,amount_rm from yt_pos_payment_entries where order_id=$1 order by amount_rm',[mixed.order_id])).map(e=>[e.method,Number(e.amount_rm)]),[['Freeflow-Foodcourt',45],['foodcourt',110]]);
+const mixedItems=(await rpc('context',{order_id:mixed.order_id})).items;assert.equal((await q("select private.yt_ff_item_method($1,'foodcourt') m",[mixedItems.find(i=>i.product_id===pack).id]))[0].m,'Freeflow-Foodcourt');
+assert.equal(Number((await q('select count(*) n from yt_freeflow_sessions'))[0].n),0);assert.equal(Number((await q('select count(*) n from yt_pos_order_chits'))[0].n),0);
+const beforeBad=Number((await q('select count(*) n from yt_member_orders'))[0].n);
+await assert.rejects(()=>rpc('supplement',{...batch,request_id:uid(81),items:batch.items.map((i,n)=>n===2?{...i,expected_price:0}:i)}),/product_price_changed/);
+assert.equal(Number((await q('select count(*) n from yt_member_orders'))[0].n),beforeBad,'one bad cart line rolls back the entire new bill');
+await assert.rejects(()=>rpc('supplement',{...batch,request_id:uid(82),items:[batch.items[0],batch.items[0]]}),/duplicate_product/);
+// A zero-net correction reclassifies actual receipts without inventing money/refunds.
+const zero=await rpc('supplement',{request_id:uid(83),items:[{product_id:drink,quantity:3,unit_price_rm:15,expected_price:25},{product_id:pack,quantity:1,unit_price_rm:45,expected_price:45}]});
+const zc=await rpc('context',{order_id:zero.order_id}),zi=zc.items.filter(i=>i.product_id===drink).map(i=>({item_id:i.id,product_id:i.product_id,quantity:3,unit_price_rm:30}));
+pp=await rpc('preview',{order_id:zero.order_id,items:zi,cancel:false});assert.equal(pp.balance_rm,0);
+await rpc('revise',{order_id:zero.order_id,request_id:uid(84),expected_updated:zc.updated_at,items:zi,cancel:false,expected_net:90,expected_balance:0});
+const sums=(await q("select sum(amount_rm) total,sum(greatest(amount_rm,0)) receipts,sum(least(amount_rm,0)) refunds,coalesce(sum(amount_rm) filter(where method like 'Freeflow-%'),0) ff from yt_pos_payment_entries where order_id=$1",[zero.order_id]))[0];assert.equal(Number(sums.total),90);assert.equal(Number(sums.receipts),90);assert.equal(Number(sums.refunds),0);assert.equal(Number(sums.ff),0);
+await revise(zero.order_id,0,uid(85));assert.equal(Number((await q('select private.yt_pos_received($1) n',[zero.order_id]))[0].n),0);
+assert.equal((await q("select coalesce(current_setting('yt.foodcourt.reclassify',true),'') state"))[0].state,'','allocation override is restored');
+await q("update yt_pos_payment_entries set method='cash' where order_id=$1",[mixed.order_id]);assert.equal(Number((await q("select sum(amount_rm) n from yt_pos_payment_entries where order_id=$1 and method='Freeflow-Cash'",[mixed.order_id]))[0].n),45,'normal payment corrections retain FreeFlow labels');
 assert.equal((await q("select has_function_privilege('anon','public.yt_foodcourt_reconcile(text,jsonb)','execute') allowed"))[0].allowed,false);assert.equal((await q("select has_table_privilege('authenticated','private.yt_foodcourt_history_orders','insert') allowed"))[0].allowed,false);
 assert.match((await q("select pg_get_functiondef('private.yt_owner_reset_v9(uuid,text,text,uuid,uuid,bigint[],text[])'::regprocedure) d"))[0].d,/truncate table private.yt_foodcourt_checks,private.yt_foodcourt_operations,private.yt_foodcourt_history_orders/);
-await db.close();console.log('PASS Foodcourt: product quantities, FreeFlow without access, new bill/no KDS/void benefits, exact retries, role guards, persisted marks/staleness, selectable duplicate bills, individual product deletion, atomic refund/top-up/cancellation, original day and immutable audit.');
+await db.close();console.log('PASS Foodcourt: product quantities, FreeFlow without access, new bill/no KDS/void benefits, exact retries, Owner-only access, atomic multi-product carts, category accounting/zero-net reclassification, persisted marks/staleness, selectable duplicate bills, individual product deletion, atomic refund/top-up/cancellation, original day and immutable audit.');
 })().catch(e=>{console.error(e.message,e.where||'',e.position?e.query?.slice(Number(e.position)-100,Number(e.position)+160):'');process.exit(1);});
 `;
 new Function('require',bootstrap+amba+extra.replaceAll('\\`','`'))(require);
