@@ -2,7 +2,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const amount=v=>{const n=Number(v)||0;return (n<0?'−':'')+'RM '+Math.abs(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});};
 const count=v=>Number(v||0).toLocaleString('en-MY');
 const methods={cash:'现金',duitnow:'DuitNow',foodcourt:'食阁',card:'刷卡',bank_transfer:'转账',other:'其他',AB_Cash:'AB · 现金',AB_DuitNow:'AB · DuitNow',AB_Foodcourt:'AB · 食阁',AB_Card:'AB · 刷卡',AB_Bank_Transfer:'AB · 转账',AB_Other:'AB · 其他'};
-const method=v=>String(v||'').split(',').map(x=>methods[x.trim()]||x.trim()).filter(Boolean).join(' / ')||'—';
+const method=v=>String(v||'').split(',').map(x=>methods[x.trim()]||(/^freeflow[-_]/i.test(x.trim())?'FreeFlow · '+(({cash:'现金',duitnow:'DuitNow',foodcourt:'食阁',card:'刷卡',bank_transfer:'转账',other:'其他'})[x.trim().replace(/^freeflow[-_]/i,'').toLowerCase()]||x.trim().replace(/^freeflow[-_]/i,'')):x.trim())).filter(Boolean).join(' / ')||'—';
 const stamp=v=>v?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v)):'—';
 const cell=v=>`<td${/^(?:−?RM |[\d,.]+$)/.test(String(v))?' class="num"':''}>${esc(v).replace(/\n/g,'<br>')}</td>`;
 const table=(title,heads,rows,note='')=>`<section><h2>${esc(title)}</h2>${note?`<p class="note">${esc(note)}</p>`:''}<table><thead><tr>${heads.map(h=>'<th>'+esc(h)+'</th>').join('')}</tr></thead><tbody>${rows.length?rows.map(row=>'<tr>'+row.map(cell).join('')+'</tr>').join(''):`<tr><td class="empty" colspan="${heads.length}">本期间暂无记录</td></tr>`}</tbody></table></section>`;

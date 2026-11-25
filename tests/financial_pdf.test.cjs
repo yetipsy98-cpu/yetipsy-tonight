@@ -15,4 +15,6 @@ assert(productSection.indexOf('PAYMENT-DUIT-AAA')<productSection.indexOf('PAYMEN
 assert.equal(groupedSample.products.map(x=>x.item_name).join(','),originalOrder);
 console.log('PASS A4 financial report, untruncated details, accounting dates, amendment notes, totals, escaping, empty period and invalid data guards');
 
-const freeflowHTML=c.build({...sample,freeflow:{cups:33,top5:Array.from({length:7},(_,i)=>({name:'RANK-'+i+(i===0?' <script>':''),cups:9-i})),drinks:[{name:'DRINK-<A>',cups:17},{name:'DRINK-B',cups:16}]}});assert(freeflowHTML.includes('FreeFlow · 出杯数前 5 位'));assert(freeflowHTML.includes('RANK-4'));assert(!freeflowHTML.includes('RANK-5'));assert(freeflowHTML.includes('DRINK-&lt;A&gt;'));assert(freeflowHTML.includes('&lt;script&gt;'));assert(freeflowHTML.includes('不重复计入营业额'));
+const freeflowHTML=c.build({...sample,freeflow:{cups:33,top5:Array.from({length:7},(_,i)=>({name:'RANK-'+i+(i===0?' <script>':''),cups:9-i})),drinks:[{name:'DRINK-<A>',cups:17},{name:'DRINK-B',cups:16}]}});assert(freeflowHTML.includes('FreeFlow · 分组出杯前 5 位'));assert(freeflowHTML.includes('RANK-4'));assert(!freeflowHTML.includes('RANK-5'));assert(freeflowHTML.includes('DRINK-&lt;A&gt;'));assert(freeflowHTML.includes('&lt;script&gt;'));assert(freeflowHTML.includes('不重复计入营业额'));
+
+const freeflowPayments=c.build({...sample,payments:[{method:'Freeflow-Cash',orders:1,net_rm:75},{method:'Freeflow-DuitNow',orders:1,net_rm:50}]});assert(freeflowPayments.includes('FreeFlow · 现金'));assert(freeflowPayments.includes('FreeFlow · DuitNow'));
