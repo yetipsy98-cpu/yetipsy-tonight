@@ -1,6 +1,8 @@
+import {readBindingIntent,saveBindingIntent,clearBindingIntent} from './binding-intent.mjs?v=20261126-binding-continuation-v43';
+import {hasPendingGuestImport} from './freeflow-guest-storage.mjs?v=20261114-cart-append-v19';
 import {createServiceBellClient} from './service-bell-client.mjs?v=20261111-history-entry-fix-v13';
 import {readLocationPolicy,serviceLocation} from './location-policy.mjs?v=20261111-history-entry-fix-v13';
-import {createCustomerFreeflow} from './customer-freeflow.js?v=20261124-freeflow-shop-v26';
+import {createCustomerFreeflow} from './customer-freeflow.js?v=20261126-binding-continuation-v43';
 import {createLuckyBox} from './lucky-box.js?v=20261013-lucky-v2';
 import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
 import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261023-reward-min-zero-v1';
@@ -22,7 +24,7 @@ const state={user:null,role:null,profile:null,view:'home',games:[],passes:[],wal
 let scanner=null,scannerRunning=false,qrLibPromise=null,barcodeLibPromise=null;
 let installPromptEvent=null,workerRegistration=null;
 let customerFreeflow=null,customerStoreBox=null,luckyBox=null,ambassadorClient=null;
-const i18n=createClientI18n({button:$('languageToggle'),onChange:()=>{updateHome();renderWallet();renderMyLoyalty();customerStoreBox?.load(true).catch(()=>{});syncUpgradeLanguage();customerFreeflow?.syncLanguage();}});
+const i18n=createClientI18n({button:$('languageToggle'),onChange:()=>{updateHome();renderWallet();renderMyLoyalty();customerStoreBox?.load(true).catch(()=>{});syncUpgradeLanguage();customerFreeflow?.syncLanguage();renderBindingNotice();}});
 const tr=(key,vars)=>i18n.t(key,vars);
 function pwaNotice(message){const el=$('pwaNotice');if(!el)return;el.textContent=message;el.classList.remove('hide');clearTimeout(pwaNotice.timer);pwaNotice.timer=setTimeout(()=>el.classList.add('hide'),6500);}
 function setupPwa(){const button=$('pwaInstall');if(!button)return;const isInstalled=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const label=()=>{button.textContent=tr(isInstalled()?'app_installed':'install_app');button.classList.toggle('hide',isInstalled()||(!installPromptEvent&&!/iphone|ipad|ipod/i.test(navigator.userAgent)));};window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPromptEvent=event;label();});window.addEventListener('appinstalled',()=>{installPromptEvent=null;label();pwaNotice(tr('app_installed'));});button.onclick=async()=>{if(installPromptEvent){installPromptEvent.prompt();await installPromptEvent.userChoice;installPromptEvent=null;label();return;}pwaNotice(tr('install_help'));};label();if('serviceWorker'in navigator&&location.protocol==='https:'&&location.pathname.includes('/play-v12/'))navigator.serviceWorker.register('./sw.js').then(reg=>{workerRegistration=reg;if(reg.waiting)pwaNotice(tr('update_ready'));reg.addEventListener('updatefound',()=>{const worker=reg.installing;worker?.addEventListener('statechange',()=>{if(worker.state==='installed'&&navigator.serviceWorker.controller)pwaNotice(tr('update_ready'));});});}).catch(()=>{});}
@@ -37,7 +39,7 @@ const isOwner=()=>state.role==='owner';
 const newLink=(kind,token)=>{const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set(kind,token);return u.toString();};
 const failerr=(message)=>{throw new Error(message);};
 function toast(message,bad=false){const el=$('toast');el.textContent=message;el.style.borderColor=bad?'#c77d70':'#ccaa76';el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),4600);}
-function errorText(e){const s=String(e?.message||e||'操作失败');const map={location_required:'请允许定位后重试',outside_service_area:'请在场地范围内重新定位',bell_disabled:'场地定位尚未设置，请联系店员',invalid_bell_request:'请检查桌号和服务类型后重试',guest_storage_unavailable:'浏览器无法保存访客身份，请允许网站存储后重试',location_policy_unavailable:'定位设置暂时无法读取，请稍后重试',bell_request_not_cancellable:'员工已经确认这项服务请求，无法自行取消',bell_already_active:'当前有一项服务请求正在处理中',shop_price_changed:'兑换积分已调整，请重新查看并确认',shop_item_unavailable:'该兑换项目已下架或不在开放时段',shop_sold_out:'这个奖励已经兑完',shop_member_limit:'已达到本项目的兑换限额',points_insufficient:'积分不足，请先完成游戏累积积分',points_ledger_mismatch:'积分余额正在核对，请联系店员',game_settlement_locked:'本局领取方式已锁定，不能更换',reward_points_not_configured:'Owner 尚未设置这份奖励的等值积分',game_result_required:'请先完成游戏并保存结果',skill_points_only:'技巧游戏按成绩领取积分',game_not_finished_or_expired:'游戏尚未完成或已超过有效期',points_after_game_only:'请先完成游戏，结算时可选择积分',pass_revoked:'这份游戏权益已被撤销',pass_expired_or_used:'这份游戏已完成或超过3天有效期',game_round_locked:'该回合已记录，请从「我的游戏」继续',game_rounds_incomplete:'请先完成剩余回合',game_choice_locked:'本局选择已经锁定，请继续原本的游戏',claim_code_invalid:'领取码不正确，请核对 8 位短码',claim_code_rate_limited:'输入次数过多，请一分钟后再试',owner_only:'仅限 Owner 操作',staff_only:'仅限员工操作',not_authenticated:'登录已失效，请重新登录',pass_invalid_or_claimed:'游戏码无效、已领取或已过期',offer_unavailable:'奖励已领完、尚未开放或已到期',offer_not_found:'找不到这个奖励领取码',account_claim_limit:'你已经达到这个活动的领取次数',reward_no_valid_window:'奖品的可用时间设置有冲突',reward_not_redeemable:'奖励尚未到可兑换时间，或已经过期',outside_redeem_hours:'不在奖品允许兑换的营业时段',reward_pool_empty_or_sold_out:'奖池库存已用完',store_box_claim_invalid:'存酒箱领取码无效、已取消或已过期',store_box_not_claimable:'这个存酒箱目前不能领取',store_box_not_found:'找不到这个存酒箱',store_box_expired:'这个存酒箱已经到期',store_box_not_available:'这个存酒箱目前不能叫酒',store_box_quantity_unavailable:'叫酒数量超过可用数量',store_box_request_already_active:'已有一个叫酒请求，请先等待或取消',store_box_request_not_cancellable:'员工已经接单，请联系员工调整',invalid_credentials:'手机号或 PIN 不正确',already_registered:'该号码已注册，请直接登录',invalid_pin:'请输入 6 位数字 PIN',weak_pin:'PIN 太容易猜，请换一个',invalid_phone:'请输入正确的手机号码',request_conflict:'请刷新后重试'};return map[s]||s.replaceAll('_',' ');}
+function errorText(e){const s=String(e?.message||e||'操作失败');const map={order_code_expired:'消费绑定码已到期，请让店员重新生成后再扫码。',order_already_bound:'这笔消费已绑定其他会员，请让店员核对。',customer_only:'请使用顾客会员账号完成绑定。',location_required:'请允许定位后重试',outside_service_area:'请在场地范围内重新定位',bell_disabled:'场地定位尚未设置，请联系店员',invalid_bell_request:'请检查桌号和服务类型后重试',guest_storage_unavailable:'浏览器无法保存访客身份，请允许网站存储后重试',location_policy_unavailable:'定位设置暂时无法读取，请稍后重试',bell_request_not_cancellable:'员工已经确认这项服务请求，无法自行取消',bell_already_active:'当前有一项服务请求正在处理中',shop_price_changed:'兑换积分已调整，请重新查看并确认',shop_item_unavailable:'该兑换项目已下架或不在开放时段',shop_sold_out:'这个奖励已经兑完',shop_member_limit:'已达到本项目的兑换限额',points_insufficient:'积分不足，请先完成游戏累积积分',points_ledger_mismatch:'积分余额正在核对，请联系店员',game_settlement_locked:'本局领取方式已锁定，不能更换',reward_points_not_configured:'Owner 尚未设置这份奖励的等值积分',game_result_required:'请先完成游戏并保存结果',skill_points_only:'技巧游戏按成绩领取积分',game_not_finished_or_expired:'游戏尚未完成或已超过有效期',points_after_game_only:'请先完成游戏，结算时可选择积分',pass_revoked:'这份游戏权益已被撤销',pass_expired_or_used:'这份游戏已完成或超过3天有效期',game_round_locked:'该回合已记录，请从「我的游戏」继续',game_rounds_incomplete:'请先完成剩余回合',game_choice_locked:'本局选择已经锁定，请继续原本的游戏',claim_code_invalid:'领取码不正确，请核对 8 位短码',claim_code_rate_limited:'输入次数过多，请一分钟后再试',owner_only:'仅限 Owner 操作',staff_only:'仅限员工操作',not_authenticated:'登录已失效，请重新登录',pass_invalid_or_claimed:'游戏码无效、已领取或已过期',offer_unavailable:'奖励已领完、尚未开放或已到期',offer_not_found:'找不到这个奖励领取码',account_claim_limit:'你已经达到这个活动的领取次数',reward_no_valid_window:'奖品的可用时间设置有冲突',reward_not_redeemable:'奖励尚未到可兑换时间，或已经过期',outside_redeem_hours:'不在奖品允许兑换的营业时段',reward_pool_empty_or_sold_out:'奖池库存已用完',store_box_claim_invalid:'存酒箱领取码无效、已取消或已过期',store_box_not_claimable:'这个存酒箱目前不能领取',store_box_not_found:'找不到这个存酒箱',store_box_expired:'这个存酒箱已经到期',store_box_not_available:'这个存酒箱目前不能叫酒',store_box_quantity_unavailable:'叫酒数量超过可用数量',store_box_request_already_active:'已有一个叫酒请求，请先等待或取消',store_box_request_not_cancellable:'员工已经接单，请联系员工调整',invalid_credentials:'手机号或 PIN 不正确',already_registered:'该号码已注册，请直接登录',invalid_pin:'请输入 6 位数字 PIN',weak_pin:'PIN 太容易猜，请换一个',invalid_phone:'请输入正确的手机号码',binding_storage_unavailable:'浏览器无法保存绑定步骤，请允许网站存储后重试',binding_intent_invalid:'绑定链接不完整，请重新扫码',request_conflict:'请刷新后重试'};return map[s]||s.replaceAll('_',' ');}
 function shell(showMain){$('authView').classList.toggle('hide',showMain);$('mainView').classList.toggle('hide',!showMain);$('workspaceView').classList.add('hide');}
 function navigate(page='home'){state.view=page;shell(true);for(const e of document.querySelectorAll('.page'))e.classList.toggle('hide',e.id!==page+'Page');for(const e of document.querySelectorAll('[data-page]'))e.classList.toggle('active',e.dataset.page===page);customerStoreBox?.setActive(page==='storebox');window.scrollTo({top:0,behavior:'smooth'});if(page==='wallet'){wallet().catch(e=>toast(errorText(e),true));loadMyLoyalty().catch(()=>{});}if(page==='home'){customerFreeflow?.refreshAccess().catch(()=>{});updateHome();homeCarousel?.refresh().catch(()=>{});}if(page==='account'){customerFreeflow?.refreshAccess().catch(()=>{});drawProfile();loadMyLoyalty().catch(()=>{});}}
 async function pinRequest(action,phone='',pin='',nickname='',extras={}){
@@ -46,7 +48,7 @@ async function pinRequest(action,phone='',pin='',nickname='',extras={}){
  if(bearer)headers.Authorization='Bearer '+bearer;
  const resp=await fetch(EDGE_URL,{method:'POST',headers,body:JSON.stringify({action,phone,pin,nickname,...fields}),cache:'no-store'});
  const data=await resp.json().catch(()=>({ok:false,error:'server_unavailable'}));
- if(!resp.ok||!data.ok)throw new Error(data.message||errorText(data.error)||'操作失败');
+ if(!resp.ok||!data.ok)throw Object.assign(new Error(data.message||errorText(data.error)||'操作失败'),{code:data.error});
  return data;
 }
 function normalizePhone(country,value){
@@ -80,6 +82,39 @@ function changeAuthMode(mode='phone'){
  $('pinHint').textContent=tr(signup?'pin_create_hint':'pin_login_hint');
  $('authError').textContent='';
 }
+let bindingContinuation=null;
+const bindingCopy=(zh,en)=>i18n.lang==='en'?en:zh;
+function pendingBinding(){const current=state.pendingClaim;if(['bind','freeflow','guest_import'].includes(current?.kind))return current;return readBindingIntent(sessionStorage)||(hasPendingGuestImport(localStorage)?{kind:'guest_import'}:null);}
+function rememberBinding(info){const intent=saveBindingIntent(sessionStorage,info);state.pendingClaim=intent;renderBindingNotice();return intent;}
+function clearPendingBinding(intent){if(intent.kind!=='guest_import')clearBindingIntent(sessionStorage,intent);if(state.pendingClaim?.kind===intent.kind&&state.pendingClaim?.token===intent.token)state.pendingClaim=null;if(intent.token){const u=new URL(location.href);if(u.searchParams.get(intent.kind)===intent.token){u.searchParams.delete(intent.kind);history.replaceState(null,'',u.href);}}renderBindingNotice();}
+function renderBindingNotice(){
+ const intent=pendingBinding(),auth=document.querySelector('#authView .auth-card'),home=document.getElementById('homePage');
+ for(const [root,id] of [[auth,'authBindingContext'],[home,'homeBindingContext']]){if(!root)continue;let panel=document.getElementById(id);if(!intent){panel?.remove();continue;}if(!panel){panel=document.createElement('section');panel.id=id;panel.className='binding-context';root.prepend(panel);}
+ const reserved=intent.kind==='guest_import'||intent.stage==='reserved'||intent.stage==='bound';
+ const title=intent.kind==='bind'?bindingCopy('这笔消费尚待确认绑定','Your purchase link is waiting'):reserved?bindingCopy('本次 FreeFlow 资格已保留','Your FreeFlow access is saved'):bindingCopy('继续绑定 FreeFlow','Continue your FreeFlow link');
+ panel.innerHTML='<span class="binding-context-icon" aria-hidden="true">↗</span><div><strong>'+esc(title)+'</strong><p>'+esc(state.user?bindingCopy('继续完成最后一步，绑定结果会在这里明确显示。','Continue to finish linking and see its result.'):reserved?bindingCopy('登录或注册后，资格与记录会同步到会员，无需重新扫码。','Log in or sign up to keep this visit and its records. No need to scan again.'):bindingCopy('登录或注册后继续处理，不会因为刷新丢失这一步。','Log in or sign up to continue. Refreshing will keep this step.'))+'</p>'+(intent.bindError?'<small>'+esc(intent.bindError==='freeflow_full'?bindingCopy('名额已满；若你已绑定过，可登录原会员账号查看。','The group is full. If already linked, sign in to the original account.'):bindingCopy('绑定码已到期，请店员刷新；已有资格的会员仍可登录查看。','This QR expired. Ask staff for a new one. Existing members may still sign in.'))+'</small>':'')+'</div>'+(state.user?'<button type="button">'+esc(bindingCopy('继续绑定','Continue linking'))+'</button>':'');
+ panel.querySelector('button')?.addEventListener('click',()=>resumePendingBinding().catch(e=>showBindingRecovery(intent,e)));
+ }
+}
+function showBindingRecovery(intent,error){
+ showSheet(bindingCopy('绑定尚未完成','Linking is not finished'),'CONTINUE LINKING');
+ const message=intent.kind==='freeflow'||intent.kind==='guest_import'?customerFreeflow.formatError(error):errorText(error);
+ sheetHtml('<div class="sheet-content binding-recovery"><span class="binding-recovery-icon">↻</span><h3>'+esc(bindingCopy('账号已登录，资格还在继续处理中','You are signed in. Finish linking your visit.'))+'</h3><p>'+esc(message)+'</p><p class="tiny-help">'+esc(bindingCopy('尚未显示绑定成功前，请重试；若绑定码已到期，请让店员重新生成。','Retry until linking is confirmed. If the QR code expired, ask staff for a new one.'))+'</p><button id="bindingRetry" type="button" class="button button-primary wide">'+esc(bindingCopy('重试绑定','Retry linking'))+'</button><button id="bindingLater" type="button" class="button button-outline wide">'+esc(bindingCopy('稍后处理','Do this later'))+'</button></div>');
+ $('bindingRetry').onclick=e=>pending(e.currentTarget,()=>resumePendingBinding()).catch(next=>showBindingRecovery(intent,next));
+ $('bindingLater').onclick=()=>{closeSheet();navigate('home');renderBindingNotice();};renderBindingNotice();
+}
+async function resumePendingBinding(){
+ if(bindingContinuation)return bindingContinuation;
+ const intent=pendingBinding();if(!intent||!state.user){renderBindingNotice();return false;}
+ bindingContinuation=(async()=>{
+  if(intent.kind==='bind'){await showOrderBinding(intent.token);return true;}
+  if(intent.userId&&intent.userId!==state.user.id)throw Error(bindingCopy('请登录刚才绑定的会员账号，或联系店员协助。','Use the member account that linked this visit, or ask staff for help.'));
+  if(intent.kind==='guest_import')await customerFreeflow.completeGuestLogin();
+  else if(['reserved','bound'].includes(intent.stage))await customerFreeflow.completeMemberLogin(intent);
+  else await customerFreeflow.requestBind(intent.token);
+  clearPendingBinding(intent);return true;
+ })();try{return await bindingContinuation;}finally{bindingContinuation=null;}
+}
 async function submitPhone(ev){ev.preventDefault();const button=$('checkPhone');try{
  await pending(button,async()=>{
   const phone=phoneNumber(),result=await pinRequest('check',phone);
@@ -108,24 +143,26 @@ async function submitAuth(ev){ev.preventDefault();const b=$('authSubmit');try{
   const {error}=await db.auth.setSession({access_token:data.access_token,refresh_token:data.refresh_token});
   if(error)throw error;
   $('pin').value='';$('pinConfirm').value='';
-  await initialize();toast(signup?'欢迎加入 Yetipsy Play ✳':'欢迎回来 ✳');
+  await initialize();if(!state.user)throw Error('not_authenticated');toast(signup?'欢迎加入 Yetipsy Play ✳':'欢迎回来 ✳');
    if(signup){state.referralDraft='';const next=new URL(location.href);next.searchParams.delete('invite');next.searchParams.delete('invite_token');history.replaceState(null,'',next.search?next.href:new URL('./',location.href).href);}
    loadMyLoyalty().catch(()=>{});
    if(state.pendingLucky){const claim=state.pendingLucky;state.pendingLucky=null;try{await luckyBox.claimPending(claim);}catch(e){toast(errorText(e),true);}}
-   if(state.pendingClaim){const claim=state.pendingClaim;state.pendingClaim=null;try{await (['claim','bundle','freeflow'].includes(claim.kind)?previewClaim(claim.token,claim.kind):redeemScanValue(claim.token,claim.kind));}catch(e){toast(errorText(e),true);}}
-   const bindToken=new URL(location.href).searchParams.get('bind');if(bindToken)await showOrderBinding(bindToken);
+   const binding=pendingBinding();
+   if(binding){try{await resumePendingBinding();}catch(e){showBindingRecovery(binding,e);}}
+   else if(state.pendingClaim){const claim=state.pendingClaim;state.pendingClaim=null;try{await (['claim','bundle','freeflow'].includes(claim.kind)?previewClaim(claim.token,claim.kind):redeemScanValue(claim.token,claim.kind));}catch(e){toast(errorText(e),true);}}
+
  });
-}catch(err){$('authError').textContent=errorText(err);}}
-async function initialize(){if(!db)return;const {data:{user},error}=await db.auth.getUser();if(error&&!/Auth session missing/i.test(error.message||''))console.warn('Session:',error.message);state.user=user||null;if(user)customerFreeflow?.hideGuestView();
+}catch(err){if(err.code==='already_registered'){changeAuthMode('login');$('authError').textContent=bindingCopy('号码已注册，请用原 PIN 登录；待绑定资格会继续保留。','This number is registered. Sign in with its PIN; your pending link is still saved.');renderBindingNotice();}else $('authError').textContent=errorText(err);}}
+async function initialize(){if(!db)return;const {data:{user},error}=await db.auth.getUser();if(error&&!/Auth session missing/i.test(error.message||''))throw error;state.user=user||null;if(user)customerFreeflow?.hideGuestView();
  if(!user){state.role=null;state.profile=null;state.wallet=[];state.passes=[];customerStoreBox?.clear();customerFreeflow?.clear();shell(false);return;}
- const [role,profile]=await Promise.all([
+ state.role=null;state.profile=null;const [role,profile]=await Promise.allSettled([
  db.from('staff_roles').select('role').eq('user_id',user.id).eq('active',true).maybeSingle(),
  db.from('profiles').select('id,display_name,phone').eq('id',user.id).maybeSingle()
  ]);
- state.role=unpack(role)?.role||null;state.profile=unpack(profile)||null;
+ state.role=role.status==='fulfilled'&&!role.value.error?role.value.data?.role||null:null;state.profile=profile.status==='fulfilled'&&!profile.value.error?profile.value.data||null:null;
  $('accountStaff').classList.toggle('hide',!isStaff());$('accountOwner').classList.toggle('hide',!isOwner());
- await Promise.all([refreshPasses(),loadGames(),wallet(true)]);
- await customerFreeflow?.importPending().catch(e=>toast(customerFreeflow.formatError(e),true));await customerFreeflow?.refreshAccess().catch(()=>{});navigate('home');
+ await Promise.allSettled([refreshPasses(),loadGames(),wallet(true)]);
+ await customerFreeflow?.refreshAccess().catch(()=>{});navigate('home');renderBindingNotice();
  if(new URL(location.href).searchParams.has('redeem')&&isStaff()){openWorkspace('staff');$('staffRedeemInput').value=new URL(location.href).searchParams.get('redeem');showStaffRedeem();}
 }
 function drawProfile(){const p=state.profile||{};$('profileName').textContent=p.display_name||'Yetipsy Member';$('profilePhone').textContent=p.phone||'PLAY CLUB MEMBER';$('profileLevel').textContent=isOwner()?'OWNER MEMBER':isStaff()?'STAFF MEMBER':'PLAY CLUB MEMBER';}
@@ -201,7 +238,7 @@ async function previewClaim(raw,assumed=null){
  const info=tokenDetails(raw);if(assumed&&info.kind!=='gift_code')info.kind=assumed;
  if(info.kind==='freeflow')return customerFreeflow.requestBind(info.token);
  if(info.kind==='freeflow_restore')return customerFreeflow.restore(info.token);
- if(info.kind==='bind'){if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录后即可绑定这笔消费。';window.scrollTo(0,0);return;}return showOrderBinding(info.token);}
+ if(info.kind==='bind'){rememberBinding(info);if(!state.user){await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录后即可绑定这笔消费。';window.scrollTo(0,0);return;}return showOrderBinding(info.token);}
  if(info.kind==='box'){if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='登录或注册后，即可领取这个存酒箱。';window.scrollTo(0,0);return;}return customerStoreBox.openClaim(info.token);}
  if(['claim','bundle'].includes(info.kind)&&await luckyBox?.preview(info.token,info.kind))return;
  if(info.kind==='gift_code')return redeemScanValue(info.token);
@@ -223,7 +260,7 @@ async function previewClaim(raw,assumed=null){
 async function redeemScanValue(raw,assumed){const info=tokenDetails(raw);if(assumed&&info.kind!=='gift_code')info.kind=assumed;
  if(!state.user){state.pendingClaim=info;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='只差一步！登录或注册后会继续领取这份奖励。';return;}
 
- if(info.kind==='bind')return showOrderBinding(info.token);
+ if(info.kind==='bind'){rememberBinding(info);return showOrderBinding(info.token);}
 
  if(info.kind==='box')return customerStoreBox.openClaim(info.token);
 
@@ -255,16 +292,20 @@ async function showMemberCode(){
  await draw();
 }
 async function showOrderBinding(token){
+ rememberBinding({kind:'bind',token});
  showSheet(i18n.lang==='zh'?'绑定消费':'Link purchase','PURCHASE');
- sheetHtml('<div class="sheet-content"><p id="bindText"></p><button id="bindConfirm" class="button button-primary wide"></button><button id="bindHome" class="button button-outline wide"></button></div>');
+ sheetHtml('<div class="sheet-content"><p id="bindText"></p><p id="bindStatus" class="binding-inline-status" role="status"></p><button id="bindConfirm" class="button button-primary wide"></button><button id="bindHome" class="button button-outline wide"></button></div>');
  $('bindText').textContent=i18n.lang==='zh'?'请确认这是你本人的真实消费订单。挂单可先绑定，整单付款后才计入有效消费。':'Confirm this is your purchase. Open tabs can be linked now; the purchase counts only after full payment.';
  $('bindConfirm').textContent=i18n.lang==='zh'?'确认绑定':'Confirm link';$('bindHome').textContent=i18n.lang==='zh'?'返回首页':'Back to home';
- $('bindHome').onclick=()=>returnFromClaim('bind');
+ $('bindHome').textContent=bindingCopy('稍后处理','Do this later');$('bindHome').onclick=()=>{closeSheet();navigate('home');renderBindingNotice();};
  $('bindConfirm').onclick=e=>pending(e.currentTarget,async()=>{
+  $('bindStatus').textContent=bindingCopy('正在确认绑定…','Confirming your link…');
   const result=unpack(await db.rpc('yt_play_bind_order',{p_token:token}));
+  clearPendingBinding({kind:'bind',token});
+  if(!$('bindConfirm'))return;
   $('bindText').textContent=result.valid_purchase?(i18n.lang==='zh'?'已完成消费绑定':'Purchase linked'):(i18n.lang==='zh'?'已预先绑定，付款后生效':'Linked; counts after payment');
-  $('bindConfirm').remove();$('bindHome').textContent=i18n.lang==='zh'?'返回首页':'Back to home';
- }).catch(()=>{});
+  $('bindStatus').textContent='';$('bindConfirm').remove();$('bindHome').onclick=()=>returnFromClaim('bind');$('bindHome').textContent=i18n.lang==='zh'?'返回首页':'Back to home';
+ }).catch(error=>{if($('bindStatus'))$('bindStatus').textContent=errorText(error);if($('bindConfirm'))$('bindConfirm').textContent=bindingCopy('重试绑定','Retry link');});
 }
 async function showInvites(){
  showSheet(i18n.lang==='zh'?'我的邀请记录':'My invitations','INVITE FRIENDS');
@@ -800,7 +841,7 @@ function bindEvents(){
  $('homeLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountLeaderboard').onclick=()=>showLeaderboard().catch(e=>toast(errorText(e),true));$('accountRecords').onclick=()=>showMyRecords().catch(e=>toast(errorText(e),true));$('homeWallet').onclick=()=>navigate('wallet');$('walletRefresh').onclick=()=>wallet().catch(e=>toast(errorText(e),true));$('accountScan').onclick=()=>openScanner('claim');let customButton=$('accountCustom');if(!customButton){customButton=document.createElement('button');customButton.id='accountCustom';customButton.type='button';customButton.innerHTML='<span>◇</span><b>我的订制 · MY CUSTOM</b><i>↗</i>';const actions=$('accountPage')?.querySelector('.account-actions');if(actions)actions.insertBefore(customButton,$('signOut'));}customButton.onclick=()=>loadMyCustom().catch(e=>toast(errorText(e),true));
  $('accountStaff').onclick=()=>openWorkspace('staff');$('accountOwner').onclick=()=>openWorkspace('owner');
  $('workspaceBack').onclick=()=>navigate('account');
- if($('guestMemberLogin'))$('guestMemberLogin').onclick=async()=>{await closeSheet();customerFreeflow?.hideGuestView();shell(false);changeAuthMode('phone');};
+ if($('guestMemberLogin'))$('guestMemberLogin').onclick=()=>customerFreeflow?.loginFromGuest().catch(e=>toast(errorText(e),true));
  $('signOut').onclick=async()=>{if(!confirm('确认退出 Yetipsy Play？'))return;await closeSheet();const {error}=await db.auth.signOut();if(error)return toast(error.message,true);state.user=null;state.profile=null;state.role=null;customerStoreBox?.clear();customerFreeflow?.clear();shell(false);changeAuthMode('login');toast('已安全退出');};
  $('sheetClose').onclick=()=>{if(state.gamePlaying)return toast('游戏正在进行，请完成后再离开',true);closeSheet();};
  $('sheetBackdrop').onclick=e=>{if(e.target===$('sheetBackdrop')&&!state.gamePlaying)closeSheet();};
@@ -818,24 +859,26 @@ function bindEvents(){
  $('ownerOpenPrizes').onclick=()=>prizeBoard().catch(e=>toast(errorText(e),true));
  $('reloadInsights').onclick=e=>pending(e.currentTarget,loadInsights).catch(()=>{});$('staffAccessGrant').onclick=e=>pending(e.currentTarget,grantStaff).catch(()=>{});
 }
-async function boot(){serviceBell=createServiceBellClient({db,getUser:()=>state.user});i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});customerFreeflow=createCustomerFreeflow({db,onImportLogin:()=>{shell(false);changeAuthMode('phone');},getLocale:()=>i18n.lang,setLocale:next=>i18n.set(next),getUser:()=>state.user,showSheet,sheetHtml,toast,closeSheet,onNeedLogin:token=>{state.pendingClaim={kind:'freeflow',token};shell(false);changeAuthMode('phone');},onGuestMode:enabled=>{document.body.classList.toggle('freeflow-guest-mode',enabled);$('guestFreeflowView')?.classList.toggle('hide',!enabled);if(!enabled&&!state.user){shell(false);changeAuthMode('phone');}}});customerFreeflow.mount();ambassadorClient=createAmbassadorClient({db,toast:(message,bad)=>toast(message,bad)});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();setupBell();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
+async function boot(){serviceBell=createServiceBellClient({db,getUser:()=>state.user});i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});customerFreeflow=createCustomerFreeflow({db,onImportLogin:()=>{state.pendingClaim={kind:'guest_import'};shell(false);changeAuthMode('phone');renderBindingNotice();},getLocale:()=>i18n.lang,setLocale:next=>i18n.set(next),getUser:()=>state.user,showSheet,sheetHtml,toast,closeSheet,onNeedLogin:token=>{state.pendingClaim=readBindingIntent(sessionStorage)||rememberBinding({kind:'freeflow',token});shell(false);changeAuthMode('phone');renderBindingNotice();},onGuestMode:enabled=>{document.body.classList.toggle('freeflow-guest-mode',enabled);$('guestFreeflowView')?.classList.toggle('hide',!enabled);if(!enabled&&!state.user){shell(false);changeAuthMode('phone');}}});customerFreeflow.mount();ambassadorClient=createAmbassadorClient({db,toast:(message,bad)=>toast(message,bad)});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();setupBell();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
- const resumedGuest=await customerFreeflow.resumeGuest().catch(()=>false);
+ const waitingBinding=pendingBinding();const resumedGuest=waitingBinding?false:await customerFreeflow.resumeGuest().catch(()=>false);
  db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();customerFreeflow?.clear();shell(false);changeAuthMode('phone');setTimeout(()=>customerFreeflow?.resumeGuest().then(ok=>{if(ok&&!state.user)return customerFreeflow.open();}).catch(()=>{}),0);}});
   const qs=new URL(location.href).searchParams;
   const invite=(qs.get('invite')||'').toUpperCase();
   if(/^YT[A-Z0-9]{8}$/.test(invite)&&/^[0-9a-f-]{36}$/i.test(qs.get('invite_token')||'')){if(state.user){history.replaceState(null,'',new URL('./',location.href).href);toast('已有会员无需再次注册，邀请关系不会改变。');}else{state.referralDraft=invite;$('referralCode').value=invite;}}
   else if(qs.has('invite')){showSheet('邀请链接无效','INVITATION');sheetHtml('<div class="sheet-content"><p>请好友重新分享有效邀请链接。</p><button id="invalidInviteHome" class="button button-outline wide">返回首页</button></div>');$('invalidInviteHome').onclick=()=>{stripLink('invite');stripLink('invite_token');closeSheet();navigate('home');};}
-  if(qs.has('bind')&&state.user)showOrderBinding(qs.get('bind')).catch(e=>toast(errorText(e),true));
+  renderBindingNotice();
   if(state.user)loadMyLoyalty().catch(()=>{});
  if(qs.has('reset')){try{await showResetFlow(qs.get('reset'));}catch(e){toast(errorText(e),true);}}
  else if(qs.has('freeflow_restore')){try{await customerFreeflow.restore(qs.get('freeflow_restore'));}catch(e){toast(errorText(e),true);}}
- else if(qs.has('freeflow')){try{await previewClaim(qs.get('freeflow'),'freeflow');}catch(e){toast(errorText(e),true);}}
+ else if(qs.has('freeflow')){const saved=pendingBinding();try{if(saved?.token===qs.get('freeflow')&&['reserved','bound'].includes(saved.stage)){if(state.user)await resumePendingBinding();else{shell(false);renderBindingNotice();}}else await previewClaim(qs.get('freeflow'),'freeflow');}catch(e){if(state.user&&pendingBinding())showBindingRecovery(pendingBinding(),e);else toast(errorText(e),true);}}
+ else if(qs.has('bind')){try{await previewClaim(qs.get('bind'),'bind');}catch(e){toast(errorText(e),true);}}
  else if(qs.has('box')){try{await previewClaim(qs.get('box'),'box');}catch(e){toast(errorText(e),true);}}
  else if(qs.has('claim')||qs.has('bundle')||qs.has('gift')){
   const kind=qs.has('claim')?'claim':qs.has('bundle')?'bundle':'gift';try{await previewClaim(qs.get(kind),kind);}catch(e){toast(errorText(e),true);}
  }
+ if(!['reset','freeflow','freeflow_restore','bind','box','claim','bundle','gift'].some(k=>qs.has(k))&&pendingBinding()){const intent=pendingBinding();if(state.user){try{await resumePendingBinding();}catch(e){showBindingRecovery(intent,e);}}else if(intent.kind==='freeflow'&&intent.stage==='reserving'){try{await customerFreeflow.requestBind(intent.token);}catch(e){toast(errorText(e),true);}}else renderBindingNotice();}
  if(resumedGuest&&!state.user&&qs.size===0)await customerFreeflow.open();
 }
 boot().catch(e=>{window.YT_CLIENT_READY='failed';console.error('Boot:',e);shell(false);$('authError').textContent='系统暂时无法启动：'+errorText(e);});

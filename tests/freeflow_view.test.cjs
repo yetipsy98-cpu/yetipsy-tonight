@@ -10,3 +10,5 @@ test('session dates use Malaysia time and history totals exclude pending cups',a
 test('English FreeFlow errors do not show untranslated server messages',async()=>{
  const {ffError}=await import('../play/freeflow-core.mjs');assert.match(ffError(Error('freeflow_wait_for_cup'),'en'),/Wait for your current drink/);assert.match(ffError(Error('freeflow_wait_for_cup')),/等待/);assert.equal(/[\u4e00-\u9fff]/.test(ffError(Error('unknown'),'en')),false);
 });
+
+test('group ordering help explains shared quota, served release and group-only scoring bilingually',async()=>{const {freeflowText:t}=await import('../play/freeflow-view.mjs');assert.match(t('zh','proxy_order_help'),/不指定.*个人成绩/);assert.match(t('zh','shared_limit_help'),/确认出品后才释放/);assert.match(t('zh','proxy_example'),/A 点 2 杯.*B 点 1 杯/);for(const key of ['proxy_order_help','shared_limit_help','proxy_example','guest_choice_hint','member_choice_hint']){assert.notEqual(t('en',key),key);assert.doesNotMatch(t('en',key),/[\u4e00-\u9fff]/);}});
