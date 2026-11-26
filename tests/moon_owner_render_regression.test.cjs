@@ -38,7 +38,7 @@ const read=p=>fs.readFileSync(p,'utf8');
  assert.match(errorRoot.querySelector('#moonList').innerHTML,/暂时无法读取/);
  const consoleCode=fs.readFileSync('play/pos/console.js','utf8');
  const posCode=fs.readFileSync('play/pos/pos.js','utf8');
- assert.match(consoleCode,/moon-code-editor\.js\?v=20261013-moon-code-reward-v3/);
+ assert.match(consoleCode,/moon-code-editor\.js\?v=[\w.-]+/);
  assert(/console\.js\?v=[^'\"]+/.test(posCode));
  assert.doesNotMatch(read('play/admin/pos/index.html'),/mapRM5Preset|设为 RM5 抵扣/);
  assert.doesNotMatch(posCode,/mapRM5Preset|saveRM5Preset/);

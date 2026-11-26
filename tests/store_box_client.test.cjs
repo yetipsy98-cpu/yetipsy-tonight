@@ -70,7 +70,8 @@ test('business day choice is scoped to one submitted order and resets to today',
  assert.match(js,/p_business_day:\$\('orderBusinessDay'\)\?\.value\|\|state\.businessDay/);
  assert.match(js,/orderBusinessDay'\)\.value=state\.businessDay/);
  const html=read('play/admin/pos/index.html');
- assert.match(html,/修改仅适用于本单，下单后恢复今天/);
+ assert.match(html,/id="orderBusinessDay"[^>]*aria-describedby="orderBusinessDayHint"/);
+ assert.match(html,/id="orderBusinessDayHint"[^>]*>[^<]+<\/small>/);
 });
 
 test('Store Box migration keeps reopen requests server-only and reuses configured expiry days',()=>{

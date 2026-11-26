@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const html=fs.readFileSync('play/index.html','utf8'),app=fs.readFileSync('play/app.js','utf8'),moduleSource=fs.readFileSync('play/customer-store-box.js','utf8');
 
 test('customer has one compact Store Box page in the main navigation',()=>{
- assert.match(html,/id="storeboxPage"/);assert.match(html,/id="customerStoreBoxRoot"/);assert.match(html,/data-page="storebox"/);assert.match(html,/app\.js\?v=20261110-freeflow-guest-v6/);
+ assert.match(html,/id="storeboxPage"/);assert.match(html,/id="customerStoreBoxRoot"/);assert.match(html,/data-page="storebox"/);require('./helpers/versioned_entry.cjs')(html,'app.js');
  const ids=[...html.matchAll(/id="([^"]+)"/g)].map(match=>match[1]);assert.equal(ids.length,new Set(ids).size);
 });
 
@@ -41,10 +41,11 @@ test('customer Store Box only shows remaining and served quantities',()=>{
 });
 
 test('customer can choose a combo item only when the rule allows it',()=>{
- assert.match(moduleSource,/selection_mode!=='customer'/);
+ assert.match(moduleSource,/selection_mode==='fixed'/);
+ assert.match(moduleSource,/selection_mode==='levels'/);
  assert.match(moduleSource,/availableComponents/);
  assert.match(moduleSource,/data-store-box-choice/);
- assert.match(moduleSource,/跟随套餐顺序/);
+ assert.match(moduleSource,/selectionText\(fixedPlan\(/);
  assert.match(moduleSource,/customer-box-claim-parts/);
  assert.match(moduleSource,/customer-box-history/);
 });

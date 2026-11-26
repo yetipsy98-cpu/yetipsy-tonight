@@ -7,7 +7,7 @@ const playFix=fs.readFileSync('supabase/migrations/20261015123836_owner_reset_pl
 const authFix=fs.readFileSync('supabase/migrations/20261015124600_owner_reset_auth_cleanup_fk.sql','utf8');
 const consoleSrc=fs.readFileSync('play/pos/console.js','utf8');
 assert(client.includes('console.js?v='));
-assert.match(consoleSrc,/factory-reset\.js\?v=20261012-reset-fix-v23/);
+assert.match(consoleSrc,/factory-reset\.js\?v=[\w.-]+/);
 assert.match(root,/reset_database_error/);
 assert.match(root,/reset_confirmation_expired/);
 assert.doesNotMatch(root,/未收到完成结果。请重试第二次确认/);

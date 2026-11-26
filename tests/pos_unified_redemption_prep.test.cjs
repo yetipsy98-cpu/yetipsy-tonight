@@ -2,8 +2,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const source=fs.readFileSync('play/pos/pos.js','utf8');
 const db=fs.readFileSync('sql/060_unified_moon_preorder_submit.sql','utf8');
 const storeBox=fs.readFileSync('play/pos/store-box.js','utf8');
-const page='admin/pos',html=fs.readFileSync('play/admin/pos/index.html','utf8');for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);assert(html.includes('pos.js?v=20261023-owner-direct-adjustment-v3'),'active JS entry freshness '+page);for(const alias of ['admin/owner','admin/staff','admin/cashier'])assert(fs.readFileSync('play/'+alias+'/index.html','utf8').includes('../pos/'),alias+' redirects to canonical POS');
-assert(fs.readFileSync('play/admin/pos/index.html','utf8').includes('console.css?v=20261017-rule-delete-v1&layout=drink-name-v2'),'canonical management styles cache freshness');
+const page='admin/pos',html=fs.readFileSync('play/admin/pos/index.html','utf8');for(const id of ['categoryProductButtons','draftRedeemToken','cashierPackagePrep','cashierPackagePrepItems'])assert(html.includes('id="'+id+'"'),page+' missing '+id);require('./helpers/workbench_assets.cjs')(html);for(const alias of ['admin/owner','admin/staff','admin/cashier'])assert(fs.readFileSync('play/'+alias+'/index.html','utf8').includes('../pos/'),alias+' redirects to canonical POS');
+require('./helpers/workbench_assets.cjs')(html);
 assert(source.includes('renderCategoryButtons();'),'category chips should render');
 assert(source.includes("$('categoryProductButtons').onclick"),'category buttons should handle clicks');
 const css=fs.readFileSync('play/pos/pos.css','utf8');
@@ -18,6 +18,7 @@ assert(source.includes("yt_pos_checkout_with_prep"),'Cashier preps at checkout')
 assert(source.includes("async function promptCashierPackagePrep(orderId)"),'Package and Challenge prompt after order creation');
 assert(source.includes("yt_store_box_prep_intent_save")&&source.includes("yt_store_box_prep_intent_get"),'prep choices persist through pay-later');
 assert(source.includes("if(item.mode==='challenge'&&count!==1)"),'Challenge client validation');
+assert(source.includes('cashierPackagePrepPlan(quote.items,root)'),'prep dialog uses the shared validator');
 assert(source.includes("p_preps:cashierPackageSelections()"),'Cashier KDS preps sent atomically');
 assert(storeBox.includes("if(action==='serve'&&box?.cashier_managed&&!box.customer_id"),'cashier package claim waits for first-pour KDS completion');
 assert(storeBox.includes("p_order_item:box.source_order_item_id")&&storeBox.includes('p_minutes:15'),'remaining package claim QR generated for customer');

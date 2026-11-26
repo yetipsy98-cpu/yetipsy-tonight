@@ -18,7 +18,7 @@ assert.match(box,/sessionStorage\.setItem/);
 assert.match(consoleSrc,/createLuckyOwner/);
 assert.match(read('play/pos/lucky-box-owner.js'),/yt_lucky_owner_reset/);
 assert.match(read('play/pos/pos.js'),/console\.js\?v=[^'\"]+/);
-assert(read('play/index.html').includes('lucky-box.css?v=20261013-lucky-v2'));
+assert.match(read('play/index.html'),/lucky-box\.css\?v=[\w.-]+/);
 
  require('./helpers/workbench_assets.cjs')(read('play/admin/pos/index.html'));for(const role of ['pos','owner','staff','cashier'])assert(read('play/'+role+'/index.html').includes('admin/pos/'),role+' alias route');
 

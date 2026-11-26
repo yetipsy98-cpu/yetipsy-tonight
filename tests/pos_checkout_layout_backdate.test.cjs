@@ -4,7 +4,7 @@ const pos=fs.readFileSync('play/pos/pos.js','utf8');
 const css=fs.readFileSync('play/pos/pos.css','utf8');
 const date=html.indexOf('id="orderBusinessDayControl"'),table=html.indexOf('id="tableInput"'),items=html.indexOf('id="cartRows"'),note=html.indexOf('id="orderNote"'),redeem=html.indexOf('id="draftRedeemToggle"'),panel=html.indexOf('id="draftRedeemPanel"');
 assert(date<table,'business date is left of the table number in the top row');
-assert(table<items&&items<note,'order note appears under selected products');
+assert(items<table&&table<note,'cart products precede table details and optional order note');
 assert(note<redeem&&redeem<panel,'Redeem is available from a separate drawer button');
 assert.match(html,/id="draftRedeemPanel" class="draft-redeem hidden"/);
 assert(pos.includes("$('draftRedeemToggle').onclick=()=>setDraftRedeemOpen"));
@@ -15,5 +15,5 @@ assert(refresh.indexOf('const backdatePending=')<refresh.indexOf("$('orderCartSt
 assert.match(pos,/const hideBackdate=.*order-meta-single/);
 assert.match(css,/\.order-meta-grid\.order-meta-single\{grid-template-columns:minmax\(0,1fr\)\}/);
 assert.match(css,/\.draft-redeem-toggle/);
-assert.match(html,/pos\.js\?v=20261023-owner-direct-adjustment-v3/);
+require('./helpers/workbench_assets.cjs')(html);
 console.log('PASS POS order header layout, note position, Redeem drawer and backdate initialization');

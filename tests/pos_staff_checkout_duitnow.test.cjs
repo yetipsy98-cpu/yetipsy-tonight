@@ -1,8 +1,12 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
-const pos=fs.readFileSync('play/pos/pos.js','utf8'),html=fs.readFileSync('play/pos/index.html','utf8'),sql=fs.readFileSync('sql/098_staff_checkout_duitnow_review.sql','utf8');
+const pos=fs.readFileSync('play/pos/pos.js','utf8'),html=fs.readFileSync('play/admin/pos/index.html','utf8'),sql=fs.readFileSync('sql/098_staff_checkout_duitnow_review.sql','utf8');
 assert(pos.includes("if(scope==='unpaid')controls="),'all staff see the pending checkout action');
 assert(pos.includes("showTab('create');try{await refreshOrders(false);"),'every submitted order returns to the ordering screen');
-assert(pos.includes("function unpaidRows(){return (state.active||[]).filter(row=>row.payment_status==='unpaid'&&(row.status==='fulfilled'||row.status==='confirmed'));}"),'confirmed tabs and fulfilled orders remain payable');
+// Exercise the real queue filter, including the newer Amba/FreeFlow paid top-up case.
+const vm=require('node:vm'),ctx={state:{active:[]},isAmbassadorOrder:r=>r.kind==='amba',isStandaloneFreeflow:r=>r.kind==='freeflow'};vm.createContext(ctx);vm.runInContext(pos.slice(pos.indexOf('function unpaidRows('),pos.indexOf('function updateAlertDots(')),ctx);
+ctx.state.active=[{id:'tab',status:'confirmed',payment_status:'unpaid'},{id:'served-tab',status:'fulfilled',payment_status:'unpaid'},{id:'pending',status:'pending',payment_status:'unpaid'},{id:'paid',status:'fulfilled',payment_status:'paid',balance_rm:10},{id:'ff-topup',kind:'freeflow',status:'fulfilled',payment_status:'paid',balance_rm:45},{id:'amba-topup',kind:'amba',status:'fulfilled',payment_status:'paid',balance_rm:25},{id:'ff-settled',kind:'freeflow',status:'fulfilled',payment_status:'paid',balance_rm:0}];
+assert.deepEqual(Array.from(ctx.unpaidRows(),r=>r.id),['tab','served-tab','ff-topup','amba-topup']);
+assert(fs.readFileSync('play/pos/index.html','utf8').includes('admin/pos/'),'old POS URL remains a redirect');
 assert(!pos.includes("$('cartCheckoutPayment').value='duitnow';"),'refreshing the cart does not overwrite selected payment method');
 assert(!pos.includes("if(action==='accept'&&sourceRow?.checkout_mode==='pay_now'&&isCashier())await openOrderCart(orderId);"),'Cashier acceptance does not redirect to payment');
 assert(pos.includes("proofPending?'DuitNow 已提交，等待 Cashier 确认'"),'Staff sees submitted DuitNow proof state and cannot resubmit');

@@ -16,17 +16,20 @@ const eventSource = read('sql/093_ambassador_pos_event_source.sql');
 const ownerWindow = read('sql/095_ambassador_owner_pass_array_compat.sql');
 const dayClose = read('play/pos/day-close.js');
 
-// Pass scan works with an empty product cart; ordinary rewards retain the drink requirement.
+// Pass dispatch precedes reward RPCs; reward minimums are configured on the server.
 const scan = pos.slice(pos.indexOf('async function scanDraftReward()'), pos.indexOf('function renderDraftChoices'));
 assert(scan.indexOf('isAmbassadorToken(raw)') >= 0);
-assert(scan.indexOf('isAmbassadorToken(raw)') < scan.indexOf("if(!state.cart.size)throw Error('cart_requires_paid_drink')"));
+assert(scan.indexOf('isAmbassadorToken(raw)') < scan.indexOf('yt_pos_preorder_scan_auto'));
+assert.doesNotMatch(scan,/if\(!state\.cart\.size\)throw/,'zero-minimum rewards must reach server eligibility checks');
 assert.match(pos, /async function scanAmbassadorPass\(raw\)/);
 assert.match(pos, /Freeflow Pass 已加入购物车/);
 assert.match(pos, /data-amb-inc/);
 assert.match(pos, /state\.ambassadorDraft/);
 assert.match(pos, /yt_ambassador_pos_order_create/);
 assert.match(pos, /draftRedeemScan'\)\.disabled=locked\|\|mutating/);
-assert.match(pos, /productionRows\(\).*isAmbassadorOrder/);
+const vm=require('node:vm'),production={state:{active:[],catalog:[]}};vm.createContext(production);vm.runInContext(pos.slice(pos.indexOf('function productionItems('),pos.indexOf('function unpaidRows(')),production);
+production.state.active=[{status:'confirmed',items:[{name:'Freeflow Male',quantity:2,fulfilled:false},{name:'Freeflow Female',quantity:1,fulfilled:false}]}];assert.equal(production.productionRows().length,0,'Amba access lines never become kitchen drinks');
+production.state.active[0].items.push({name:'Ordered drink',quantity:1,fulfilled:false});assert.equal(production.productionRows().length,1,'actual drinks on a mixed order still enter KDS');
 
 // Freeflow uses the POS basket and normal payment drawer, and remains out of KDS.
 assert.match(pos, /state\.ambassadorDraft=.*?renderCart\(\);openCartDrawer\(\)/s, 'Freeflow is added to the standard POS cart and checkout drawer');
@@ -78,7 +81,7 @@ assert.match(client, /6\*86400000/, 'customer Pass selector only allows the seve
 assert.doesNotMatch(client, /180\*86400000|PRICE GUIDE/, 'customer gets date-specific prices without a duplicate price guide');
 assert.match(staff, /new URL\('\.\.\/ambassador-ui\.css/, 'staff Ambassador uses the same responsive styles as the client');
 assert.match(fs.readFileSync('play/ambassador-ui.css','utf8'), /@media\(max-width:600px\)/, 'shared Ambassador UI is mobile-first');
-assert.match(client, /YTAMB:/);
+assert.match(client, /q\.addData\(passRef\(x\)\)/,'customer QR uses the short reference understood by the POS scanner');
 assert.match(client, /data-pass-share/);
 assert.match(client, /sharePassCard\(x\)/);
 assert.match(client, /yta-pass-ticket/);
