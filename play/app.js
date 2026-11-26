@@ -1,8 +1,8 @@
 import {readBindingIntent,saveBindingIntent,clearBindingIntent} from './binding-intent.mjs?v=20261126-binding-continuation-v43';
-import {hasPendingGuestImport} from './freeflow-guest-storage.mjs?v=20261114-cart-append-v19';
+import {hasPendingGuestImport,readGuestCredential} from './freeflow-guest-storage.mjs?v=20261114-cart-append-v19';
 import {createServiceBellClient} from './service-bell-client.mjs?v=20261111-history-entry-fix-v13';
 import {readLocationPolicy,serviceLocation} from './location-policy.mjs?v=20261111-history-entry-fix-v13';
-import {createCustomerFreeflow} from './customer-freeflow.js?v=20261126-binding-continuation-v43';
+import {createCustomerFreeflow} from './customer-freeflow.js?v=20261126-guest-auth-return-v45';
 import {createLuckyBox} from './lucky-box.js?v=20261013-lucky-v2';
 import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
 import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261023-reward-min-zero-v1';
@@ -89,12 +89,27 @@ function rememberBinding(info){const intent=saveBindingIntent(sessionStorage,inf
 function clearPendingBinding(intent){if(intent.kind!=='guest_import')clearBindingIntent(sessionStorage,intent);if(state.pendingClaim?.kind===intent.kind&&state.pendingClaim?.token===intent.token)state.pendingClaim=null;if(intent.token){const u=new URL(location.href);if(u.searchParams.get(intent.kind)===intent.token){u.searchParams.delete(intent.kind);history.replaceState(null,'',u.href);}}renderBindingNotice();}
 function renderBindingNotice(){
  const intent=pendingBinding(),auth=document.querySelector('#authView .auth-card'),home=document.getElementById('homePage');
+ let guestReturn=document.getElementById('authGuestReturn');
+ if(auth&&!state.user&&readGuestCredential(localStorage)){
+  if(!guestReturn){guestReturn=document.createElement('button');guestReturn.id='authGuestReturn';guestReturn.type='button';guestReturn.className='button button-outline wide auth-guest-return';auth.prepend(guestReturn);}
+  guestReturn.textContent=bindingCopy('← 返回访客 FreeFlow 点单','← Back to guest FreeFlow');
+  guestReturn.onclick=e=>pending(e.currentTarget,returnToGuestFreeflow).catch(()=>{});
+ }else guestReturn?.remove();
  for(const [root,id] of [[auth,'authBindingContext'],[home,'homeBindingContext']]){if(!root)continue;let panel=document.getElementById(id);if(!intent){panel?.remove();continue;}if(!panel){panel=document.createElement('section');panel.id=id;panel.className='binding-context';root.prepend(panel);}
  const reserved=intent.kind==='guest_import'||intent.stage==='reserved'||intent.stage==='bound';
  const title=intent.kind==='bind'?bindingCopy('这笔消费尚待确认绑定','Your purchase link is waiting'):reserved?bindingCopy('本次 FreeFlow 资格已保留','Your FreeFlow access is saved'):bindingCopy('继续绑定 FreeFlow','Continue your FreeFlow link');
  panel.innerHTML='<span class="binding-context-icon" aria-hidden="true">↗</span><div><strong>'+esc(title)+'</strong><p>'+esc(state.user?bindingCopy('继续完成最后一步，绑定结果会在这里明确显示。','Continue to finish linking and see its result.'):reserved?bindingCopy('登录或注册后，资格与记录会同步到会员，无需重新扫码。','Log in or sign up to keep this visit and its records. No need to scan again.'):bindingCopy('登录或注册后继续处理，不会因为刷新丢失这一步。','Log in or sign up to continue. Refreshing will keep this step.'))+'</p>'+(intent.bindError?'<small>'+esc(intent.bindError==='freeflow_full'?bindingCopy('名额已满；若你已绑定过，可登录原会员账号查看。','The group is full. If already linked, sign in to the original account.'):bindingCopy('绑定码已到期，请店员刷新；已有资格的会员仍可登录查看。','This QR expired. Ask staff for a new one. Existing members may still sign in.'))+'</small>':'')+'</div>'+(state.user?'<button type="button">'+esc(bindingCopy('继续绑定','Continue linking'))+'</button>':'');
  panel.querySelector('button')?.addEventListener('click',()=>resumePendingBinding().catch(e=>showBindingRecovery(intent,e)));
  }
+}
+async function returnToGuestFreeflow(){
+ if(state.user||bindingContinuation)return false;
+ // Restore the existing credential; never join again or discard a pending import.
+ if(!await customerFreeflow.resumeGuest()){
+  $('authError').textContent=bindingCopy('本次访客资格已结束或失效。可查看访客记录，或请店员协助。','This guest visit has ended or is unavailable. View guest history or ask staff for help.');
+  return false;
+ }
+ await closeSheet();await customerFreeflow.open();return true;
 }
 function showBindingRecovery(intent,error){
  showSheet(bindingCopy('绑定尚未完成','Linking is not finished'),'CONTINUE LINKING');
@@ -109,7 +124,11 @@ async function resumePendingBinding(){
  bindingContinuation=(async()=>{
   if(intent.kind==='bind'){await showOrderBinding(intent.token);return true;}
   if(intent.userId&&intent.userId!==state.user.id)throw Error(bindingCopy('请登录刚才绑定的会员账号，或联系店员协助。','Use the member account that linked this visit, or ask staff for help.'));
-  if(intent.kind==='guest_import')await customerFreeflow.completeGuestLogin();
+  if(intent.kind==='guest_import'){
+   const reserved=readBindingIntent(sessionStorage);
+   await customerFreeflow.completeGuestLogin();
+   if(reserved?.kind==='freeflow'&&reserved.stage==='reserved')clearPendingBinding(reserved);
+  }
   else if(['reserved','bound'].includes(intent.stage))await customerFreeflow.completeMemberLogin(intent);
   else await customerFreeflow.requestBind(intent.token);
   clearPendingBinding(intent);return true;
@@ -862,7 +881,12 @@ function bindEvents(){
 async function boot(){serviceBell=createServiceBellClient({db,getUser:()=>state.user});i18n.apply();setupPwa();setupPwa();luckyBox=createLuckyBox({db,showSheet,sheetHtml,getUser:()=>state.user,notify:(e,b)=>toast(errorText(e),b),stripLink,onClaimed:()=>loadMyLoyalty(),onOpenShop:()=>openPointsShop().catch(e=>toast(errorText(e),true)),onNeedLogin:async claim=>{state.pendingLucky=claim;await closeSheet();shell(false);changeAuthMode('phone');$('authError').textContent='开箱成功！请登录或注册，领取刚刚抽中的积分。';window.scrollTo(0,0);}});bindEvents();homeCarousel=createHomeCarousel({db,root:$('homeCarousel')});customerStoreBox=createCustomerStoreBox({db,root:$('customerStoreBoxRoot'),getUser:()=>state.user,showSheet,sheetHtml,closeSheet,navigate,toast:(message,bad)=>toast(errorText(message),bad),stripLink,t:tr,getLocale:()=>i18n.locale});customerFreeflow=createCustomerFreeflow({db,onImportLogin:()=>{state.pendingClaim={kind:'guest_import'};shell(false);changeAuthMode('phone');renderBindingNotice();},getLocale:()=>i18n.lang,setLocale:next=>i18n.set(next),getUser:()=>state.user,showSheet,sheetHtml,toast,closeSheet,onNeedLogin:token=>{state.pendingClaim=readBindingIntent(sessionStorage)||rememberBinding({kind:'freeflow',token});shell(false);changeAuthMode('phone');renderBindingNotice();},onGuestMode:enabled=>{document.body.classList.toggle('freeflow-guest-mode',enabled);$('guestFreeflowView')?.classList.toggle('hide',!enabled);if(!enabled&&!state.user){shell(false);changeAuthMode('phone');}}});customerFreeflow.mount();ambassadorClient=createAmbassadorClient({db,toast:(message,bad)=>toast(message,bad)});if(configured)homeCarousel.refresh().catch(()=>{});changeAuthMode('phone');initialiseOfferDates();setupBell();if(!configured){$('authError').textContent='配置缺失，请联系店主';shell(false);return;}
  const {data:{session}}=await db.auth.getSession();
  if(session){try{await initialize();}catch(e){console.error('Initialization:',e);toast('连接失败：'+errorText(e),true);}}else shell(false);
- const waitingBinding=pendingBinding();const resumedGuest=waitingBinding?false:await customerFreeflow.resumeGuest().catch(()=>false);
+ const waitingBinding=pendingBinding();
+ // An unfinished optional member login must not block an already-bound guest.
+ const entryParams=new URL(location.href).searchParams;
+ const guestPage=!['reset','freeflow_restore','bind','box','claim','bundle','gift','invite'].some(key=>entryParams.has(key))&&(!entryParams.has('freeflow')||!waitingBinding||waitingBinding.kind==='freeflow'&&waitingBinding.token===entryParams.get('freeflow'));
+ const guestMayResume=guestPage&&(!waitingBinding||waitingBinding.kind==='guest_import'||waitingBinding.kind==='freeflow'&&waitingBinding.stage==='reserved');
+ const resumedGuest=guestMayResume?await customerFreeflow.resumeGuest().catch(()=>false):false;
  db.auth.onAuthStateChange(event=>{if(event==='SIGNED_OUT'){state.user=null;state.role=null;state.profile=null;customerStoreBox?.clear();customerFreeflow?.clear();shell(false);changeAuthMode('phone');setTimeout(()=>customerFreeflow?.resumeGuest().then(ok=>{if(ok&&!state.user)return customerFreeflow.open();}).catch(()=>{}),0);}});
   const qs=new URL(location.href).searchParams;
   const invite=(qs.get('invite')||'').toUpperCase();
@@ -872,14 +896,14 @@ async function boot(){serviceBell=createServiceBellClient({db,getUser:()=>state.
   if(state.user)loadMyLoyalty().catch(()=>{});
  if(qs.has('reset')){try{await showResetFlow(qs.get('reset'));}catch(e){toast(errorText(e),true);}}
  else if(qs.has('freeflow_restore')){try{await customerFreeflow.restore(qs.get('freeflow_restore'));}catch(e){toast(errorText(e),true);}}
- else if(qs.has('freeflow')){const saved=pendingBinding();try{if(saved?.token===qs.get('freeflow')&&['reserved','bound'].includes(saved.stage)){if(state.user)await resumePendingBinding();else{shell(false);renderBindingNotice();}}else await previewClaim(qs.get('freeflow'),'freeflow');}catch(e){if(state.user&&pendingBinding())showBindingRecovery(pendingBinding(),e);else toast(errorText(e),true);}}
+ else if(qs.has('freeflow')){const saved=pendingBinding();try{if(saved?.token===qs.get('freeflow')&&['reserved','bound'].includes(saved.stage)){if(state.user)await resumePendingBinding();else if(!resumedGuest){shell(false);renderBindingNotice();}}else await previewClaim(qs.get('freeflow'),'freeflow');}catch(e){if(state.user&&pendingBinding())showBindingRecovery(pendingBinding(),e);else toast(errorText(e),true);}}
  else if(qs.has('bind')){try{await previewClaim(qs.get('bind'),'bind');}catch(e){toast(errorText(e),true);}}
  else if(qs.has('box')){try{await previewClaim(qs.get('box'),'box');}catch(e){toast(errorText(e),true);}}
  else if(qs.has('claim')||qs.has('bundle')||qs.has('gift')){
   const kind=qs.has('claim')?'claim':qs.has('bundle')?'bundle':'gift';try{await previewClaim(qs.get(kind),kind);}catch(e){toast(errorText(e),true);}
  }
  if(!['reset','freeflow','freeflow_restore','bind','box','claim','bundle','gift'].some(k=>qs.has(k))&&pendingBinding()){const intent=pendingBinding();if(state.user){try{await resumePendingBinding();}catch(e){showBindingRecovery(intent,e);}}else if(intent.kind==='freeflow'&&intent.stage==='reserving'){try{await customerFreeflow.requestBind(intent.token);}catch(e){toast(errorText(e),true);}}else renderBindingNotice();}
- if(resumedGuest&&!state.user&&qs.size===0)await customerFreeflow.open();
+ if(resumedGuest&&!state.user&&(qs.size===0||waitingBinding?.kind==='freeflow'&&waitingBinding.stage==='reserved'&&qs.get('freeflow')===waitingBinding.token))await customerFreeflow.open();
 }
 boot().catch(e=>{window.YT_CLIENT_READY='failed';console.error('Boot:',e);shell(false);$('authError').textContent='系统暂时无法启动：'+errorText(e);});
 
