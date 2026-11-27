@@ -1,5 +1,5 @@
-import {createProductionHistory} from './production-history.mjs?v=20261127-production-history-v50';
-import {createMultiKds} from './kds-multi.mjs?v=20261127-production-history-v50';
+import {createProductionHistory} from './production-history.mjs?v=20261127-original-kds-v51';
+import {createMultiKds} from './kds-multi.mjs?v=20261127-original-kds-v51';
 import {askReason,mountReasonChoices} from './reason-picker.mjs?v=20261127-stock-reasons-v46';
 import {createCatalogAdmin} from './catalog-admin.js?v=20261125-catalog-admin-v37';
 import {createOrderAudit} from './order-audit.js?v=20261125-cancelled-tabs-v35';
@@ -8,7 +8,7 @@ import {createCategoryRail} from './category-rail.mjs?v=20261124-category-scroll
 import {catalogModel,catalogMarkup,syncCatalogSelection} from './catalog-view.mjs?v=20261124-pos-shop-v29';
 import {createRefreshGate,createWorkspaceLiveRefresh} from './live-refresh.mjs?v=20261124-live-refresh-v27';
 import {createOrderAppender} from './order-append.js?v=20261114-drawer-group-kds-v20';
-import {createFreeflowWork} from './freeflow.js?v=20261127-production-history-v50';
+import {createFreeflowWork} from './freeflow.js?v=20261127-original-kds-v51';
 import {createPlayWork} from './play-upgrade.js?v=20261127-stock-reasons-v46';
 import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-settings-v1';
 import {revisionSummary,benefitSummary,revisionHistory,revisionChangesMarkup} from './owner-order-edit.js?v=20261125-revision-ui-v33';
@@ -17,7 +17,7 @@ import {createBannerManager} from '../owner-banners.js?v=20261111-banner-delete-
 import {createConsole} from './console.js?v=20261125-foodcourt-owner-cart-v42';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
 import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261127-stock-reasons-v46';
-import {createStoreBox} from './store-box.js?v=20261127-production-history-v50';
+import {createStoreBox} from './store-box.js?v=20261127-original-kds-v51';
 import {createAmbassadorTools} from './ambassador.js?v=20261114-amba-session-v22';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
