@@ -1,4 +1,4 @@
-import {createMultiKds} from './kds-multi.mjs?v=20261127-kds-compact-v48';
+import {createMultiKds} from './kds-multi.mjs?v=20261127-kds-paired-v49';
 import {askReason,mountReasonChoices} from './reason-picker.mjs?v=20261127-stock-reasons-v46';
 import {createCatalogAdmin} from './catalog-admin.js?v=20261125-catalog-admin-v37';
 import {createOrderAudit} from './order-audit.js?v=20261125-cancelled-tabs-v35';
