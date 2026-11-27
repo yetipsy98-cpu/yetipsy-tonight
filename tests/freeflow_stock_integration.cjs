@@ -1,0 +1,42 @@
+const fs=require('node:fs');const stockPath=process.argv[2];process.argv[2]=undefined;
+const bootstrap=fs.readFileSync('tests/order_append_integration.cjs','utf8').split('const uid=n=>')[0];
+const source=fs.readFileSync('tests/freeflow_independent_integration.cjs','utf8');
+const setup=source.split('const extra=String.raw`')[1].split('const q=async')[0].replaceAll('\\`','`');
+const run=String.raw`
+const q=async(s,p)=>(await db.query(s,p)).rows,uid=n=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
+const ids={owner:uid(1),cashier:uid(2),staff:uid(3),customer:uid(4),limited:uid(5)};for(const id of Object.values(ids))await q('insert into auth.users values($1)',[id]);
+const actor=async role=>q("select set_config('test.role',$1,false),set_config('test.uid',$2,false)",[role,ids[role]]);
+const rpc=async(a,d={})=>(await q('select public.yt_freeflow($1,$2::jsonb) result',[a,JSON.stringify(d)]))[0].result;
+const supply=async(a,d={})=>(await q('select public.yt_freeflow_supply($1,$2::jsonb) result',[a,JSON.stringify(d)]))[0].result;
+await db.exec(fs.readFileSync(stockPath||'supabase/migrations/'+fs.readdirSync('supabase/migrations').find(f=>f.endsWith('_freeflow_daily_stock.sql')),'utf8'));
+await db.exec(fs.readFileSync('supabase/migrations/20261127062019_freeflow_stock_catalog_cleanup.sql','utf8'));
+await q("insert into yt_shop_products(id,title) values($1,'Disposable stock item')",[uid(90)]);await q('insert into private.yt_ff_stock values($1,now(),now(),$2)',[uid(90),ids.owner]);await q('delete from yt_shop_products where id=$1',[uid(90)]);assert.equal((await q('select count(*) n from private.yt_ff_stock where product_id=$1',[uid(90)]))[0].n,0,'catalog cleanup cascades temporary availability only');
+await actor('owner');const menu=uid(10),drink=uid(11),pack=uid(12);
+await q("insert into yt_shop_products(id,title,is_drink,price_rm,category) values($1,'Lychee',true,25,'Classic')",[drink]);
+await q("insert into yt_freeflow_menus(id,name,start_time,end_time) values($1,'Menu','18:00','00:30')",[menu]);await q('insert into yt_freeflow_menu_items values($1,$2)',[menu,drink]);
+await rpc('package_save',{id:pack,name:'FreeFlow Glass',price_rm:45,pax_per_unit:1,menu_id:menu,active:true});
+const order=uid(20);await q("insert into yt_member_orders(id,order_no,amount_rm,created_by,status,pos_business_day) values($1,'YTFF',135,$2,'confirmed',current_date)",[order,ids.owner]);
+await q("insert into yt_member_order_items(order_id,product_id,item_name,quantity,unit_price_rm) values($1,$2,'FreeFlow Glass',3,45)",[order,pack]);
+const group=(await q('select * from yt_freeflow_sessions where order_id=$1',[order]))[0];
+await q("update yt_freeflow_sessions set starts_at=clock_timestamp()-interval '1 hour',ends_at=clock_timestamp()+interval '2 hours' where id=$1",[group.id]);
+await q('update yt_play_upgrade_settings set freeflow_gps_required=false where id');
+await q('insert into pin_accounts(auth_user_id) values($1)',[ids.customer]);
+const code=await rpc('token',{session_id:group.id});await actor('customer');const member=await rpc('bind',{token:code.token});
+const cup=await rpc('order',{member_id:member.member_id,product_id:drink,request_id:uid(30)});
+await actor('cashier');let info=await supply('set',{product_id:drink,sold_out:true});assert.equal(info.products[0].sold_out,true);assert.equal(info.products[0].pending.length,1,'registration preserves existing KDS cups');
+await actor('customer');assert.equal((await rpc('order',{member_id:member.member_id,product_id:drink,request_id:uid(30)})).id,cup.id,'existing accepted request retries remain idempotent');assert.equal((await rpc('mine'))[0].products[0].sold_out,true);await assert.rejects(()=>rpc('order',{member_id:member.member_id,items:[{product_id:drink,quantity:1}],request_id:uid(31)}),/freeflow_sold_out/);
+const guestCode=uid(60);await q('select public.yt_freeflow_guest($1,$2,$3::jsonb)', ['bind',guestCode,JSON.stringify({token:code.token})]);const guestMine=(await q('select public.yt_freeflow_guest($1,$2,$3::jsonb) x',['mine',guestCode,'{}']))[0].x;assert.equal(guestMine[0].products[0].sold_out,true);await assert.rejects(()=>q('select public.yt_freeflow_guest($1,$2,$3::jsonb) x',['order',guestCode,JSON.stringify({member_id:guestMine[0].member_id,product_id:drink,request_id:uid(61)})]),/freeflow_sold_out/);
+await actor('owner');assert.equal((await rpc('work_menu',{session_id:group.id})).products[0].sold_out,true);await assert.rejects(()=>rpc('staff_order',{session_id:group.id,items:[{product_id:drink,quantity:1}],request_id:uid(32)}),/freeflow_sold_out/,'Owner time/quota override does not bypass stock');
+await actor('cashier');const cancelled=await supply('cancel_pending',{product_id:drink,request_ids:[cup.id],reason:'酒款缺货'});assert.equal(cancelled.cancelled,1);assert.equal((await supply('cancel_pending',{product_id:drink,request_ids:[cup.id],reason:'酒款缺货'})).cancelled,0);assert.equal((await rpc('queue')).length,0);
+await actor('customer');await assert.rejects(()=>rpc('order',{member_id:member.member_id,product_id:drink,request_id:uid(35)}),/freeflow_sold_out/);await actor('cashier');await supply('set',{product_id:drink,sold_out:false});await actor('customer');const again=await rpc('order',{member_id:member.member_id,product_id:drink,request_id:uid(33)});assert(again.id,'cancel restores group capacity');
+await actor('cashier');await rpc('complete',{request_id:again.id,status:'served'});assert.equal((await supply('cancel_pending',{product_id:drink,request_ids:[again.id],reason:'酒款缺货'})).cancelled,0,'served cups are never cancelled');
+await supply('set',{product_id:drink,sold_out:true});await q("update private.yt_ff_stock set expires_at=clock_timestamp()-interval '1 second'");await actor('customer');assert.equal((await rpc('mine'))[0].products[0].sold_out,false);assert((await rpc('order',{member_id:member.member_id,product_id:drink,request_id:uid(34)})).id,'expired shortages need no reset job');
+for(const role of ['staff','limited','customer']){await actor(role);await assert.rejects(()=>supply('list'),/cashier_only/);await assert.rejects(()=>supply('set',{product_id:drink,sold_out:true}),/cashier_only/);}
+await actor('owner');assert((await supply('list')).history.length>=3);await actor('cashier');assert.equal((await supply('list')).history.length,0);
+// Exercise the real cross-midnight reset calculation with a six-hour reporting cutoff.
+await q("update yt_freeflow_sessions set status='closed'");await db.exec("create or replace function private.yt_business_day(p_time timestamptz) returns date language sql stable as $$select ($1 at time zone 'Asia/Kuala_Lumpur'-interval '6 hours')::date$$");
+const expiry=(await q("select private.yt_ff_stock_until('2026-11-28T00:15:00+08:00') x"))[0].x;assert.equal(new Date(expiry).toISOString(),'2026-11-27T16:30:00.000Z','shortages end at supply close, not reporting cutoff or midnight');
+await db.close();console.log('PASS actual FreeFlow APIs: cashier-only supply, customer/Owner stale-cart rejection, preserved KDS, explicit cancellation and cap release, served protection, expiry without cron, cross-midnight reset and Owner-only history.');
+})().catch(e=>{console.error(e.message,e.where||'',e.position?e.query?.slice(Number(e.position)-120,Number(e.position)+120):'');process.exit(1);});
+`;
+new Function('require','stockPath',bootstrap+setup+run)(require,stockPath);

@@ -1,3 +1,4 @@
+import {askReason} from './reason-picker.mjs?v=20261127-stock-reasons-v46';
 import {createRefreshGate} from './live-refresh.mjs?v=20261124-live-refresh-v27';
 // Cashier and Owner additions for Play. No direct browser writes to upgrade tables.
 export function createPlayWork({db,notice,isOwner,isCashier,isCashierAccount=()=>false,qrLibrary,getOrders,refreshOrders,onMemberBound}){
@@ -102,7 +103,7 @@ export function createPlayWork({db,notice,isOwner,isCashier,isCashierAccount=()=
   }catch{notice('相机不可用，可粘贴会员码',true);}}
  async function unbindMember(orderId){if(!confirm('只取消这张未付款挂单的会员绑定，确认继续？'))return;try{await rpc('yt_play_unbind_member',{p_order:orderId});notice('会员绑定已取消，可以重新绑定。');await refreshOrders?.(false);}catch(e){notice(({binding_cancel_unpaid_orders_only:'只有未付款挂单才能取消绑定。',member_binding_not_cancellable:'这张订单没有可取消的会员码绑定。',cashier_only:'需要 Cashier 或 Owner 权限。'})[e.message]||e.message,true);}}
  async function refundDecision(orderId){if(!isOwner())return;const revoke=confirm('本单已退款。是否撤回邀请人奖励？\n确认 = 撤回；取消 = 保留。');
-  const note=prompt('请填写退款奖励处理原因（至少两个字）');if(note===null||note.trim().length<2){notice('退款已记录；邀请奖励待 Owner 决定，请补充处理原因。',true);return;}
+  const note=await askReason({title:'退款奖励处理原因',kind:'refund'});if(note===null||note.trim().length<2){notice('退款已记录；邀请奖励待 Owner 决定，请补充处理原因。',true);return;}
   try{const result=await rpc('yt_play_refund_decide',{p_order:orderId,p_revoke:revoke,p_note:note.trim()});notice(result.status==='reversed'?'邀请奖励已撤回':result.status==='reversal_requested'?'奖励已使用，已转 Owner 人工复核':result.status==='retained'?'已记录保留邀请奖励':'本单无邀请奖励');await loadRefundPending();}catch(e){notice(e.message,true);}}
  function bindOrderClicks(){document.body.addEventListener('click',e=>{const qr=e.target.closest('[data-play-order-qr]');if(qr)showOrderCode(qr.dataset.playOrderQr);const scan=e.target.closest('[data-play-member-scan]');if(scan)scanMember(scan.dataset.playMemberScan);const customScan=e.target.closest('[data-play-custom-member-scan]');if(customScan)scanMember(customScan.dataset.playCustomMemberScan,true);const unbind=e.target.closest('[data-play-member-unbind]');if(unbind)unbindMember(unbind.dataset.playMemberUnbind);});}
  return {mount,poll,clear,bindOrderClicks,refundDecision,loadSettings,loadInviteSettings,mapRefresh:()=>setTimeout(()=>leafletMap?.invalidateSize(),100)};

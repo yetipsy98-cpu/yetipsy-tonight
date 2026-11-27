@@ -1,3 +1,4 @@
+import {askReason,mountReasonChoices} from './reason-picker.mjs?v=20261127-stock-reasons-v46';
 import {createCatalogAdmin} from './catalog-admin.js?v=20261125-catalog-admin-v37';
 import {createOrderAudit} from './order-audit.js?v=20261125-cancelled-tabs-v35';
 import {adjustmentPreview} from './adjustment-preview.mjs?v=20261125-cart-offers-v31';
@@ -5,20 +6,21 @@ import {createCategoryRail} from './category-rail.mjs?v=20261124-category-scroll
 import {catalogModel,catalogMarkup,syncCatalogSelection} from './catalog-view.mjs?v=20261124-pos-shop-v29';
 import {createRefreshGate,createWorkspaceLiveRefresh} from './live-refresh.mjs?v=20261124-live-refresh-v27';
 import {createOrderAppender} from './order-append.js?v=20261114-drawer-group-kds-v20';
-import {createFreeflowWork} from './freeflow.js?v=20261126-binding-feedback-v44';
-import {createPlayWork} from './play-upgrade.js?v=20261124-live-refresh-v27';
+import {createFreeflowWork} from './freeflow.js?v=20261127-stock-reasons-v46';
+import {createPlayWork} from './play-upgrade.js?v=20261127-stock-reasons-v46';
 import {isRefreshWindowOpen} from './refresh-schedule.mjs?v=20261016-refresh-settings-v1';
 import {revisionSummary,benefitSummary,revisionHistory,revisionChangesMarkup} from './owner-order-edit.js?v=20261125-revision-ui-v33';
 import {createCustomPricing} from './custom-pricing.js?v=20261125-custom-shop-v36';
 import {createBannerManager} from '../owner-banners.js?v=20261111-banner-delete-v14';
 import {createConsole} from './console.js?v=20261125-foodcourt-owner-cart-v42';
 import {applyReceiptLayout} from './receipt-layout.js?v=20261020-receipt-compact-v3';
-import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261125-revision-ui-v33';
-import {createStoreBox} from './store-box.js?v=20261031-cashier-level-options-v1';
+import {createOwnerOrderApprovals} from './owner-order-approvals.js?v=20261127-stock-reasons-v46';
+import {createStoreBox} from './store-box.js?v=20261127-stock-reasons-v46';
 import {createAmbassadorTools} from './ambassador.js?v=20261114-amba-session-v22';
 
 // Yetipsy POS V1. Order creation and payment transitions always execute on Supabase.
 // The browser never chooses product prices or changes a paid status directly.
+mountReasonChoices(document);
 const $=id=>document.getElementById(id);
 let orderAudit=null,catalogAdmin=null;
 function viewOrderAudit(id){if(!isOwner()&&!isCashier())return;orderAudit??=createOrderAudit({db,canRead:()=>!!state.identity&&(isOwner()||isCashier()),notice:showNotice});return orderAudit.open(id);}
@@ -511,7 +513,7 @@ async function handleDuitNowProofAction(event){
   let approve=false,note=null,result;
   if(action==='cleanup'){result={storage_path:row.storage_path};}
   else{approve=action==='confirm';if(approve&&!window.confirm(`确认 ${row.order_no} 的 ${money(row.amount_rm)} DuitNow 已到账？确认后订单会入账，截图立即删除。`))return;
-   if(!approve){if(!window.confirm(`拒绝 ${row.order_no} 的 DuitNow 记录？订单会恢复为未付款，截图会删除。`))return;note=window.prompt('拒绝原因（可留空）','');if(note===null)return;}
+   if(!approve){if(!window.confirm(`拒绝 ${row.order_no} 的 DuitNow 记录？订单会恢复为未付款，截图会删除。`))return;note=await askReason({title:'拒绝付款记录',kind:'payment',optional:true});if(note===null)return;}
    result=unpack(await db.rpc('yt_pos_duitnow_proof_review',{p_order:row.order_id,p_confirm:approve,p_note:note}));}
   const removed=await db.storage.from('yetipsy-payment-proof').remove([result.storage_path]);
   if(removed.error)throw Error(`状态已记录，但截图删除失败：${removed.error.message}。可在此队列重试。`);
@@ -522,12 +524,12 @@ async function handleDuitNowProofAction(event){
 async function orderAction(orderId,action,container){if(action==='request_cancel'){await openEditDialog(orderId);setEditMode(true);return;}const btn=container;await busy(btn,async()=>{
  if(action==='fulfilled_item'||action==='fulfilled_all'){const itemId=action==='fulfilled_item'?btn.dataset.orderItem:null;if(action==='fulfilled_all'&&!window.confirm('确认整单所有商品都已完成出品？'))return;const result=unpack(await db.rpc('yt_pos_item_fulfill',{p_order:orderId,p_order_item:itemId,p_all:action==='fulfilled_all'}));showNotice(result.status==='fulfilled'?'全部商品已出品；订单保留在订单页待收款。':`已确认出品：${result.item_name||'该商品'}。`);await refreshOrders(false);return;}
  let reason=null,method=null;const sourceRow=[...state.active,...state.pending].find(row=>row.id===orderId);
- if(action==='reject'||action==='cancel'){reason=window.prompt('请填写拒绝／取消原因（必填）','客人取消');if(reason===null)return;if(reason.trim().length<2)throw Error('reason_required');}
+ if(action==='reject'||action==='cancel'){reason=await askReason({title:action==='reject'?'拒绝订单':'取消订单',kind:'cancel'});if(reason===null)return;if(reason.trim().length<2)throw Error('reason_required');}
  if(action==='paid'){const card=btn.closest('.order');method=card?.querySelector('[data-payment]')?.value||'foodcourt';
    const quote=unpack(await db.rpc('yt_pos_cart_summary',{p_order:orderId}));
    if(!quote.can_pay)throw Error('coupon_hold_not_ready_or_expired');
    if(!window.confirm(`确认已收到 ${money(quote.payable_rm)}？\n已预留优惠：−${money(quote.reserved_discount_rm)}\n收款方式：${method.toUpperCase()}\n\n点击确认后才会正式使用顾客奖券。`))return;}
- if(isOwner()&&['paid','fulfilled','accept'].includes(action)){const row=[...state.active,...state.pending].find(x=>x.id===orderId);if(row&&Date.parse(row.created_at)<=Date.now()-72*3600000){reason=window.prompt('Owner 批准处理超过72小时订单，请填写原因','已现场核对');if(reason===null)return;if(reason.trim().length<2)throw Error('reason_required');}}
+ if(isOwner()&&['paid','fulfilled','accept'].includes(action)){const row=[...state.active,...state.pending].find(x=>x.id===orderId);if(row&&Date.parse(row.created_at)<=Date.now()-72*3600000){reason=await askReason({title:'处理超过72小时订单',kind:'closing'});if(reason===null)return;if(reason.trim().length<2)throw Error('reason_required');}}
  if(action==='fulfilled'&&!window.confirm('确认整单所有商品都已完成出品？'))return;
  const result=unpack(await db.rpc('yt_pos_action',{p_order:orderId,p_action:action,p_reason:reason,p_method:method}));
  showNotice(action==='fulfilled'&&result.payment_status==='paid'?'已完成出品，订单完成':({accept:'已接受，订单进入吧台 KDS',reject:'订单已拒绝',fulfilled:'已完成出品，订单进入挂单',paid:'已经记录收款',cancel:'订单已取消'})[action]||'状态已更新');
@@ -843,7 +845,7 @@ async function showUnitQR(token,pass,unit,kind='claim'){
  }catch{badge.textContent='⚠ 无法验证，请检查网络。';}
  const validText=badge.textContent;const tick=()=>{if(!root.isConnected)return clearInterval(state.benefitTimer);const seconds=Math.max(0,Math.ceil((Date.parse(deadline)-Date.now())/1000));badge.textContent=seconds?validText+' · '+seconds+' 秒内确认领取':'二维码已过期，请刷新后重新发放';if(!seconds){square.classList.add('code-expired');clearInterval(state.benefitTimer);}};state.benefitTimer=setInterval(tick,1000);tick();root.scrollIntoView({behavior:'smooth',block:'center'});
 }
-async function cancelBenefitCode(code,button){await busy(button,async()=>{const reason=prompt('取消未领取二维码的原因','重新分配');if(reason===null)return;const id=$('benefitOrderSelect').value;unpack(await db.rpc('yt_pos_cancel_code',{p_pass:code.pass||null,p_bundle:code.bundle||null,p_reason:reason.trim(),p_expected_expiry:code.expiry||null}));if(code.bundle){try{sessionStorage.removeItem(bundleKey(id));}catch{}}clearInterval(state.benefitTimer);state.shownBenefit=null;$('benefitQR').classList.add('hidden');await loadBenefits(id);showNotice('未领取码已取消，当天可重新分配');}).catch(()=>{});}
+async function cancelBenefitCode(code,button){await busy(button,async()=>{const reason=await askReason({title:'取消未领取二维码',kind:'code'});if(reason===null)return;const id=$('benefitOrderSelect').value;unpack(await db.rpc('yt_pos_cancel_code',{p_pass:code.pass||null,p_bundle:code.bundle||null,p_reason:reason.trim(),p_expected_expiry:code.expiry||null}));if(code.bundle){try{sessionStorage.removeItem(bundleKey(id));}catch{}}clearInterval(state.benefitTimer);state.shownBenefit=null;$('benefitQR').classList.add('hidden');await loadBenefits(id);showNotice('未领取码已取消，当天可重新分配');}).catch(()=>{});}
 async function issueWholePass(button){
  const orderId=$('benefitOrderSelect').value;if(!orderId||state.benefitOrder?.order_id!==orderId)throw Error('请先选择已付款订单');
  await busy(button,async()=>{

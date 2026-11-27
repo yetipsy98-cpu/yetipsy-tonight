@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 let source=fs.readFileSync('play/pos/store-box.js','utf8').replace('export function createStoreBox','function createStoreBox');
 source=source.replace('return {loadOwner,loadStaff,loadOrderQueue,clear,cancel};','return {cashierRequestForm,cashierDirectServeForm,cashierSelections};');
 source=source.replaceAll('import.meta.url',JSON.stringify('https://example.test/play/pos/store-box.js'));
-const context={setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(source,context);
+const context={setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(source.replace(/^import .*?;\n/gm,''),context);
 const api=context.createStoreBox({isOwner:()=>true});
 const row={id:'fixture',order_item_id:'item',status:'active',mode:'package',selection_mode:'levels',cashier_serve_allowed:true,remaining_units:3,total_units:3,served_units:0,name:'Challenge',components:[{key:'c1-u1',name:'@YTLEVEL@LV1::Blood Moon',total_units:1,served_units:0},{key:'c2-u1',name:'@YTLEVEL@LV2::Old Fashioned~~Whiskey Sour',total_units:1,served_units:0},{key:'c3-u1',name:'@YTLEVEL@LV3::XYZ~~Tipsy Lemon Tea',total_units:1,served_units:0}]};
 let html=api.cashierRequestForm(row);

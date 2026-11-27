@@ -2,7 +2,7 @@ import {readBindingIntent,saveBindingIntent,clearBindingIntent} from './binding-
 import {hasPendingGuestImport,readGuestCredential} from './freeflow-guest-storage.mjs?v=20261114-cart-append-v19';
 import {createServiceBellClient} from './service-bell-client.mjs?v=20261111-history-entry-fix-v13';
 import {readLocationPolicy,serviceLocation} from './location-policy.mjs?v=20261111-history-entry-fix-v13';
-import {createCustomerFreeflow} from './customer-freeflow.js?v=20261126-guest-auth-return-v45';
+import {createCustomerFreeflow} from './customer-freeflow.js?v=20261127-stock-reasons-v46';
 import {createLuckyBox} from './lucky-box.js?v=20261013-lucky-v2';
 import {buildRewardStacks,rewardAvailability,rewardWindow} from './reward-stacks.js?v=20261009-rewards-v6-2';
 import {createRewardBindingEditor,isBoundReward} from './reward-binding.js?v=20261023-reward-min-zero-v1';
