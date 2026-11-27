@@ -7,17 +7,17 @@ const sql=fs.readFileSync('sql/096_kds_history_storebox_role_privacy.sql','utf8'
 
 test('KDS foregrounds table and cup quantity while keeping notes visible',()=>{
  assert.match(pos,/class="kds-table-number"/);
- assert.match(pos,/class="kds-cup-highlight"/);
- assert.match(box,/class="kds-cup-highlight"/);
- assert.match(css,/\.kds-cup-highlight strong\{[^}]*font-size:38px/);
+ assert.match(pos,/class="kds-state-group"/);
+ assert.match(box,/class="kds-state">待出/);
+ assert.match(css,/\.kds-state-group/);
  assert.match(pos,/备注：\$\{esc\(row\.notes\)\}/);
 });
 
 test('staff can open dated KDS history for regular and Store Box tickets',()=>{
  for(const id of ['kdsHistoryDetails','kdsHistoryDate'])assert.match(html,new RegExp(`id="${id}"`));
  for(const role of ['pos','owner','staff','cashier'])assert(fs.readFileSync(`play/${role}/index.html`,'utf8').includes('admin/pos/'),role+' alias route');
- assert.match(pos,/yt_kds_history/);
- assert.match(pos,/store_box_requests/);
+ assert.match(fs.readFileSync('play/pos/production-history.mjs','utf8'),/yt_kds_production_history/);
+ assert.match(html,/tab-produced/);
  assert.match(sql,/coalesce\(jsonb_agg\(to_jsonb\(x\) order by x\.event_at desc\)/);
  assert.match(sql,/o\.notes/);
 });

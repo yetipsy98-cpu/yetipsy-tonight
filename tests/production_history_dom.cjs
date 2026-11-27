@@ -1,0 +1,14 @@
+const {JSDOM}=require('jsdom'),assert=require('node:assert/strict'),fs=require('node:fs');
+(async()=>{
+ const dom=new JSDOM(fs.readFileSync('play/admin/pos/index.html','utf8'),{url:'https://example.test/play/',pretendToBeVisual:true});global.document=dom.window.document;
+ const q=s=>document.querySelector(s),wait=async f=>{for(let n=0;n<200;n++){if(f())return;await new Promise(r=>setTimeout(r,2));}assert.fail('timeout');};
+ assert.equal(q('#kdsHistoryList').closest('section').id,'tab-produced');assert(!q('#tab-orders #kdsHistoryDetails'));assert.equal(q('[data-go-tab="orders"]').textContent,'待出品');assert.equal(q('[data-go-tab="produced"]').textContent,'已出品');
+ const realInterval=global.setInterval;global.setInterval=()=>1;
+ const {createProductionHistory}=await import('../play/pos/production-history.mjs');let actor='staff',pending=null,hold=false;const calls=[];
+ const db={rpc:async(name,args)=>{assert.equal(name,'yt_kds_production_history');calls.push({...args});if(hold){hold=false;await new Promise(r=>pending=r);}return {data:{total:620,rows:Array.from({length:Math.min(args.p_limit,620-args.p_offset)},(_,i)=>({id:args.p_offset+i,kind:'freeflow',table_label:'A8',order_no:'YT1',name:'Lychee <script>',note:'No ice',actor_name:'cashier01',completed_at:'2026-11-27T13:20:31Z',quantity:2}))}};}};
+ const ui=createProductionHistory({db,root:q('#tab-produced'),getDay:()=> '2026-11-27',getActor:()=>actor,isActive:()=>true,notice:()=>assert.fail('unexpected error')});ui.start();await ui.refresh();assert.equal(q('#kdsHistoryList').children.length,80);assert.equal(q('#kdsHistoryList script'),null);assert(q('#kdsHistoryList').textContent.includes('21:20:31'));assert(q('#kdsHistoryList').textContent.includes('× 2'));assert.equal(calls[0].p_status,'served');
+ for(let i=0;i<7;i++){q('#productionLoadMore').click();await wait(()=>q('#kdsHistoryList').children.length===Math.min(620,(i+2)*80));}
+ assert(q('#productionLoadMore').hidden);await ui.refresh();assert.equal(q('#kdsHistoryList').children.length,620,'live updates keep all loaded pages past 500');assert(calls.every(c=>c.p_limit<=500));
+ q('[data-production-status="cancelled"]').click();await wait(()=>calls.at(-1).p_status==='cancelled'&&!q('#kdsHistoryRefresh').disabled);q('#productionSource').value='freeflow';q('#productionSource').dispatchEvent(new dom.window.Event('change'));await wait(()=>calls.at(-1).p_source==='freeflow'&&!q('#kdsHistoryRefresh').disabled);
+ hold=true;const inflight=ui.refresh();await wait(()=>pending);actor=null;ui.clear();pending();await inflight;assert.equal(q('#kdsHistoryList').children.length,0,'logout prevents stale history from returning');global.setInterval=realInterval;dom.window.close();console.log('PASS produced submenu, escaped records, local serving time, filters, 620-row live pagination and logout race');
+})().catch(e=>{console.error(e);process.exitCode=1;});

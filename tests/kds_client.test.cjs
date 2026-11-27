@@ -8,7 +8,7 @@ const js=fs.readFileSync(path.join(root,'play/pos/pos.js'),'utf8');
 test('all work entry points expose one KDS and one open-tab window',()=>{
  const html=fs.readFileSync(path.join(root,'play/admin/pos/index.html'),'utf8');
  for(const id of ['tab-orders','kdsBoard','storeBoxOrderQueue','activeList','tab-unpaid','unpaidList','checkoutPayNow','checkoutPayLater'])assert.match(html,new RegExp(`id="${id}"`),id);
- assert.match(html,/吧台 KDS/);assert.match(html,/后付 \/ 挂单/);
+ assert.match(html,/待出品/);assert.match(html,/已出品/);assert.match(html,/后付 \/ 挂单/);
  for(const role of ['pos','owner','staff','cashier'])assert(fs.readFileSync(path.join(root,`play/${role}/index.html`),'utf8').includes('admin/pos/'),role+' alias route');
 });
 
