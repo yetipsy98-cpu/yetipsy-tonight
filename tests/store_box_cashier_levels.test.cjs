@@ -2,7 +2,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
 let source=fs.readFileSync('play/pos/store-box.js','utf8').replace('export function createStoreBox','function createStoreBox');
-source=source.replace('return {loadOwner,loadStaff,loadOrderQueue,clear,cancel};','return {cashierRequestForm,cashierDirectServeForm,cashierSelections};');
+source=source.replace('return {loadOwner,loadStaff,loadOrderQueue,clear,cancel,afterMultiServe};','return {cashierRequestForm,cashierDirectServeForm,cashierSelections};');
 source=source.replaceAll('import.meta.url',JSON.stringify('https://example.test/play/pos/store-box.js'));
 const context={setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(source.replace(/^import .*?;\n/gm,''),context);
 const api=context.createStoreBox({isOwner:()=>true});

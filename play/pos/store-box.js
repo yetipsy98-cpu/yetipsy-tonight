@@ -251,5 +251,10 @@ async function reviewReopen(id,action,button){await busy(button,async()=>{await 
  orderRoot?.addEventListener('click',event=>{const action=event.target.closest('[data-box-request-action]');if(action)requestAction(action.dataset.request,action.dataset.boxRequestAction,action).catch(error=>say(error.message,true));});
  function clear(){state.staffEpoch++;state.queueEpoch++;state.searchEpoch++;clearTimeout(state.searchTimer);closeQR();state.searchQuery='';state.searchResults=null;state.searchError=null;state.reopenRequests=[];state.directServeItemId='';state.rules=[];state.orders=[];state.pendingIssue=[];state.claims=[];state.queue=[];state.boxes=[];state.staffSnapshot=null;state.history=null;state.historyDay=null;state.historyError=null;if(ownerRoot)ownerRoot.innerHTML='<div class="card"><div class="empty">请使用 Owner 登录。</div></div>';if(staffRoot)staffRoot.innerHTML='<div class="card"><div class="empty">请先登录工作台。</div></div>';if(orderRoot)orderRoot.innerHTML='<div class="empty">请先登录工作台。</div>';onQueueChange?.([]);}
  function cancel(){state.staffEpoch++;state.queueEpoch++;closeQR();}
- return {loadOwner,loadStaff,loadOrderQueue,clear,cancel};
+ async function afterMultiServe(boxes){
+  for(const box of boxes||[]){if(!box?.cashier_managed||box.customer_id||Number(box.served_units)>=Number(box.total_units))continue;
+   try{const issued=await rpc(db,'yt_store_box_issue',{p_order_item:box.source_order_item_id,p_token:crypto.randomUUID(),p_request:crypto.randomUUID(),p_minutes:15});const qr={...box,...issued,name:box.name||'存酒箱领取'};state.qr=qr;await showQR(qr);say('已确认出杯，剩余存酒箱领取 QR 已生成。');}catch{say('出杯已记录，剩余杯数已保留；领取 QR 请到存酒箱页面生成。',true);}
+  }
+ }
+ return {loadOwner,loadStaff,loadOrderQueue,clear,cancel,afterMultiServe};
 }
